@@ -18,6 +18,16 @@ export function Header() {
     { to: "/contact", label: t.nav.contact },
   ] as const;
 
+  const mobileLinks = [
+    { to: "/", label: t.nav.home },
+    { to: "/about", label: t.nav.about },
+    { to: "/sectors", label: t.nav.sectors },
+    { to: "/markets", label: t.nav.markets },
+    { to: "/why-choose-wossol-export", label: t.nav.whyChoose },
+    { to: "/opportunities", label: t.nav.opportunities },
+    { to: "/contact", label: t.nav.contact },
+  ] as const;
+
   return (
     <header className="sticky top-0 z-50 border-b border-border bg-background/95 backdrop-blur">
       <div className="container-page flex h-16 items-center justify-between gap-4">
