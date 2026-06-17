@@ -134,7 +134,7 @@ function Contact() {
                 </div>
                 <div className="sm:col-span-2">
                   <button type="submit" className="inline-flex w-full items-center justify-center gap-2 rounded-md bg-navy px-6 py-3 text-sm font-semibold text-navy-foreground transition-colors hover:bg-deep-navy sm:w-auto">
-                    {c.fields.message && t.cta.send}
+                    {t.cta.send}
                   </button>
                 </div>
               </form>

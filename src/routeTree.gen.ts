@@ -9,19 +9,37 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as WhyChooseWossolExportRouteImport } from './routes/why-choose-wossol-export'
 import { Route as SectorsRouteImport } from './routes/sectors'
+import { Route as OpportunitiesRouteImport } from './routes/opportunities'
 import { Route as MarketsRouteImport } from './routes/markets'
+import { Route as ContactRouteImport } from './routes/contact'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
 
+const WhyChooseWossolExportRoute = WhyChooseWossolExportRouteImport.update({
+  id: '/why-choose-wossol-export',
+  path: '/why-choose-wossol-export',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SectorsRoute = SectorsRouteImport.update({
   id: '/sectors',
   path: '/sectors',
   getParentRoute: () => rootRouteImport,
 } as any)
+const OpportunitiesRoute = OpportunitiesRouteImport.update({
+  id: '/opportunities',
+  path: '/opportunities',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const MarketsRoute = MarketsRouteImport.update({
   id: '/markets',
   path: '/markets',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ContactRoute = ContactRouteImport.update({
+  id: '/contact',
+  path: '/contact',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AboutRoute = AboutRouteImport.update({
@@ -38,39 +56,80 @@ const IndexRoute = IndexRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
+  '/contact': typeof ContactRoute
   '/markets': typeof MarketsRoute
+  '/opportunities': typeof OpportunitiesRoute
   '/sectors': typeof SectorsRoute
+  '/why-choose-wossol-export': typeof WhyChooseWossolExportRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
+  '/contact': typeof ContactRoute
   '/markets': typeof MarketsRoute
+  '/opportunities': typeof OpportunitiesRoute
   '/sectors': typeof SectorsRoute
+  '/why-choose-wossol-export': typeof WhyChooseWossolExportRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
+  '/contact': typeof ContactRoute
   '/markets': typeof MarketsRoute
+  '/opportunities': typeof OpportunitiesRoute
   '/sectors': typeof SectorsRoute
+  '/why-choose-wossol-export': typeof WhyChooseWossolExportRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/about' | '/markets' | '/sectors'
+  fullPaths:
+    | '/'
+    | '/about'
+    | '/contact'
+    | '/markets'
+    | '/opportunities'
+    | '/sectors'
+    | '/why-choose-wossol-export'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/about' | '/markets' | '/sectors'
-  id: '__root__' | '/' | '/about' | '/markets' | '/sectors'
+  to:
+    | '/'
+    | '/about'
+    | '/contact'
+    | '/markets'
+    | '/opportunities'
+    | '/sectors'
+    | '/why-choose-wossol-export'
+  id:
+    | '__root__'
+    | '/'
+    | '/about'
+    | '/contact'
+    | '/markets'
+    | '/opportunities'
+    | '/sectors'
+    | '/why-choose-wossol-export'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AboutRoute: typeof AboutRoute
+  ContactRoute: typeof ContactRoute
   MarketsRoute: typeof MarketsRoute
+  OpportunitiesRoute: typeof OpportunitiesRoute
   SectorsRoute: typeof SectorsRoute
+  WhyChooseWossolExportRoute: typeof WhyChooseWossolExportRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/why-choose-wossol-export': {
+      id: '/why-choose-wossol-export'
+      path: '/why-choose-wossol-export'
+      fullPath: '/why-choose-wossol-export'
+      preLoaderRoute: typeof WhyChooseWossolExportRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/sectors': {
       id: '/sectors'
       path: '/sectors'
@@ -78,11 +137,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SectorsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/opportunities': {
+      id: '/opportunities'
+      path: '/opportunities'
+      fullPath: '/opportunities'
+      preLoaderRoute: typeof OpportunitiesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/markets': {
       id: '/markets'
       path: '/markets'
       fullPath: '/markets'
       preLoaderRoute: typeof MarketsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/contact': {
+      id: '/contact'
+      path: '/contact'
+      fullPath: '/contact'
+      preLoaderRoute: typeof ContactRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/about': {
@@ -105,8 +178,11 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AboutRoute: AboutRoute,
+  ContactRoute: ContactRoute,
   MarketsRoute: MarketsRoute,
+  OpportunitiesRoute: OpportunitiesRoute,
   SectorsRoute: SectorsRoute,
+  WhyChooseWossolExportRoute: WhyChooseWossolExportRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
