@@ -24,10 +24,12 @@ function Contact() {
   const { t } = useLanguage();
   const c = t.contact;
   const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const onSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (submitting) return; // prevent duplicate submissions
     const fd = new FormData(e.currentTarget);
     const next: Record<string, string> = {};
     const name = (fd.get("fullName") as string)?.trim();
@@ -38,11 +40,18 @@ function Contact() {
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) next.email = c.invalidEmail;
     if (!message) next.message = c.required;
     setErrors(next);
-    if (Object.keys(next).length === 0) {
+    if (Object.keys(next).length > 0) return; // keep form data on validation error
+
+    const form = e.currentTarget;
+    setSubmitting(true);
+    // Simulate async handling with a brief loading state
+    window.setTimeout(() => {
+      setSubmitting(false);
       setSubmitted(true);
-      e.currentTarget.reset();
-    }
+      form.reset();
+    }, 700);
   };
+
 
   const inputCls =
     "w-full rounded-md border border-input bg-background px-3.5 py-2.5 text-sm text-foreground outline-none focus:border-gold focus:ring-2 focus:ring-gold/30";
