@@ -235,6 +235,9 @@ const en = {
     finalCta: "We look forward to a serious commercial conversation.",
     required: "This field is required",
     invalidEmail: "Please enter a valid email address",
+    privacyNote: "Your information will only be used to review and respond to your commercial inquiry.",
+    sending: "Sending…",
+    errorBanner: "Please correct the highlighted fields and try again.",
   },
   privacy: {
     metaTitle: "Privacy Policy | Wossol Export",
@@ -486,6 +489,9 @@ const fr: typeof en = {
     finalCta: "Nous attendons avec intérêt une conversation commerciale sérieuse.",
     required: "Ce champ est obligatoire",
     invalidEmail: "Veuillez saisir une adresse e-mail valide",
+    privacyNote: "Vos informations seront utilisées uniquement pour examiner votre demande commerciale et y répondre.",
+    sending: "Envoi…",
+    errorBanner: "Veuillez corriger les champs indiqués et réessayer.",
   },
   privacy: {
     metaTitle: "Politique de confidentialité | Wossol Export",
@@ -736,6 +742,9 @@ const ar: typeof en = {
     finalCta: "نتطلّع إلى حوار تجاري جاد.",
     required: "هذا الحقل مطلوب",
     invalidEmail: "يرجى إدخال بريد إلكتروني صالح",
+    privacyNote: "سيتم استخدام بياناتك فقط لمراجعة طلبك التجاري والرد عليه.",
+    sending: "جارٍ الإرسال…",
+    errorBanner: "يرجى تصحيح الحقول المحدّدة والمحاولة مرة أخرى.",
   },
   privacy: {
     metaTitle: "سياسة الخصوصية | وصول إكسبورت",
