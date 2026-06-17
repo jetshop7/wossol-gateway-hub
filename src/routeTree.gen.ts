@@ -10,7 +10,9 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as WhyChooseWossolExportRouteImport } from './routes/why-choose-wossol-export'
+import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as SectorsRouteImport } from './routes/sectors'
+import { Route as PrivacyPolicyRouteImport } from './routes/privacy-policy'
 import { Route as OpportunitiesRouteImport } from './routes/opportunities'
 import { Route as MarketsRouteImport } from './routes/markets'
 import { Route as ContactRouteImport } from './routes/contact'
@@ -22,9 +24,19 @@ const WhyChooseWossolExportRoute = WhyChooseWossolExportRouteImport.update({
   path: '/why-choose-wossol-export',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
+  id: '/sitemap.xml',
+  path: '/sitemap.xml',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SectorsRoute = SectorsRouteImport.update({
   id: '/sectors',
   path: '/sectors',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PrivacyPolicyRoute = PrivacyPolicyRouteImport.update({
+  id: '/privacy-policy',
+  path: '/privacy-policy',
   getParentRoute: () => rootRouteImport,
 } as any)
 const OpportunitiesRoute = OpportunitiesRouteImport.update({
@@ -59,7 +71,9 @@ export interface FileRoutesByFullPath {
   '/contact': typeof ContactRoute
   '/markets': typeof MarketsRoute
   '/opportunities': typeof OpportunitiesRoute
+  '/privacy-policy': typeof PrivacyPolicyRoute
   '/sectors': typeof SectorsRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/why-choose-wossol-export': typeof WhyChooseWossolExportRoute
 }
 export interface FileRoutesByTo {
@@ -68,7 +82,9 @@ export interface FileRoutesByTo {
   '/contact': typeof ContactRoute
   '/markets': typeof MarketsRoute
   '/opportunities': typeof OpportunitiesRoute
+  '/privacy-policy': typeof PrivacyPolicyRoute
   '/sectors': typeof SectorsRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/why-choose-wossol-export': typeof WhyChooseWossolExportRoute
 }
 export interface FileRoutesById {
@@ -78,7 +94,9 @@ export interface FileRoutesById {
   '/contact': typeof ContactRoute
   '/markets': typeof MarketsRoute
   '/opportunities': typeof OpportunitiesRoute
+  '/privacy-policy': typeof PrivacyPolicyRoute
   '/sectors': typeof SectorsRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/why-choose-wossol-export': typeof WhyChooseWossolExportRoute
 }
 export interface FileRouteTypes {
@@ -89,7 +107,9 @@ export interface FileRouteTypes {
     | '/contact'
     | '/markets'
     | '/opportunities'
+    | '/privacy-policy'
     | '/sectors'
+    | '/sitemap.xml'
     | '/why-choose-wossol-export'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -98,7 +118,9 @@ export interface FileRouteTypes {
     | '/contact'
     | '/markets'
     | '/opportunities'
+    | '/privacy-policy'
     | '/sectors'
+    | '/sitemap.xml'
     | '/why-choose-wossol-export'
   id:
     | '__root__'
@@ -107,7 +129,9 @@ export interface FileRouteTypes {
     | '/contact'
     | '/markets'
     | '/opportunities'
+    | '/privacy-policy'
     | '/sectors'
+    | '/sitemap.xml'
     | '/why-choose-wossol-export'
   fileRoutesById: FileRoutesById
 }
@@ -117,7 +141,9 @@ export interface RootRouteChildren {
   ContactRoute: typeof ContactRoute
   MarketsRoute: typeof MarketsRoute
   OpportunitiesRoute: typeof OpportunitiesRoute
+  PrivacyPolicyRoute: typeof PrivacyPolicyRoute
   SectorsRoute: typeof SectorsRoute
+  SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   WhyChooseWossolExportRoute: typeof WhyChooseWossolExportRoute
 }
 
@@ -130,11 +156,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof WhyChooseWossolExportRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/sitemap.xml': {
+      id: '/sitemap.xml'
+      path: '/sitemap.xml'
+      fullPath: '/sitemap.xml'
+      preLoaderRoute: typeof SitemapDotxmlRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/sectors': {
       id: '/sectors'
       path: '/sectors'
       fullPath: '/sectors'
       preLoaderRoute: typeof SectorsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/privacy-policy': {
+      id: '/privacy-policy'
+      path: '/privacy-policy'
+      fullPath: '/privacy-policy'
+      preLoaderRoute: typeof PrivacyPolicyRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/opportunities': {
@@ -181,7 +221,9 @@ const rootRouteChildren: RootRouteChildren = {
   ContactRoute: ContactRoute,
   MarketsRoute: MarketsRoute,
   OpportunitiesRoute: OpportunitiesRoute,
+  PrivacyPolicyRoute: PrivacyPolicyRoute,
   SectorsRoute: SectorsRoute,
+  SitemapDotxmlRoute: SitemapDotxmlRoute,
   WhyChooseWossolExportRoute: WhyChooseWossolExportRoute,
 }
 export const routeTree = rootRouteImport

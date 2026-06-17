@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { translations } from "@/i18n/translations";
-import { PrimaryLink, OutlineLink, SectionHeading, CtaBand } from "@/components/site";
+import { PrimaryLink, OutlineLink, SectionHeading } from "@/components/site";
 import { WHATSAPP_URL } from "@/lib/site";
 import { MessageCircle } from "lucide-react";
 import hero from "@/assets/hero.jpg";
