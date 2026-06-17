@@ -103,6 +103,11 @@ function Contact() {
               </div>
             ) : (
               <form onSubmit={onSubmit} noValidate className="mt-6 grid gap-4 sm:grid-cols-2">
+                {Object.keys(errors).length > 0 && (
+                  <div className="sm:col-span-2 rounded-md border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive" role="alert">
+                    {c.errorBanner}
+                  </div>
+                )}
                 <Field label={c.fields.fullName} error={errors.fullName}>
                   <input name="fullName" className={inputCls} maxLength={100} />
                 </Field>
@@ -141,9 +146,10 @@ function Contact() {
                     <textarea name="message" rows={5} className={inputCls} maxLength={1500} />
                   </Field>
                 </div>
+                <p className="sm:col-span-2 text-xs leading-relaxed text-muted-foreground">{c.privacyNote}</p>
                 <div className="sm:col-span-2">
-                  <button type="submit" className="inline-flex w-full items-center justify-center gap-2 rounded-md bg-navy px-6 py-3 text-sm font-semibold text-navy-foreground transition-colors hover:bg-deep-navy sm:w-auto">
-                    {t.cta.send}
+                  <button type="submit" disabled={submitting} className="inline-flex w-full items-center justify-center gap-2 rounded-md bg-navy px-6 py-3 text-sm font-semibold text-navy-foreground transition-colors hover:bg-deep-navy disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto">
+                    {submitting ? c.sending : t.cta.send}
                   </button>
                 </div>
               </form>
