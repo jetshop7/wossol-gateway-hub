@@ -88,7 +88,7 @@ export function Header() {
       {open && (
         <div className="border-t border-border bg-background lg:hidden">
           <nav className="container-page flex flex-col py-3">
-            {links.map((l) => (
+            {mobileLinks.map((l) => (
               <Link
                 key={l.to}
                 to={l.to}
