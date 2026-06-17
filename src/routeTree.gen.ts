@@ -9,8 +9,26 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as SectorsRouteImport } from './routes/sectors'
+import { Route as MarketsRouteImport } from './routes/markets'
+import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
 
+const SectorsRoute = SectorsRouteImport.update({
+  id: '/sectors',
+  path: '/sectors',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MarketsRoute = MarketsRouteImport.update({
+  id: '/markets',
+  path: '/markets',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AboutRoute = AboutRouteImport.update({
+  id: '/about',
+  path: '/about',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -19,28 +37,61 @@ const IndexRoute = IndexRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/about': typeof AboutRoute
+  '/markets': typeof MarketsRoute
+  '/sectors': typeof SectorsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/about': typeof AboutRoute
+  '/markets': typeof MarketsRoute
+  '/sectors': typeof SectorsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/about': typeof AboutRoute
+  '/markets': typeof MarketsRoute
+  '/sectors': typeof SectorsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths: '/' | '/about' | '/markets' | '/sectors'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to: '/' | '/about' | '/markets' | '/sectors'
+  id: '__root__' | '/' | '/about' | '/markets' | '/sectors'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AboutRoute: typeof AboutRoute
+  MarketsRoute: typeof MarketsRoute
+  SectorsRoute: typeof SectorsRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/sectors': {
+      id: '/sectors'
+      path: '/sectors'
+      fullPath: '/sectors'
+      preLoaderRoute: typeof SectorsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/markets': {
+      id: '/markets'
+      path: '/markets'
+      fullPath: '/markets'
+      preLoaderRoute: typeof MarketsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/about': {
+      id: '/about'
+      path: '/about'
+      fullPath: '/about'
+      preLoaderRoute: typeof AboutRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -53,6 +104,9 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AboutRoute: AboutRoute,
+  MarketsRoute: MarketsRoute,
+  SectorsRoute: SectorsRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
