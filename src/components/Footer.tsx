@@ -13,6 +13,7 @@ export function Footer() {
     { to: "/about", label: t.nav.about },
     { to: "/sectors", label: t.nav.sectors },
     { to: "/markets", label: t.nav.markets },
+    { to: "/why-choose-wossol-export", label: t.nav.whyChoose },
     { to: "/opportunities", label: t.nav.opportunities },
     { to: "/contact", label: t.nav.contact },
   ] as const;
