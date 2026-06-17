@@ -9,15 +9,11 @@ export function Header() {
   const { t, lang, setLang } = useLanguage();
   const [open, setOpen] = useState(false);
 
-  const whyDesktopLabel =
-    lang === "ar" ? "لماذا نحن" : lang === "fr" ? "Pourquoi nous choisir" : "Why Choose";
-
   const links = [
     { to: "/", label: t.nav.home },
     { to: "/about", label: t.nav.about },
     { to: "/sectors", label: t.nav.sectors },
     { to: "/markets", label: t.nav.markets },
-    { to: "/why-choose-wossol-export", label: whyDesktopLabel },
     { to: "/opportunities", label: t.nav.opportunities },
     { to: "/contact", label: t.nav.contact },
   ] as const;
@@ -39,13 +35,13 @@ export function Header() {
           <Logo />
         </Link>
 
-        <nav className="hidden min-w-0 flex-1 items-center justify-center gap-4 xl:gap-5 lg:flex">
+        <nav className="hidden items-center gap-6 lg:flex">
           {links.map((l) => (
             <Link
               key={l.to}
               to={l.to}
-              className="text-xs font-medium leading-tight text-foreground/80 transition-colors hover:text-navy xl:text-sm"
-              activeProps={{ className: "text-xs xl:text-sm font-semibold leading-tight text-navy" }}
+              className="text-sm font-medium text-foreground/80 transition-colors hover:text-navy"
+              activeProps={{ className: "text-sm font-semibold text-navy" }}
               activeOptions={{ exact: l.to === "/" }}
             >
               {l.label}
