@@ -104,6 +104,9 @@ function Home() {
               );
             })}
           </div>
+          <div className="mt-10 text-center">
+            <OutlineLink to="/why-choose-wossol-export">{t.cta.learnMore}</OutlineLink>
+          </div>
         </div>
       </section>
 
