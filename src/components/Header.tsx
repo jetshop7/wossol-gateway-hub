@@ -5,25 +5,23 @@ import { Logo } from "./Logo";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { LANGS, type Lang } from "@/i18n/translations";
 
+const WHY_CHOOSE_LABEL: Record<Lang, string> = {
+  en: "Why Choose",
+  fr: "Pourquoi nous",
+  ar: "لماذا نحن",
+};
+
 export function Header() {
   const { t, lang, setLang } = useLanguage();
   const [open, setOpen] = useState(false);
+  const whyChooseLabel = WHY_CHOOSE_LABEL[lang];
 
   const links = [
     { to: "/", label: t.nav.home },
     { to: "/about", label: t.nav.about },
     { to: "/sectors", label: t.nav.sectors },
     { to: "/markets", label: t.nav.markets },
-    { to: "/opportunities", label: t.nav.opportunities },
-    { to: "/contact", label: t.nav.contact },
-  ] as const;
-
-  const mobileLinks = [
-    { to: "/", label: t.nav.home },
-    { to: "/about", label: t.nav.about },
-    { to: "/sectors", label: t.nav.sectors },
-    { to: "/markets", label: t.nav.markets },
-    { to: "/why-choose-wossol-export", label: t.nav.whyChoose },
+    { to: "/why-choose-wossol-export", label: whyChooseLabel },
     { to: "/opportunities", label: t.nav.opportunities },
     { to: "/contact", label: t.nav.contact },
   ] as const;
@@ -35,13 +33,13 @@ export function Header() {
           <Logo />
         </Link>
 
-        <nav className="hidden items-center gap-6 lg:flex">
+        <nav className="hidden items-center gap-4 xl:flex">
           {links.map((l) => (
             <Link
               key={l.to}
               to={l.to}
-              className="text-sm font-medium text-foreground/80 transition-colors hover:text-navy"
-              activeProps={{ className: "text-sm font-semibold text-navy" }}
+              className="text-xs font-medium text-foreground/80 transition-colors hover:text-navy 2xl:text-sm"
+              activeProps={{ className: "text-xs font-semibold text-navy 2xl:text-sm" }}
               activeOptions={{ exact: l.to === "/" }}
             >
               {l.label}
@@ -75,7 +73,7 @@ export function Header() {
           </Link>
 
           <button
-            className="grid h-10 w-10 place-items-center rounded-md text-navy lg:hidden"
+            className="grid h-10 w-10 place-items-center rounded-md text-navy xl:hidden"
             onClick={() => setOpen((v) => !v)}
             aria-label="Menu"
             aria-expanded={open}
@@ -86,9 +84,9 @@ export function Header() {
       </div>
 
       {open && (
-        <div className="border-t border-border bg-background lg:hidden">
+        <div className="border-t border-border bg-background xl:hidden">
           <nav className="container-page flex flex-col py-3">
-            {mobileLinks.map((l) => (
+            {links.map((l) => (
               <Link
                 key={l.to}
                 to={l.to}
