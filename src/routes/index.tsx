@@ -15,7 +15,7 @@ import {
   ArrowRight,
 } from "lucide-react";
 import { useLanguage } from "@/i18n/LanguageContext";
-import { translations } from "@/i18n/translations";
+import { translations, type Lang } from "@/i18n/translations";
 import { PrimaryLink, OutlineLink, SectionHeading } from "@/components/site";
 import { WHATSAPP_URL } from "@/lib/site";
 import { MessageCircle } from "lucide-react";
@@ -36,9 +36,56 @@ export const Route = createFileRoute("/")({
 
 const whyIcons = [ShieldCheck, Cog, Handshake, Globe2, MapPin, TrendingUp];
 const sectorIcons = [Wheat, Sprout, Building2, Factory, Wrench, ShoppingBag];
+const exportSignalIcons = [Factory, ShoppingBag, Globe2];
+
+const EXPORT_SIGNALS: Record<Lang, { t: string; d: string }[]> = {
+  en: [
+    {
+      t: "Commercial export activity",
+      d: "Trade and export work connected to real goods, sectors, demand, and executable commercial opportunities.",
+    },
+    {
+      t: "Goods across multiple sectors",
+      d: "We work with suitable product categories without presenting the website as a fixed product catalog.",
+    },
+    {
+      t: "International trade routes",
+      d: "From Algeria, we support serious trade conversations across promising markets and commercial routes.",
+    },
+  ],
+  fr: [
+    {
+      t: "Activité d'export commerciale",
+      d: "Un travail de commerce et d'export lié aux biens réels, aux secteurs, à la demande et aux opportunités exécutables.",
+    },
+    {
+      t: "Biens sur plusieurs secteurs",
+      d: "Nous travaillons avec des catégories de produits adaptées, sans présenter le site comme un catalogue fixe.",
+    },
+    {
+      t: "Routes de commerce international",
+      d: "Depuis l'Algérie, nous soutenons des échanges commerciaux sérieux sur des marchés et routes prometteurs.",
+    },
+  ],
+  ar: [
+    {
+      t: "نشاط تصدير تجاري",
+      d: "عمل في التجارة والتصدير مرتبط ببضائع وقطاعات وطلب حقيقي وفرص تجارية قابلة للتنفيذ.",
+    },
+    {
+      t: "بضائع عبر قطاعات متعددة",
+      d: "نعمل مع فئات منتجات مناسبة دون تحويل الموقع إلى كتالوج منتجات ثابت.",
+    },
+    {
+      t: "مسارات تجارة دولية",
+      d: "من الجزائر، ندعم تواصلاً تجارياً جاداً عبر أسواق ومسارات تجارية واعدة.",
+    },
+  ],
+};
 
 function Home() {
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
+  const exportSignals = EXPORT_SIGNALS[lang];
 
   return (
     <>
@@ -80,6 +127,26 @@ function Home() {
               </li>
             ))}
           </ul>
+        </div>
+      </section>
+
+      {/* Export positioning */}
+      <section className="border-y border-border bg-background">
+        <div className="container-page grid gap-4 py-8 md:grid-cols-3">
+          {exportSignals.map((item, i) => {
+            const Icon = exportSignalIcons[i];
+            return (
+              <div key={item.t} className="flex gap-4 rounded-xl border border-border bg-card p-5 shadow-[var(--shadow-card)]">
+                <span className="grid h-11 w-11 shrink-0 place-items-center rounded-md bg-gold/15 text-navy">
+                  <Icon className="h-5 w-5" />
+                </span>
+                <div>
+                  <h2 className="text-base font-semibold text-navy">{item.t}</h2>
+                  <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{item.d}</p>
+                </div>
+              </div>
+            );
+          })}
         </div>
       </section>
 
