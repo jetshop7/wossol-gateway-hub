@@ -38,6 +38,27 @@ const whyIcons = [ShieldCheck, Cog, Handshake, Globe2, MapPin, TrendingUp];
 const sectorIcons = [Wheat, Sprout, Building2, Factory, Wrench, ShoppingBag];
 const exportSignalIcons = [Factory, ShoppingBag, Globe2];
 
+const HOME_EXPORT_COPY: Record<Lang, { heroText: string; snapshotText: string }> = {
+  en: {
+    heroText:
+      "Wossol Export is an Algerian international trade and export company working with goods, sectors, and trade opportunities across multiple promising markets. Starting from Algeria as a gateway to Africa and a trade bridge close to Europe with a wider Middle East reach, we develop export-oriented commercial activity through professional relationships, market understanding, execution capability, trust, and mutual benefit.",
+    snapshotText:
+      "Wossol Export is an Algerian company active in international trade and export, working with commercial goods and multiple sectors through market understanding, professional relationships, and a global vision to develop trust-based business across promising markets.",
+  },
+  fr: {
+    heroText:
+      "Wossol Export est une entreprise algérienne de commerce international et d'export qui travaille avec des biens, des secteurs et des opportunités commerciales sur plusieurs marchés prometteurs. Partant de l'Algérie comme porte vers l'Afrique et pont commercial proche de l'Europe, avec une portée élargie vers le Moyen-Orient, nous développons une activité commerciale orientée export grâce aux relations professionnelles, à la compréhension des marchés, à la capacité d'exécution, à la confiance et au bénéfice mutuel.",
+    snapshotText:
+      "Wossol Export est une entreprise algérienne active dans le commerce international et l'export, travaillant avec des biens commerciaux et plusieurs secteurs grâce à la compréhension des marchés, aux relations professionnelles et à une vision globale pour développer des affaires fondées sur la confiance à travers des marchés prometteurs.",
+  },
+  ar: {
+    heroText:
+      "وصول إكسبورت شركة جزائرية للتجارة الدولية والتصدير تعمل مع البضائع والقطاعات والفرص التجارية عبر أسواق واعدة متعددة. انطلاقًا من الجزائر كبوابة نحو إفريقيا وجسر تجاري قريب من أوروبا مع امتداد أوسع نحو الشرق الأوسط، نطوّر نشاطًا تجاريًا موجّهًا للتصدير من خلال العلاقات المهنية، فهم الأسواق، القدرة على التنفيذ، الثقة، والمنفعة المتبادلة.",
+    snapshotText:
+      "وصول إكسبورت شركة جزائرية نشطة في التجارة الدولية والتصدير، تعمل مع بضائع تجارية وقطاعات متعددة من خلال فهم الأسواق والعلاقات المهنية والرؤية العالمية لتطوير أعمال قائمة على الثقة عبر أسواق واعدة متعددة.",
+  },
+};
+
 const EXPORT_SIGNALS: Record<Lang, { t: string; d: string }[]> = {
   en: [
     {
@@ -86,6 +107,7 @@ const EXPORT_SIGNALS: Record<Lang, { t: string; d: string }[]> = {
 function Home() {
   const { t, lang } = useLanguage();
   const exportSignals = EXPORT_SIGNALS[lang];
+  const homeCopy = HOME_EXPORT_COPY[lang];
 
   return (
     <>
@@ -111,7 +133,7 @@ function Home() {
             ))}
           </h1>
           <p className="mt-6 max-w-2xl text-base leading-relaxed text-deep-navy-foreground/80 md:text-lg">
-            {t.home.heroText}
+            {homeCopy.heroText}
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
             <PrimaryLink to="/contact">{t.cta.contactUs}</PrimaryLink>
@@ -181,7 +203,7 @@ function Home() {
       <section className="section-pad bg-off-white">
         <div className="container-page grid items-center gap-10 lg:grid-cols-2">
           <div>
-            <SectionHeading title={t.home.snapshotTitle} text={t.home.snapshotText} />
+            <SectionHeading title={t.home.snapshotTitle} text={homeCopy.snapshotText} />
             <div className="mt-7">
               <PrimaryLink to="/about">{t.cta.discoverMore}</PrimaryLink>
             </div>
