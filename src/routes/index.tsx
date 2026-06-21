@@ -158,8 +158,8 @@ function Home() {
           {exportSignals.map((item, i) => {
             const Icon = exportSignalIcons[i];
             return (
-              <div key={item.t} className="flex gap-4 rounded-xl border border-border bg-card p-5 shadow-[var(--shadow-card)]">
-                <span className="grid h-11 w-11 shrink-0 place-items-center rounded-md bg-gold/15 text-navy">
+              <div key={item.t} className="flex gap-3 rounded-xl border border-border bg-card p-4 shadow-[var(--shadow-card)] md:gap-4 md:p-5">
+                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-md bg-gold/15 text-navy md:h-11 md:w-11">
                   <Icon className="h-5 w-5" />
                 </span>
                 <div>
@@ -176,24 +176,24 @@ function Home() {
       <section className="section-pad bg-background">
         <div className="container-page">
           <SectionHeading center title={t.home.whyTitle} />
-          <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="mt-8 grid gap-4 sm:grid-cols-2 md:mt-12 md:gap-6 lg:grid-cols-3">
             {t.home.why.map((c, i) => {
               const Icon = whyIcons[i];
               return (
                 <div
                   key={c.t}
-                  className="rounded-xl border border-border bg-card p-6 shadow-[var(--shadow-card)] transition-transform hover:-translate-y-1"
+                  className="rounded-xl border border-border bg-card p-4 shadow-[var(--shadow-card)] transition-transform hover:-translate-y-1 md:p-6"
                 >
-                  <span className="grid h-12 w-12 place-items-center rounded-lg bg-navy/5 text-navy">
-                    <Icon className="h-6 w-6" />
+                  <span className="grid h-10 w-10 place-items-center rounded-lg bg-navy/5 text-navy md:h-12 md:w-12">
+                    <Icon className="h-5 w-5 md:h-6 md:w-6" />
                   </span>
-                  <h3 className="mt-4 text-lg font-semibold text-navy">{c.t}</h3>
+                  <h3 className="mt-3 text-lg font-semibold text-navy md:mt-4">{c.t}</h3>
                   <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{c.d}</p>
                 </div>
               );
             })}
           </div>
-          <div className="mt-10 text-center">
+          <div className="mt-8 text-center md:mt-10">
             <OutlineLink to="/why-choose-wossol-export">{t.cta.learnMore}</OutlineLink>
           </div>
         </div>
@@ -201,16 +201,16 @@ function Home() {
 
       {/* Snapshot */}
       <section className="section-pad bg-off-white">
-        <div className="container-page grid items-center gap-10 lg:grid-cols-2">
+        <div className="container-page grid items-center gap-8 md:gap-10 lg:grid-cols-2">
           <div>
             <SectionHeading title={t.home.snapshotTitle} text={homeCopy.snapshotText} />
-            <div className="mt-7">
+            <div className="mt-6 md:mt-7">
               <PrimaryLink to="/about">{t.cta.discoverMore}</PrimaryLink>
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-3 md:gap-4">
             {t.home.trust.map((item) => (
-              <div key={item} className="rounded-lg border border-border bg-card p-5 text-sm font-medium text-navy">
+              <div key={item} className="rounded-lg border border-border bg-card p-4 text-sm font-medium text-navy md:p-5">
                 {item}
               </div>
             ))}
@@ -222,12 +222,12 @@ function Home() {
       <section className="section-pad bg-background">
         <div className="container-page">
           <SectionHeading title={t.home.sectorsTitle} text={t.home.sectorsText} />
-          <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="mt-8 grid gap-3 sm:grid-cols-2 md:mt-10 md:gap-5 lg:grid-cols-3">
             {t.home.sectorsList.map((s, i) => {
               const Icon = sectorIcons[i];
               return (
-                <div key={s} className="flex items-center gap-4 rounded-lg border border-border bg-card p-5">
-                  <span className="grid h-11 w-11 shrink-0 place-items-center rounded-md bg-gold/15 text-navy">
+                <div key={s} className="flex items-center gap-3 rounded-lg border border-border bg-card p-4 md:gap-4 md:p-5">
+                  <span className="grid h-10 w-10 shrink-0 place-items-center rounded-md bg-gold/15 text-navy md:h-11 md:w-11">
                     <Icon className="h-5 w-5" />
                   </span>
                   <span className="font-medium text-navy">{s}</span>
@@ -235,7 +235,7 @@ function Home() {
               );
             })}
           </div>
-          <div className="mt-8">
+          <div className="mt-6 md:mt-8">
             <Link to="/sectors" className="inline-flex items-center gap-2 text-sm font-semibold text-navy hover:text-gold">
               {t.cta.learnMore} <ArrowRight className="h-4 w-4 rtl:rotate-180" />
             </Link>
@@ -245,7 +245,7 @@ function Home() {
 
       {/* Markets preview */}
       <section className="section-pad bg-off-white">
-        <div className="container-page grid items-center gap-10 lg:grid-cols-2">
+        <div className="container-page grid items-center gap-8 md:gap-10 lg:grid-cols-2">
           <div className="overflow-hidden rounded-xl border border-border shadow-[var(--shadow-card)]">
             <img
               src={marketsMap}
@@ -258,7 +258,7 @@ function Home() {
           </div>
           <div>
             <SectionHeading title={t.home.marketsTitle} text={t.home.marketsText} />
-            <div className="mt-7">
+            <div className="mt-6 md:mt-7">
               <OutlineLink to="/markets">{t.cta.learnMore}</OutlineLink>
             </div>
           </div>
@@ -267,10 +267,10 @@ function Home() {
 
       {/* Vision */}
       <section className="bg-deep-navy text-deep-navy-foreground">
-        <div className="container-page py-20 text-center">
+        <div className="container-page py-14 text-center md:py-20">
           <div className="mx-auto h-1 w-14 rounded bg-gold" />
-          <h2 className="mx-auto mt-6 max-w-3xl text-2xl font-bold md:text-3xl">{t.home.visionTitle}</h2>
-          <p className="mx-auto mt-5 max-w-3xl text-base leading-relaxed text-deep-navy-foreground/80 md:text-lg">
+          <h2 className="mx-auto mt-5 max-w-3xl text-2xl font-bold md:mt-6 md:text-3xl">{t.home.visionTitle}</h2>
+          <p className="mx-auto mt-4 max-w-3xl text-base leading-relaxed text-deep-navy-foreground/80 md:mt-5 md:text-lg">
             {t.home.visionText}
           </p>
         </div>
@@ -280,15 +280,15 @@ function Home() {
       <section className="section-pad bg-background">
         <div className="container-page">
           <SectionHeading center title={t.home.oppTitle} />
-          <div className="mt-12 grid gap-6 md:grid-cols-3">
+          <div className="mt-8 grid gap-4 md:mt-12 md:grid-cols-3 md:gap-6">
             {t.home.opp.map((c) => (
-              <div key={c.t} className="rounded-xl border border-border bg-card p-7 text-center shadow-[var(--shadow-card)]">
+              <div key={c.t} className="rounded-xl border border-border bg-card p-5 text-center shadow-[var(--shadow-card)] md:p-7">
                 <h3 className="text-lg font-semibold text-navy">{c.t}</h3>
                 <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{c.d}</p>
               </div>
             ))}
           </div>
-          <div className="mt-10 text-center">
+          <div className="mt-8 text-center md:mt-10">
             <OutlineLink to="/opportunities">{t.cta.learnMore}</OutlineLink>
           </div>
         </div>
@@ -296,7 +296,7 @@ function Home() {
 
       {/* Contact CTA */}
       <section className="bg-navy text-navy-foreground">
-        <div className="container-page flex flex-col items-center gap-6 py-16 text-center">
+        <div className="container-page flex flex-col items-center gap-5 py-12 text-center md:gap-6 md:py-16">
           <div className="h-1 w-14 rounded bg-gold" />
           <h2 className="max-w-2xl text-2xl font-bold md:text-3xl">{t.home.ctaTitle}</h2>
           <p className="max-w-xl text-navy-foreground/80">{t.home.ctaText}</p>
