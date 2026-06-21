@@ -116,12 +116,12 @@ function Home() {
         <img
           src={hero}
           alt="Corporate international trade meeting with a world trade map"
-          className="absolute inset-0 h-full w-full object-cover opacity-25"
+          className="absolute inset-0 h-full w-full object-cover opacity-100"
           width={1600}
           height={1066}
         />
-        <div className="absolute inset-0 bg-gradient-to-r from-deep-navy via-deep-navy/90 to-deep-navy/50" />
-        <div className="relative container-page py-20 md:py-28">
+        <div className="absolute inset-0 bg-gradient-to-r from-deep-navy via-deep-navy/70 to-deep-navy/10" />
+        <div className="relative container-page py-14 md:py-28">
           <span className="inline-block rounded-full border border-gold/40 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.16em] text-gold">
             {t.home.heroBadge}
           </span>
@@ -154,7 +154,7 @@ function Home() {
 
       {/* Export positioning */}
       <section className="border-y border-border bg-background">
-        <div className="container-page grid gap-4 py-8 md:grid-cols-3">
+        <div className="container-page grid gap-3 md:gap-4 py-6 md:py-8 md:grid-cols-3">
           {exportSignals.map((item, i) => {
             const Icon = exportSignalIcons[i];
             return (
