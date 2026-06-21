@@ -104,10 +104,71 @@ const EXPORT_SIGNALS: Record<Lang, { t: string; d: string }[]> = {
   ],
 };
 
+const HOME_SNAPSHOT_SIGNALS: Record<Lang, string[]> = {
+  en: [
+    "Registered in Algeria",
+    "International Trade & Export",
+    "Multiple Promising Markets",
+    "Algeria as a Gateway to Africa",
+    "Export-Oriented Activity",
+    "Multi-Sector Commercial Focus",
+    "Professional Commercial Network",
+    "Long-Term Business Approach",
+  ],
+  fr: [
+    "Enregistrée en Algérie",
+    "Commerce international & Export",
+    "Plusieurs marchés prometteurs",
+    "L'Algérie, porte vers l'Afrique",
+    "Activité orientée export",
+    "Vision commerciale multi-secteurs",
+    "Réseau commercial professionnel",
+    "Approche d'affaires de long terme",
+  ],
+  ar: [
+    "مسجّلة في الجزائر",
+    "التجارة الدولية والتصدير",
+    "أسواق واعدة متعددة",
+    "الجزائر بوابة نحو إفريقيا",
+    "نشاط موجه للتصدير",
+    "تركيز تجاري متعدد القطاعات",
+    "شبكة علاقات تجارية مهنية",
+    "نهج أعمال طويل الأمد",
+  ],
+};
+
+const HOME_MARKET_CHIPS: Record<Lang, string[]> = {
+  en: ["Africa", "Europe", "Middle East", "Multiple Promising Markets"],
+  fr: ["Afrique", "Europe", "Moyen-Orient", "Plusieurs marchés prometteurs"],
+  ar: ["إفريقيا", "أوروبا", "الشرق الأوسط", "أسواق واعدة متعددة"],
+};
+
+const HOME_OPPORTUNITY_EXTRA: Record<Lang, { t: string; d: string }[]> = {
+  en: [
+    { t: "Executable Opportunities", d: "We focus on opportunities that can be evaluated, organized, and developed professionally." },
+    { t: "Multi-Sector Potential", d: "We work across several commercial sectors without turning the website into a fixed catalog." },
+    { t: "Strategic Trade Position", d: "Algeria gives Wossol Export a strategic starting point between Africa, Europe, and the Middle East." },
+  ],
+  fr: [
+    { t: "Opportunités exécutables", d: "Nous privilégions les opportunités qui peuvent être évaluées, organisées et développées professionnellement." },
+    { t: "Potentiel multi-secteurs", d: "Nous travaillons sur plusieurs secteurs commerciaux sans transformer le site en catalogue fixe." },
+    { t: "Position commerciale stratégique", d: "L'Algérie donne à Wossol Export un point de départ stratégique entre l'Afrique, l'Europe et le Moyen-Orient." },
+  ],
+  ar: [
+    { t: "فرص قابلة للتنفيذ", d: "نركّز على الفرص التي يمكن تقييمها وتنظيمها وتطويرها باحترافية." },
+    { t: "إمكانات متعددة القطاعات", d: "نعمل عبر قطاعات تجارية متعددة دون تحويل الموقع إلى كتالوج ثابت." },
+    { t: "موقع تجاري استراتيجي", d: "تمنح الجزائر وصول إكسبورت نقطة انطلاق استراتيجية بين إفريقيا وأوروبا والشرق الأوسط." },
+  ],
+};
+
+
 function Home() {
   const { t, lang } = useLanguage();
   const exportSignals = EXPORT_SIGNALS[lang];
   const homeCopy = HOME_EXPORT_COPY[lang];
+  const snapshotSignals = HOME_SNAPSHOT_SIGNALS[lang];
+  const marketChips = HOME_MARKET_CHIPS[lang];
+  const opportunities = [...t.home.opp, ...HOME_OPPORTUNITY_EXTRA[lang]];
 
   return (
     <>
@@ -209,7 +270,7 @@ function Home() {
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3 md:gap-4">
-            {t.home.trust.map((item) => (
+            {snapshotSignals.map((item) => (
               <div key={item} className="rounded-lg border border-border bg-card p-4 text-sm font-medium text-navy md:p-5">
                 {item}
               </div>
@@ -258,6 +319,13 @@ function Home() {
           </div>
           <div>
             <SectionHeading title={t.home.marketsTitle} text={t.home.marketsText} />
+            <div className="mt-5 flex flex-wrap gap-2 md:mt-6">
+              {marketChips.map((item) => (
+                <span key={item} className="rounded-full border border-border bg-card px-4 py-2 text-sm font-medium text-navy">
+                  {item}
+                </span>
+              ))}
+            </div>
             <div className="mt-6 md:mt-7">
               <OutlineLink to="/markets">{t.cta.learnMore}</OutlineLink>
             </div>
@@ -280,8 +348,8 @@ function Home() {
       <section className="section-pad bg-background">
         <div className="container-page">
           <SectionHeading center title={t.home.oppTitle} />
-          <div className="mt-8 grid gap-4 md:mt-12 md:grid-cols-3 md:gap-6">
-            {t.home.opp.map((c) => (
+          <div className="mt-8 grid gap-4 sm:grid-cols-2 md:mt-12 md:gap-6 lg:grid-cols-3">
+            {opportunities.map((c) => (
               <div key={c.t} className="rounded-xl border border-border bg-card p-5 text-center shadow-[var(--shadow-card)] md:p-7">
                 <h3 className="text-lg font-semibold text-navy">{c.t}</h3>
                 <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{c.d}</p>
