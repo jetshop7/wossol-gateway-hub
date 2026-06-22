@@ -217,14 +217,13 @@ function About() {
           <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-[var(--shadow-card)]">
             <img
               src={about}
-              alt="Professional international business meeting"
-              className="h-full w-full object-cover"
+              alt="Wossol Export team discussing international trade with container yard in the background"
+              className="aspect-[16/10] w-full object-cover lg:aspect-[4/3]"
               loading="lazy"
-              width={1400}
+              width={1600}
               height={1000}
             />
-          </div>
-        </div>
+          </div>        </div>
       </section>
 
       <section className="section-pad bg-off-white">

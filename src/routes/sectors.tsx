@@ -19,6 +19,13 @@ import { useLanguage } from "@/i18n/LanguageContext";
 import { translations, type Lang } from "@/i18n/translations";
 import { PageHero, SectionHeading, CtaBand } from "@/components/site";
 
+import sectorFoodProducts from "@/assets/sectors/sector-food-products.png";
+import sectorAgriculturalProducts from "@/assets/sectors/sector-agricultural-products.png";
+import sectorBuildingMaterials from "@/assets/sectors/sector-building-materials.png";
+import sectorIndustrialProducts from "@/assets/sectors/sector-industrial-products.png";
+import sectorEquipmentMachinery from "@/assets/sectors/sector-equipment-machinery.png";
+import sectorConsumerGoods from "@/assets/sectors/sector-consumer-goods.png";
+
 export const Route = createFileRoute("/sectors")({
   head: () => ({
     meta: [
@@ -34,6 +41,42 @@ export const Route = createFileRoute("/sectors")({
 });
 
 const SECTOR_ICONS = [Package, Tractor, Hammer, Factory, Wrench, ShoppingBag];
+
+const SECTOR_IMAGES = [
+  sectorFoodProducts,
+  sectorAgriculturalProducts,
+  sectorBuildingMaterials,
+  sectorIndustrialProducts,
+  sectorEquipmentMachinery,
+  sectorConsumerGoods,
+];
+
+const SECTOR_IMAGE_ALTS: Record<Lang, string[]> = {
+  en: [
+    "Food products being packed and prepared for export",
+    "Agricultural products prepared near a container for export",
+    "Building materials loaded into a shipping container",
+    "Industrial products inside a manufacturing and logistics environment",
+    "Machinery being loaded into a shipping container",
+    "Consumer goods managed inside an export warehouse",
+  ],
+  fr: [
+    "Produits alimentaires emballés et préparés pour l'export",
+    "Produits agricoles préparés près d'un conteneur pour l'export",
+    "Matériaux de construction chargés dans un conteneur",
+    "Produits industriels dans un environnement de production et de logistique",
+    "Machines chargées dans un conteneur d'expédition",
+    "Biens de consommation gérés dans un entrepôt d'export",
+  ],
+  ar: [
+    "منتجات غذائية يتم تغليفها وتجهيزها للتصدير",
+    "منتجات زراعية مجهزة قرب حاوية للتصدير",
+    "مواد بناء يتم تحميلها داخل حاوية شحن",
+    "منتجات صناعية داخل بيئة تصنيع ولوجستيك",
+    "معدات وآلات يتم تحميلها داخل حاوية شحن",
+    "سلع استهلاكية داخل مستودع تجهيز للتصدير",
+  ],
+};
 
 const SECTOR_CONTEXT: Record<Lang, { t: string; d: string }[]> = {
   en: [
@@ -238,10 +281,7 @@ function Sectors() {
               const Icon = icons[index];
 
               return (
-                <div
-                  key={item.t}
-                  className="rounded-xl border border-border bg-card p-6 shadow-[var(--shadow-card)]"
-                >
+                <div key={item.t} className="rounded-xl border border-border bg-card p-6 shadow-[var(--shadow-card)]">
                   <span className="grid h-11 w-11 place-items-center rounded-lg bg-gold/15 text-navy">
                     <Icon className="h-5 w-5" />
                   </span>
@@ -261,20 +301,30 @@ function Sectors() {
           <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {sectors.map((sector, index) => {
               const Icon = SECTOR_ICONS[index] ?? Boxes;
+              const image = SECTOR_IMAGES[index];
+              const alt = SECTOR_IMAGE_ALTS[lang][index];
 
               return (
-                <div
-                  key={sector.t}
-                  className="rounded-xl border border-border bg-card p-6 shadow-[var(--shadow-card)]"
-                >
-                  <span className="grid h-11 w-11 place-items-center rounded-md bg-navy/5 text-navy">
-                    <Icon className="h-5 w-5" />
-                  </span>
-                  <h3 className="mt-4 text-lg font-semibold text-navy">{sector.t}</h3>
-                  <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-                    {sector.d}
-                  </p>
-                </div>
+                <article key={sector.t} className="overflow-hidden rounded-xl border border-border bg-card shadow-[var(--shadow-card)]">
+                  <img
+                    src={image}
+                    alt={alt}
+                    className="aspect-[16/10] w-full object-cover"
+                    loading="lazy"
+                    width={1200}
+                    height={750}
+                  />
+
+                  <div className="p-6">
+                    <span className="grid h-11 w-11 place-items-center rounded-md bg-navy/5 text-navy">
+                      <Icon className="h-5 w-5" />
+                    </span>
+                    <h3 className="mt-4 text-lg font-semibold text-navy">{sector.t}</h3>
+                    <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                      {sector.d}
+                    </p>
+                  </div>
+                </article>
               );
             })}
           </div>
@@ -298,10 +348,7 @@ function Sectors() {
 
           <div className="grid gap-4">
             {method.map((item, index) => (
-              <div
-                key={item.t}
-                className="rounded-xl border border-border bg-card p-5 shadow-[var(--shadow-card)]"
-              >
+              <div key={item.t} className="rounded-xl border border-border bg-card p-5 shadow-[var(--shadow-card)]">
                 <div className="flex items-start gap-4">
                   <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-gold/15 text-sm font-semibold text-navy">
                     {index + 1}
