@@ -40,50 +40,50 @@ function Contact() {
   const processSteps =
     lang === "ar"
       ? [
-          {
-            t: "استفسار تجاري جاد",
-            d: "نستقبل الرسائل المتعلقة بالمنتجات، القطاعات، فرص التصدير أو التعاون التجاري.",
-          },
-          {
-            t: "مراجعة مهنية",
-            d: "نراجع الطلب وفق نوع الجهة، السوق، القطاع، وإمكانية المتابعة التجارية.",
-          },
-          {
-            t: "تواصل مباشر",
-            d: "عند وضوح الطلب، يتم التواصل عبر البريد أو واتساب لمتابعة النقاش التجاري.",
-          },
-        ]
+        {
+          t: "استفسار تجاري جاد",
+          d: "نستقبل الرسائل المتعلقة بالمنتجات، القطاعات، فرص التصدير أو التعاون التجاري.",
+        },
+        {
+          t: "مراجعة مهنية",
+          d: "نراجع الطلب وفق نوع الجهة، السوق، القطاع، وإمكانية المتابعة التجارية.",
+        },
+        {
+          t: "تواصل مباشر",
+          d: "عند وضوح الطلب، يتم التواصل عبر البريد أو واتساب لمتابعة النقاش التجاري.",
+        },
+      ]
       : lang === "fr"
         ? [
-            {
-              t: "Demande commerciale sérieuse",
-              d: "Nous recevons les demandes liées aux produits, secteurs, opportunités d'export ou coopération commerciale.",
-            },
-            {
-              t: "Revue professionnelle",
-              d: "Nous examinons la demande selon le type d'acteur, le marché, le secteur et la possibilité de suivi.",
-            },
-            {
-              t: "Contact direct",
-              d: "Lorsque la demande est claire, l'échange se poursuit par email ou WhatsApp.",
-            },
-          ]
+          {
+            t: "Demande commerciale sérieuse",
+            d: "Nous recevons les demandes liées aux produits, secteurs, opportunités d'export ou coopération commerciale.",
+          },
+          {
+            t: "Revue professionnelle",
+            d: "Nous examinons la demande selon le type d'acteur, le marché, le secteur et la possibilité de suivi.",
+          },
+          {
+            t: "Contact direct",
+            d: "Lorsque la demande est claire, l'échange se poursuit par email ou WhatsApp.",
+          },
+        ]
         : [
-            {
-              t: "Serious commercial inquiry",
-              d: "We receive inquiries related to products, sectors, export opportunities, or commercial cooperation.",
-            },
-            {
-              t: "Professional review",
-              d: "We review the request based on entity type, market, sector, and practical follow-up potential.",
-            },
-            {
-              t: "Direct response",
-              d: "When the request is clear, communication continues by email or WhatsApp.",
-            },
-          ];
+          {
+            t: "Serious commercial inquiry",
+            d: "We receive inquiries related to products, sectors, export opportunities, or commercial cooperation.",
+          },
+          {
+            t: "Professional review",
+            d: "We review the request based on entity type, market, sector, and practical follow-up potential.",
+          },
+          {
+            t: "Direct response",
+            d: "When the request is clear, communication continues by email or WhatsApp.",
+          },
+        ];
 
-  const onSubmit = (e: FormEvent<HTMLFormElement>) => {
+  const onSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (submitting) return;
 
@@ -104,11 +104,31 @@ function Contact() {
     const form = e.currentTarget;
     setSubmitting(true);
 
-    window.setTimeout(() => {
+    try {
+      const response = await fetch("https://formspree.io/f/xdargkdw", {
+        method: "POST",
+        body: fd,
+        headers: {
+          Accept: "application/json",
+        },
+      });
+
       setSubmitting(false);
-      setSubmitted(true);
-      form.reset();
-    }, 700);
+
+      if (response.ok) {
+        setSubmitted(true);
+        form.reset();
+      } else {
+        setErrors({
+          form: "The message could not be sent. Please try again or contact us by email.",
+        });
+      }
+    } catch {
+      setSubmitting(false);
+      setErrors({
+        form: "The message could not be sent. Please try again or contact us by email.",
+      });
+    }
   };
 
   const inputCls =
@@ -195,10 +215,9 @@ function Contact() {
                       className="sm:col-span-2 rounded-md border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive"
                       role="alert"
                     >
-                      {c.errorBanner}
+                      {errors.form || c.errorBanner}
                     </div>
                   )}
-
                   <Field label={c.fields.fullName} error={errors.fullName}>
                     <input name="fullName" className={inputCls} maxLength={100} />
                   </Field>
