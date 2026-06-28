@@ -16,7 +16,7 @@ export function Logo({ className = "", imageClassName = "" }: LogoProps) {
       <img
         src={logo}
         alt="Wossol Export"
-        className={`h-9 w-auto object-contain md:h-10 ${imageClassName}`}
+        className={`h-10 w-auto object-contain md:h-12 ${imageClassName}`}
       />
     </Link>
   );
