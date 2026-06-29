@@ -80,32 +80,97 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Wossol Export | International Trade & Export Company" },
+
+      {
+        title: "Wossol Export | International Trade & Export Company",
+      },
       {
         name: "description",
         content:
           "Wossol Export is an Algerian international trade and export company working across multiple promising markets and sectors.",
       },
-      { name: "author", content: "Wossol Export" },
-      { property: "og:title", content: "Wossol Export | International Trade & Export Company" },
+      {
+        name: "author",
+        content: "Wossol Export",
+      },
+
+      {
+        property: "og:title",
+        content: "Wossol Export | International Trade & Export Company",
+      },
       {
         property: "og:description",
         content:
           "Wossol Export is an Algerian international trade and export company working across multiple promising markets and sectors.",
       },
-      { property: "og:type", content: "website" },
-      { property: "og:site_name", content: "Wossol Export" },
-      { name: "twitter:card", content: "summary_large_image" },
+      {
+        property: "og:type",
+        content: "website",
+      },
+      {
+        property: "og:site_name",
+        content: "Wossol Export",
+      },
+      {
+        property: "og:url",
+        content: "https://www.wossolexport.com/",
+      },
+      {
+        property: "og:image",
+        content: "https://www.wossolexport.com/og-image.png",
+      },
+      {
+        property: "og:image:width",
+        content: "1200",
+      },
+      {
+        property: "og:image:height",
+        content: "630",
+      },
+      {
+        property: "og:image:alt",
+        content: "Wossol Export | International Trade & Export Company",
+      },
+
+      {
+        name: "twitter:card",
+        content: "summary_large_image",
+      },
+      {
+        name: "twitter:title",
+        content: "Wossol Export | International Trade & Export Company",
+      },
+      {
+        name: "twitter:description",
+        content:
+          "Wossol Export is an Algerian international trade and export company working across multiple promising markets and sectors.",
+      },
+      {
+        name: "twitter:image",
+        content: "https://www.wossolexport.com/og-image.png",
+      },
     ],
+
     links: [
-      { rel: "stylesheet", href: appCss },
-      { rel: "preconnect", href: "https://fonts.googleapis.com" },
-      { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
+      {
+        rel: "stylesheet",
+        href: appCss,
+      },
+      {
+        rel: "preconnect",
+        href: "https://fonts.googleapis.com",
+      },
+      {
+        rel: "preconnect",
+        href: "https://fonts.gstatic.com",
+        crossOrigin: "anonymous",
+      },
       {
         rel: "stylesheet",
         href: "https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap",
       },
     ],
+
     scripts: [
       {
         type: "application/ld+json",
@@ -114,18 +179,23 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
           "@type": "Organization",
           name: "Wossol Export",
           description: "Algerian international trade and export company.",
+          url: "https://www.wossolexport.com/",
+          logo: "https://www.wossolexport.com/og-image.png",
           email: "contact@wossolexport.com",
-          address: { "@type": "PostalAddress", addressCountry: "DZ" },
+          address: {
+            "@type": "PostalAddress",
+            addressCountry: "DZ",
+          },
         }),
       },
     ],
   }),
+
   shellComponent: RootShell,
   component: RootComponent,
   notFoundComponent: NotFoundComponent,
   errorComponent: ErrorComponent,
 });
-
 function RootShell({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
