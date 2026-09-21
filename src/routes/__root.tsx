@@ -11,7 +11,6 @@ import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
-import { LanguageProvider } from "../i18n/LanguageContext";
 import { Header } from "../components/Header";
 import { Footer } from "../components/Footer";
 
@@ -37,11 +36,11 @@ function NotFoundComponent() {
   );
 }
 
-function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
+function ErrorComponent({ error, reset }: { error: unknown; reset: () => void }) {
   console.error(error);
   const router = useRouter();
   useEffect(() => {
-    reportLovableError(error, { boundary: "tanstack_root_error_component" });
+    reportLovableError(error instanceof Error ? error : new Error(String(error)), { boundary: "tanstack_root_error_component" });
   }, [error]);
 
   return (
@@ -80,21 +79,21 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Wossol Export | International Trade & Export Company" },
+      { title: "Wossol Platform | Merchant operations" },
       {
         name: "description",
         content:
-          "Wossol Export is an Algerian international trade and export company working across multiple promising markets and sectors.",
+          "Wossol Platform supports merchant operations and connected commerce workflows.",
       },
-      { name: "author", content: "Wossol Export" },
-      { property: "og:title", content: "Wossol Export | International Trade & Export Company" },
+      { name: "author", content: "Wossol Platform" },
+      { property: "og:title", content: "Wossol Platform | Merchant operations" },
       {
         property: "og:description",
         content:
-          "Wossol Export is an Algerian international trade and export company working across multiple promising markets and sectors.",
+          "Wossol Platform supports merchant operations and connected commerce workflows.",
       },
       { property: "og:type", content: "website" },
-      { property: "og:site_name", content: "Wossol Export" },
+      { property: "og:site_name", content: "Wossol Platform" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
     links: [
@@ -112,10 +111,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         children: JSON.stringify({
           "@context": "https://schema.org",
           "@type": "Organization",
-          name: "Wossol Export",
-          description: "Algerian international trade and export company.",
-          email: "contact@wossolexport.com",
-          address: { "@type": "PostalAddress", addressCountry: "DZ" },
+          name: "Wossol Platform",
+          description: "Merchant operations and connected commerce workflows.",
         }),
       },
     ],
@@ -145,16 +142,14 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <LanguageProvider>
-        <div className="flex min-h-screen flex-col">
+      <div className="flex min-h-screen flex-col">
           <Header />
           <main className="flex-1">
             {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
             <Outlet />
           </main>
           <Footer />
-        </div>
-      </LanguageProvider>
+      </div>
     </QueryClientProvider>
   );
 }
