@@ -53,9 +53,11 @@ function Security() {
             <p className="mt-10 text-xl font-semibold leading-snug">
               Designed for the work that should stay within the right operational context.
             </p>
-            <p className="mt-4 text-sm leading-relaxed text-deep-navy-foreground/70">
-              No security certifications or compliance attestations are claimed on this page.
-            </p>
+            <div className="mt-5 grid grid-cols-3 gap-2 text-center text-[10px] font-semibold text-navy-foreground/80">
+              <span className="rounded bg-navy-foreground/10 px-2 py-2">Scope</span>
+              <span className="rounded bg-navy-foreground/10 px-2 py-2">Authorize</span>
+              <span className="rounded bg-navy-foreground/10 px-2 py-2">Review</span>
+            </div>
           </div>
         </div>
       </section>

@@ -9,6 +9,10 @@ import {
   UsersRound,
 } from "lucide-react";
 import { OperationsVisual } from "../components/OperationsVisual";
+import heroOperations from "../assets/platform/hero-operations.jpg";
+import inventoryWorkbench from "../assets/platform/inventory-workbench.jpg";
+import dispatchContext from "../assets/platform/dispatch-context.jpg";
+import connectedWorkspace from "../assets/platform/connected-workspace.jpg";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -48,8 +52,14 @@ const capabilities = [
 function Home() {
   return (
     <>
-      <section className="relative overflow-hidden bg-deep-navy text-deep-navy-foreground">
-        <div className="absolute inset-0 opacity-30 [background-image:radial-gradient(circle_at_85%_20%,rgba(201,162,74,.35),transparent_25%),linear-gradient(115deg,transparent_55%,rgba(255,255,255,.06)_55%,transparent_56%)]" />
+      <section className="relative isolate overflow-hidden bg-deep-navy text-deep-navy-foreground">
+        <img
+          src={heroOperations}
+          alt="Illustrative merchant operations workspace with parcels and a laptop"
+          fetchPriority="high"
+          className="absolute inset-0 -z-20 h-full w-full object-cover object-center"
+        />
+        <div className="absolute inset-0 -z-10 bg-[linear-gradient(90deg,rgba(3,29,58,.98)_0%,rgba(3,29,58,.94)_43%,rgba(3,29,58,.44)_72%,rgba(3,29,58,.22)_100%)]" />
         <div className="relative container-page grid gap-12 py-18 lg:grid-cols-[.96fr_1.04fr] lg:items-center lg:py-24">
           <div>
             <p className="eyebrow text-gold">Wossol Platform</p>
@@ -93,25 +103,41 @@ function Home() {
               See the platform <ArrowRight className="h-4 w-4" />
             </Link>
           </div>
-          <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {capabilities.map(([Icon, title, text]) => (
-              <article
-                key={title}
-                className="rounded-xl border border-border bg-card p-6 transition hover:-translate-y-0.5 hover:border-gold/50 hover:shadow-[var(--shadow-card)]"
-              >
-                <span className="grid h-11 w-11 place-items-center rounded-lg bg-gold/15 text-navy">
-                  <Icon className="h-5 w-5" />
-                </span>
-                <h3 className="mt-5 text-lg font-semibold text-navy">{title}</h3>
-                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{text}</p>
-              </article>
-            ))}
+          <div className="mt-10 grid gap-6 lg:grid-cols-[.84fr_1.16fr]">
+            <div className="relative min-h-80 overflow-hidden rounded-2xl bg-navy shadow-[var(--shadow-elevated)]">
+              <img
+                src={inventoryWorkbench}
+                alt="Illustrative product and inventory workbench with parcels and scanner"
+                loading="lazy"
+                className="absolute inset-0 h-full w-full object-cover"
+              />
+              <div className="absolute inset-x-0 bottom-0 bg-[linear-gradient(transparent,rgba(3,29,58,.9))] p-6 text-navy-foreground">
+                <p className="eyebrow text-gold">Products & inventory</p>
+                <p className="mt-2 max-w-xs text-sm leading-relaxed text-navy-foreground/80">
+                  Bring product and inventory context closer to the work that follows.
+                </p>
+              </div>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {capabilities.map(([Icon, title, text]) => (
+                <article
+                  key={title}
+                  className="rounded-xl border border-border bg-card p-6 transition hover:-translate-y-0.5 hover:border-gold/50 hover:shadow-[var(--shadow-card)]"
+                >
+                  <span className="grid h-11 w-11 place-items-center rounded-lg bg-gold/15 text-navy">
+                    <Icon className="h-5 w-5" />
+                  </span>
+                  <h3 className="mt-5 text-lg font-semibold text-navy">{title}</h3>
+                  <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{text}</p>
+                </article>
+              ))}
+            </div>
           </div>
         </div>
       </section>
       <section className="section-pad bg-off-white">
-        <div className="container-page">
-          <div className="max-w-2xl">
+        <div className="container-page grid gap-10 lg:grid-cols-[.72fr_1.28fr] lg:items-end">
+          <div>
             <p className="eyebrow">Connected operations</p>
             <h2 className="section-title">
               A clear flow, from catalogue to operational visibility.
@@ -120,20 +146,28 @@ function Home() {
               Wossol connects discrete operational areas without treating them as isolated tasks.
             </p>
           </div>
-          <div className="mt-10 grid gap-3 md:grid-cols-5">
-            {["Products & inventory", "Orders", "Confirmation", "Dispatch", "Tracking"].map(
-              (label, index) => (
-                <div
-                  key={label}
-                  className="rounded-xl border border-border bg-white p-4 text-sm font-semibold text-navy shadow-sm"
-                >
-                  {String(index + 1).padStart(2, "0")}
-                  <span className="mt-7 block text-xs font-medium text-muted-foreground">
-                    {label}
-                  </span>
-                </div>
-              ),
-            )}
+          <div className="overflow-hidden rounded-2xl border border-border bg-white shadow-[var(--shadow-card)]">
+            <img
+              src={dispatchContext}
+              alt="Illustrative parcel dispatch area with prepared packages"
+              loading="lazy"
+              className="h-56 w-full object-cover sm:h-64"
+            />
+            <div className="grid gap-3 p-5 sm:grid-cols-5">
+              {["Products & inventory", "Orders", "Confirmation", "Dispatch", "Tracking"].map(
+                (label, index) => (
+                  <div
+                    key={label}
+                    className="rounded-xl border border-border bg-white p-4 text-sm font-semibold text-navy shadow-sm"
+                  >
+                    {String(index + 1).padStart(2, "0")}
+                    <span className="mt-7 block text-xs font-medium text-muted-foreground">
+                      {label}
+                    </span>
+                  </div>
+                ),
+              )}
+            </div>
           </div>
         </div>
       </section>
@@ -199,23 +233,31 @@ function Home() {
         </div>
       </section>
       <section className="section-pad bg-off-white">
-        <div className="container-page flex flex-col justify-between gap-8 rounded-2xl border border-border bg-white p-8 md:flex-row md:items-center md:p-10">
-          <div>
-            <p className="eyebrow">Connected services</p>
-            <h2 className="mt-3 text-3xl font-semibold tracking-tight text-navy">
-              Integrations belong in the operational picture.
-            </h2>
-            <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted-foreground">
-              Explore how Wossol approaches commerce channels, advertising, and messaging
-              integrations without making them the whole platform.
-            </p>
+        <div className="container-page grid overflow-hidden rounded-2xl border border-border bg-white lg:grid-cols-[1fr_.9fr]">
+          <div className="flex flex-col justify-center p-8 md:p-10">
+            <div>
+              <p className="eyebrow">Connected services</p>
+              <h2 className="mt-3 text-3xl font-semibold tracking-tight text-navy">
+                Integrations belong in the operational picture.
+              </h2>
+              <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted-foreground">
+                Explore how Wossol approaches commerce channels, advertising, and messaging
+                integrations without making them the whole platform.
+              </p>
+            </div>
+            <Link
+              to="/integrations"
+              className="inline-flex shrink-0 items-center gap-2 rounded-md bg-navy px-5 py-3 text-sm font-semibold text-navy-foreground hover:bg-deep-navy"
+            >
+              Explore integrations <ArrowRight className="h-4 w-4" />
+            </Link>
           </div>
-          <Link
-            to="/integrations"
-            className="inline-flex shrink-0 items-center gap-2 rounded-md bg-navy px-5 py-3 text-sm font-semibold text-navy-foreground hover:bg-deep-navy"
-          >
-            Explore integrations <ArrowRight className="h-4 w-4" />
-          </Link>
+          <img
+            src={connectedWorkspace}
+            alt="Illustrative connected merchant workspace with laptop, tablet, and parcels"
+            loading="lazy"
+            className="h-64 w-full object-cover lg:h-full"
+          />
         </div>
       </section>
       <section className="bg-deep-navy text-deep-navy-foreground">
