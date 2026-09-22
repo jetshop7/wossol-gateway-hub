@@ -11,6 +11,7 @@ export const Route = createFileRoute("/data-requests")({
           "Contact Wossol Platform about access, correction, deletion, or other privacy requests.",
       },
     ],
+    links: [{ rel: "canonical", href: "https://platform.wossolexport.com/data-requests" }],
   }),
   component: DataRequests,
 });

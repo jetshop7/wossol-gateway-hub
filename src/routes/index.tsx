@@ -30,6 +30,7 @@ export const Route = createFileRoute("/")({
         content: "Coordinate commerce operations with deliberate controls and connected workflows.",
       },
     ],
+    links: [{ rel: "canonical", href: "https://platform.wossolexport.com/" }],
   }),
   component: Home,
 });

@@ -11,6 +11,7 @@ export const Route = createFileRoute("/privacy-policy")({
           "Privacy Policy for Wossol Platform merchant operations and supported integrations.",
       },
     ],
+    links: [{ rel: "canonical", href: "https://platform.wossolexport.com/privacy-policy" }],
   }),
   component: PrivacyPolicy,
 });
@@ -18,7 +19,7 @@ export const Route = createFileRoute("/privacy-policy")({
 const sections = [
   [
     "1. Scope",
-    "This Privacy Policy describes Wossol Platform’s approach to information processed in connection with its public website, merchant workspaces, and supported commerce or business-service integrations.",
+    "This Privacy Policy describes Wossol’s approach to information processed in connection with the Wossol Platform public website, merchant workspaces, and supported commerce or business-service integrations.",
   ],
   [
     "2. Information merchants provide",

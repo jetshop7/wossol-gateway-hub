@@ -12,6 +12,7 @@ export const Route = createFileRoute("/integrations")({
           "How Wossol Platform connects merchant operations with supported commerce, advertising, and messaging services.",
       },
     ],
+    links: [{ rel: "canonical", href: "https://platform.wossolexport.com/integrations" }],
   }),
   component: Integrations,
 });

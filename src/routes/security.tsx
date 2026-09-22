@@ -10,6 +10,7 @@ export const Route = createFileRoute("/security")({
           "An overview of Wossol Platform’s approach to scoped access, controlled integrations, and operational safeguards.",
       },
     ],
+    links: [{ rel: "canonical", href: "https://platform.wossolexport.com/security" }],
   }),
   component: Security,
 });

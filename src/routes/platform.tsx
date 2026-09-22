@@ -15,6 +15,7 @@ export const Route = createFileRoute("/platform")({
           "Explore Wossol Platform’s merchant operations workflows for products, orders, teams, and tracking.",
       },
     ],
+    links: [{ rel: "canonical", href: "https://platform.wossolexport.com/platform" }],
   }),
   component: Platform,
 });

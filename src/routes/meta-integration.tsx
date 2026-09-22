@@ -11,6 +11,7 @@ export const Route = createFileRoute("/meta-integration")({
           "How Wossol Platform uses authorized Meta advertising and bounded WhatsApp context in merchant operations.",
       },
     ],
+    links: [{ rel: "canonical", href: "https://platform.wossolexport.com/meta-integration" }],
   }),
   component: MetaIntegration,
 });

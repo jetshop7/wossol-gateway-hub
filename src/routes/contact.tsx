@@ -9,6 +9,7 @@ export const Route = createFileRoute("/contact")({
         content: "Contact Wossol Platform for general, integration, and privacy-related questions.",
       },
     ],
+    links: [{ rel: "canonical", href: "https://platform.wossolexport.com/contact" }],
   }),
   component: Contact,
 });

@@ -6,6 +6,7 @@ export const Route = createFileRoute("/terms")({
       { title: "Terms of Service | Wossol Platform" },
       { name: "description", content: "Public Terms of Service for Wossol Platform." },
     ],
+    links: [{ rel: "canonical", href: "https://platform.wossolexport.com/terms" }],
   }),
   component: Terms,
 });
@@ -13,7 +14,7 @@ export const Route = createFileRoute("/terms")({
 const sections = [
   [
     "1. Service",
-    "Wossol Platform is a merchant commerce and operations SaaS platform for supported product, inventory, order, fulfilment, tracking, analytics, and connected-service workflows.",
+    "Wossol (Wossol Platform) is a merchant commerce and operations SaaS platform for supported product, inventory, order, fulfilment, tracking, analytics, and connected-service workflows.",
   ],
   [
     "2. Authorized use",
