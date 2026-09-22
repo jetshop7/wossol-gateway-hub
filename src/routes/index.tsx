@@ -10,9 +10,10 @@ import {
 } from "lucide-react";
 import { OperationsVisual } from "../components/OperationsVisual";
 import heroOperations from "../assets/platform/hero-operations.jpg";
-import inventoryWorkbench from "../assets/platform/inventory-workbench.jpg";
-import dispatchContext from "../assets/platform/dispatch-context.jpg";
-import connectedWorkspace from "../assets/platform/connected-workspace.jpg";
+import inventoryShelves from "../assets/platform/inventory-shelves.jpg";
+import fulfilmentPacking from "../assets/platform/fulfilment-packing.jpg";
+import { ProductWorkflowVisual } from "../components/ProductWorkflowVisual";
+import { IntegrationArchitecture } from "../components/IntegrationArchitecture";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -106,8 +107,8 @@ function Home() {
           <div className="mt-10 grid gap-6 lg:grid-cols-[.84fr_1.16fr]">
             <div className="relative min-h-80 overflow-hidden rounded-2xl bg-navy shadow-[var(--shadow-elevated)]">
               <img
-                src={inventoryWorkbench}
-                alt="Illustrative product and inventory workbench with parcels and scanner"
+                src={inventoryShelves}
+                alt="Illustrative inventory shelves with a product being scanned"
                 loading="lazy"
                 className="absolute inset-0 h-full w-full object-cover"
               />
@@ -136,6 +137,19 @@ function Home() {
         </div>
       </section>
       <section className="section-pad bg-off-white">
+        <div className="container-page grid gap-10 lg:grid-cols-[.8fr_1.2fr] lg:items-center">
+          <div>
+            <p className="eyebrow">Orders and confirmation</p>
+            <h2 className="section-title">Structured work before fulfilment.</h2>
+            <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
+              Wossol’s order and confirmation areas give operational teams a focused context for
+              review, assignment, and the next relevant action.
+            </p>
+          </div>
+          <ProductWorkflowVisual />
+        </div>
+      </section>
+      <section className="section-pad bg-off-white">
         <div className="container-page grid gap-10 lg:grid-cols-[.72fr_1.28fr] lg:items-end">
           <div>
             <p className="eyebrow">Connected operations</p>
@@ -148,8 +162,8 @@ function Home() {
           </div>
           <div className="overflow-hidden rounded-2xl border border-border bg-white shadow-[var(--shadow-card)]">
             <img
-              src={dispatchContext}
-              alt="Illustrative parcel dispatch area with prepared packages"
+              src={fulfilmentPacking}
+              alt="Illustrative hands preparing an unbranded ecommerce order for fulfilment"
               loading="lazy"
               className="h-56 w-full object-cover sm:h-64"
             />
@@ -252,12 +266,9 @@ function Home() {
               Explore integrations <ArrowRight className="h-4 w-4" />
             </Link>
           </div>
-          <img
-            src={connectedWorkspace}
-            alt="Illustrative connected merchant workspace with laptop, tablet, and parcels"
-            loading="lazy"
-            className="h-64 w-full object-cover lg:h-full"
-          />
+          <div className="p-6 md:p-8">
+            <IntegrationArchitecture />
+          </div>
         </div>
       </section>
       <section className="bg-deep-navy text-deep-navy-foreground">

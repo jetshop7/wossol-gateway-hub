@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowRight, ChartNoAxesCombined, MessageCircle, PlugZap, ShoppingBag } from "lucide-react";
-import connectedWorkspace from "../assets/platform/connected-workspace.jpg";
 import { ProductWorkflowVisual } from "../components/ProductWorkflowVisual";
+import { IntegrationArchitecture } from "../components/IntegrationArchitecture";
 export const Route = createFileRoute("/integrations")({
   head: () => ({
     meta: [
@@ -51,20 +51,7 @@ function Integrations() {
               merchants run work with more context.
             </p>
           </div>
-          <div className="overflow-hidden rounded-2xl border border-border bg-white shadow-[var(--shadow-card)]">
-            <img
-              src={connectedWorkspace}
-              alt="Illustrative merchant workspace with connected devices and parcels"
-              className="h-64 w-full object-cover"
-            />
-            <div className="p-5">
-              <p className="text-sm font-semibold text-navy">Connections in operational context</p>
-              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                Illustrative workspace scene. It does not depict a Wossol customer or partner
-                environment.
-              </p>
-            </div>
-          </div>
+          <IntegrationArchitecture />
         </div>
       </section>
       <section className="section-pad">

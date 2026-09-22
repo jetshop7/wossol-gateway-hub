@@ -11,8 +11,7 @@ import {
 } from "lucide-react";
 import { OperationsVisual } from "../components/OperationsVisual";
 import { ProductWorkflowVisual } from "../components/ProductWorkflowVisual";
-import inventoryWorkbench from "../assets/platform/inventory-workbench.jpg";
-import dispatchContext from "../assets/platform/dispatch-context.jpg";
+import merchantWorkspace from "../assets/platform/merchant-workspace.jpg";
 export const Route = createFileRoute("/platform")({
   head: () => ({
     meta: [
@@ -105,43 +104,25 @@ function Platform() {
         </div>
       </section>
       <section className="section-pad">
-        <div className="container-page grid gap-6 lg:grid-cols-2">
-          <article className="overflow-hidden rounded-2xl border border-border bg-card">
+        <div className="container-page grid gap-8 lg:grid-cols-[.9fr_1.1fr] lg:items-center">
+          <div className="overflow-hidden rounded-2xl border border-border bg-card">
             <img
-              src={inventoryWorkbench}
-              alt="Illustrative inventory preparation workspace"
+              src={merchantWorkspace}
+              alt="Illustrative merchant reviewing an abstract operational workspace"
               loading="lazy"
-              className="h-56 w-full object-cover"
+              className="h-72 w-full object-cover"
             />
             <div className="p-6">
-              <p className="eyebrow">Products and inventory</p>
+              <p className="eyebrow">Merchant workspace</p>
               <h2 className="mt-3 text-2xl font-semibold text-navy">
-                Context before the order work starts.
+                A platform for the people making the next decision.
               </h2>
               <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
-                Product, variant, and inventory-aware operations have a clear place in the
-                platform’s operational picture.
+                Merchant, team, workspace, and role context stay close to the work being reviewed.
               </p>
             </div>
-          </article>
-          <article className="overflow-hidden rounded-2xl border border-border bg-card">
-            <img
-              src={dispatchContext}
-              alt="Illustrative prepared parcels at a dispatch counter"
-              loading="lazy"
-              className="h-56 w-full object-cover"
-            />
-            <div className="p-6">
-              <p className="eyebrow">Dispatch and tracking</p>
-              <h2 className="mt-3 text-2xl font-semibold text-navy">
-                Visibility when work leaves the queue.
-              </h2>
-              <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
-                Dispatch and tracking views help keep relevant shipment activity connected to the
-                work around an order.
-              </p>
-            </div>
-          </article>
+          </div>
+          <ProductWorkflowVisual tone="dark" />
         </div>
       </section>
       <section className="section-pad">
