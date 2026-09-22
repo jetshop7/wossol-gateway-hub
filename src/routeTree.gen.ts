@@ -9,15 +9,22 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as TermsRouteImport } from './routes/terms'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as SecurityRouteImport } from './routes/security'
 import { Route as PrivacyPolicyRouteImport } from './routes/privacy-policy'
 import { Route as PlatformRouteImport } from './routes/platform'
+import { Route as MetaIntegrationRouteImport } from './routes/meta-integration'
 import { Route as IntegrationsRouteImport } from './routes/integrations'
 import { Route as DataRequestsRouteImport } from './routes/data-requests'
 import { Route as ContactRouteImport } from './routes/contact'
 import { Route as IndexRouteImport } from './routes/index'
 
+const TermsRoute = TermsRouteImport.update({
+  id: '/terms',
+  path: '/terms',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   id: '/sitemap.xml',
   path: '/sitemap.xml',
@@ -36,6 +43,11 @@ const PrivacyPolicyRoute = PrivacyPolicyRouteImport.update({
 const PlatformRoute = PlatformRouteImport.update({
   id: '/platform',
   path: '/platform',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MetaIntegrationRoute = MetaIntegrationRouteImport.update({
+  id: '/meta-integration',
+  path: '/meta-integration',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IntegrationsRoute = IntegrationsRouteImport.update({
@@ -64,20 +76,24 @@ export interface FileRoutesByFullPath {
   '/contact': typeof ContactRoute
   '/data-requests': typeof DataRequestsRoute
   '/integrations': typeof IntegrationsRoute
+  '/meta-integration': typeof MetaIntegrationRoute
   '/platform': typeof PlatformRoute
   '/privacy-policy': typeof PrivacyPolicyRoute
   '/security': typeof SecurityRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/terms': typeof TermsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/contact': typeof ContactRoute
   '/data-requests': typeof DataRequestsRoute
   '/integrations': typeof IntegrationsRoute
+  '/meta-integration': typeof MetaIntegrationRoute
   '/platform': typeof PlatformRoute
   '/privacy-policy': typeof PrivacyPolicyRoute
   '/security': typeof SecurityRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/terms': typeof TermsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -85,10 +101,12 @@ export interface FileRoutesById {
   '/contact': typeof ContactRoute
   '/data-requests': typeof DataRequestsRoute
   '/integrations': typeof IntegrationsRoute
+  '/meta-integration': typeof MetaIntegrationRoute
   '/platform': typeof PlatformRoute
   '/privacy-policy': typeof PrivacyPolicyRoute
   '/security': typeof SecurityRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/terms': typeof TermsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -97,30 +115,36 @@ export interface FileRouteTypes {
     | '/contact'
     | '/data-requests'
     | '/integrations'
+    | '/meta-integration'
     | '/platform'
     | '/privacy-policy'
     | '/security'
     | '/sitemap.xml'
+    | '/terms'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/contact'
     | '/data-requests'
     | '/integrations'
+    | '/meta-integration'
     | '/platform'
     | '/privacy-policy'
     | '/security'
     | '/sitemap.xml'
+    | '/terms'
   id:
     | '__root__'
     | '/'
     | '/contact'
     | '/data-requests'
     | '/integrations'
+    | '/meta-integration'
     | '/platform'
     | '/privacy-policy'
     | '/security'
     | '/sitemap.xml'
+    | '/terms'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -128,14 +152,23 @@ export interface RootRouteChildren {
   ContactRoute: typeof ContactRoute
   DataRequestsRoute: typeof DataRequestsRoute
   IntegrationsRoute: typeof IntegrationsRoute
+  MetaIntegrationRoute: typeof MetaIntegrationRoute
   PlatformRoute: typeof PlatformRoute
   PrivacyPolicyRoute: typeof PrivacyPolicyRoute
   SecurityRoute: typeof SecurityRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
+  TermsRoute: typeof TermsRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/terms': {
+      id: '/terms'
+      path: '/terms'
+      fullPath: '/terms'
+      preLoaderRoute: typeof TermsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/sitemap.xml': {
       id: '/sitemap.xml'
       path: '/sitemap.xml'
@@ -162,6 +195,13 @@ declare module '@tanstack/react-router' {
       path: '/platform'
       fullPath: '/platform'
       preLoaderRoute: typeof PlatformRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/meta-integration': {
+      id: '/meta-integration'
+      path: '/meta-integration'
+      fullPath: '/meta-integration'
+      preLoaderRoute: typeof MetaIntegrationRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/integrations': {
@@ -200,10 +240,12 @@ const rootRouteChildren: RootRouteChildren = {
   ContactRoute: ContactRoute,
   DataRequestsRoute: DataRequestsRoute,
   IntegrationsRoute: IntegrationsRoute,
+  MetaIntegrationRoute: MetaIntegrationRoute,
   PlatformRoute: PlatformRoute,
   PrivacyPolicyRoute: PrivacyPolicyRoute,
   SecurityRoute: SecurityRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
+  TermsRoute: TermsRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

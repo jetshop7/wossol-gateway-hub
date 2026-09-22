@@ -18,6 +18,7 @@ export function Footer() {
             ["/", "Home"],
             ["/platform", "Platform"],
             ["/integrations", "Integrations"],
+            ["/meta-integration", "Meta Integration"],
             ["/security", "Security & Privacy"],
           ]}
         />
@@ -25,6 +26,7 @@ export function Footer() {
           title="Legal"
           links={[
             ["/privacy-policy", "Privacy Policy"],
+            ["/terms", "Terms of Service"],
             ["/data-requests", "Data & Privacy Requests"],
           ]}
         />
@@ -60,7 +62,16 @@ function FooterColumn({
   title: string;
   links: ReadonlyArray<
     readonly [
-      "/" | "/platform" | "/integrations" | "/security" | "/privacy-policy" | "/data-requests",
+      (
+        | "/"
+        | "/platform"
+        | "/integrations"
+        | "/meta-integration"
+        | "/security"
+        | "/privacy-policy"
+        | "/terms"
+        | "/data-requests"
+      ),
       string,
     ]
   >;

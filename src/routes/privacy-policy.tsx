@@ -30,15 +30,15 @@ const sections = [
   ],
   [
     "4. Connected services",
-    "Merchants may choose whether to connect supported third-party business services. Where a connection is supported, Wossol may process the account identifiers, authorization metadata, and service information needed to operate that connection. Third-party services remain subject to their own terms and privacy practices.",
+    "Merchants may choose whether to connect supported third-party business services. Where supported, Wossol may process authorized account and connection context, advertising structure and reporting information, attribution evidence, and bounded messaging events needed for the selected workflow. Third-party services remain subject to their own terms and privacy practices.",
   ],
   [
     "5. Bounded operational workflows",
-    "Wossol processes service information only for supported operational workflows. It does not present itself as a general-purpose messaging inbox or claim automatic conversion of conversations into orders.",
+    "Wossol processes connected-service information only for supported operational workflows. Meta advertising context may support structure synchronization, reporting, deterministic attribution, and provider-authoritative conversion-destination workflows. Supported WhatsApp webhook events may support bounded operational capture where configured. Wossol does not present itself as a general-purpose messaging inbox or claim automatic conversion of conversations into orders.",
   ],
   [
     "6. Referral and advertising evidence",
-    "Where applicable, advertising or referral evidence is used only when deterministic evidence is supplied by the provider. Wossol does not claim heuristic ad attribution.",
+    "Where applicable, advertising or referral evidence is used only when deterministic evidence is available from an authorized provider or supported commerce workflow. Wossol does not claim heuristic ad attribution, unrestricted provider access, or production-ready automatic Creative replacement or Ad mutation.",
   ],
   [
     "7. Purposes",
@@ -89,6 +89,7 @@ function PrivacyPolicy() {
             How Wossol Platform approaches information for merchant operations and supported
             integrations.
           </p>
+          <p className="mt-4 text-sm text-muted-foreground">Last updated: September 22, 2026.</p>
         </div>
       </section>
       <section className="section-pad bg-background">

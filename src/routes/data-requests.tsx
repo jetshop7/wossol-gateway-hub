@@ -33,8 +33,9 @@ function DataRequests() {
           <div>
             <h2 className="section-title">A clear request path.</h2>
             <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
-              Send your request by email. Please provide enough information for us to understand the
-              request and locate the relevant information.
+              Send your request by email. Please identify the relevant account, merchant, workspace,
+              store, or connected service without including passwords, access tokens, app secrets,
+              or other credentials.
             </p>
           </div>
           <div className="space-y-4">
@@ -43,12 +44,12 @@ function DataRequests() {
               [
                 "2",
                 "Describe the request",
-                "Tell us whether you are seeking access, correction, deletion, or another privacy action.",
+                "Tell us whether you are seeking access, correction, deletion, disconnection-related help, or another privacy action. You may also request deletion of Wossol-held data associated with a connected service.",
               ],
               [
                 "3",
                 "Verification and response",
-                "We may request information needed to verify the request and help protect information belonging to others.",
+                "We may need to verify your authority before acting. Wossol will process the request according to applicable obligations and legitimate retention requirements, without promising a fixed deletion timeline.",
               ],
             ].map(([number, title, text]) => (
               <div key={number} className="flex gap-4 rounded-xl border border-border p-5">
@@ -62,6 +63,11 @@ function DataRequests() {
               </div>
             ))}
           </div>
+        </div>
+        <div className="container-page mt-8 rounded-xl border border-border bg-card p-6 text-sm leading-relaxed text-muted-foreground">
+          Disconnecting provider authorization and deleting data held by Wossol are distinct actions
+          where applicable. Provider-owned data may remain subject to the provider’s own systems and
+          policies.
         </div>
         <div className="container-page mt-10">
           <a

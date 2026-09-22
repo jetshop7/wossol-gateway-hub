@@ -68,6 +68,26 @@ function Integrations() {
         </div>
       </section>
       <section className="section-pad bg-off-white">
+        <div className="container-page flex flex-col justify-between gap-6 rounded-2xl border border-border bg-card p-8 md:flex-row md:items-center">
+          <div>
+            <p className="eyebrow">Meta integration</p>
+            <h2 className="mt-3 text-2xl font-semibold text-navy">
+              See how Meta fits into merchant operations.
+            </h2>
+            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">
+              Review authorization, advertising context, bounded WhatsApp workflows, data
+              categories, and privacy controls.
+            </p>
+          </div>
+          <Link
+            to="/meta-integration"
+            className="inline-flex shrink-0 items-center gap-2 rounded-md bg-navy px-4 py-2.5 text-sm font-semibold text-navy-foreground hover:bg-deep-navy"
+          >
+            Meta integration <ArrowRight className="h-4 w-4" />
+          </Link>
+        </div>
+      </section>
+      <section className="section-pad bg-off-white">
         <div className="container-page grid gap-10 lg:grid-cols-[.85fr_1.15fr]">
           <div>
             <p className="eyebrow">How integrations fit</p>
