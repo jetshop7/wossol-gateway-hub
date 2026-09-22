@@ -1,26 +1,137 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { AlertTriangle, CheckCircle2, LockKeyhole } from "lucide-react";
+import { CheckCircle2, LockKeyhole } from "lucide-react";
 
-export const Route = createFileRoute("/privacy-policy")({ head: () => ({ meta: [{ title: "Privacy Policy | Wossol Platform" }, { name: "description", content: "Privacy Policy for Wossol Platform merchant operations and supported integrations." }] }), component: PrivacyPolicy });
+export const Route = createFileRoute("/privacy-policy")({
+  head: () => ({
+    meta: [
+      { title: "Privacy Policy | Wossol Platform" },
+      {
+        name: "description",
+        content:
+          "Privacy Policy for Wossol Platform merchant operations and supported integrations.",
+      },
+    ],
+  }),
+  component: PrivacyPolicy,
+});
 
 const sections = [
-  ["1. Scope", "This Privacy Policy describes how Wossol Platform may process information in connection with its public website, merchant workspaces, and supported commerce or business-service integrations. It is written for the current intended Messaging V1 scope and may be updated as the implementation develops."],
-  ["2. Information merchants provide", "Merchants may provide account, workspace, business, contact, configuration, and support information needed to use the platform. Information is expected to be provided by or on behalf of the relevant merchant or workspace."],
-  ["3. Account, workspace, and commerce information", "Wossol may process identifiers and configuration associated with a merchant or workspace, together with information needed to operate supported commerce workflows. Connections and data are scoped to the relevant merchant or workspace, and backend authorization is authoritative."],
-  ["4. Meta and WhatsApp Business information", "Merchants choose whether to connect supported Meta business assets. Where a merchant connects them, Wossol may process provider-supplied business account identifiers, WhatsApp Business Account identifiers, phone-number identifiers, authorization and connection metadata, and webhook events needed to operate the connected functionality. Meta and WhatsApp are third-party services. Wossol is not described as affiliated with or endorsed by Meta."],
-  ["5. Messaging V1 and bounded order capture", "Wossol does not provide a general-purpose messaging inbox. Native messaging applications remain the merchant’s normal messaging surface. Wossol processes messaging events only for supported operational workflows. A merchant-authored #WOSSOL handoff marker may be used to create an Order Capture Candidate. A candidate is not automatically an Order, and the merchant must complete the normal Create Order workflow. Wossol does not claim automatic AI order extraction or that customer conversations automatically become orders."],
-  ["6. Referral and advertising evidence", "Where applicable, advertising or referral evidence is used only when deterministic evidence is supplied by the provider. Wossol does not claim heuristic ad attribution."],
-  ["7. Purposes", "Information may be processed to operate connected functionality, support bounded order-capture workflows, maintain merchant connections, provide service operation and troubleshooting, protect security, and prevent fraud or abuse."],
-  ["8. Data minimization and message content", "Wossol’s intended architecture stores only bounded information required for supported workflows. Full conversation history, images, audio, files, stickers, and unrestricted message history are not part of Messaging V1. Wossol does not claim to store full WhatsApp conversation history or unrestricted provider webhook payloads."],
-  ["9. Sharing and service providers", "Wossol may disclose information to service providers that help operate the platform, subject to appropriate contractual and security controls. This policy does not name subprocessors because a verified subprocessor list has not been established in this repository. Wossol does not sell merchant or customer information."],
-  ["10. Retention", "Information is retained only for as long as reasonably necessary for the supported purpose, security, troubleshooting, legal obligations, and dispute handling. Fixed retention periods have not been established in the repository and are not stated here."],
-  ["11. Security", "Credentials and access tokens are treated as secrets and are not intended to be exposed in frontend code or audit data. Wossol uses access controls and reasonable technical and organizational measures appropriate to the service. No security certification is claimed by this policy."],
-  ["12. Rights and requests", "Subject to applicable law, merchants and individuals may request access, correction, deletion, or other handling of information relating to them. Requests may require verification and may be limited where necessary to protect another person, the service, or legal rights."],
-  ["13. Deletion procedure", "A dedicated public deletion mechanism and verified privacy contact have not yet been established in this repository. Before external publication, Wossol must confirm the responsible legal entity, a monitored privacy contact, identity-verification steps, and the operational process for fulfilling deletion and other data requests."],
-  ["14. International processing", "This policy does not make a specific claim about processing locations or international transfer mechanisms because verified jurisdictional details are not available in the repository."],
-  ["15. Changes", "Wossol may update this policy as the platform and supported workflows change. The effective date and material changes should be recorded when the policy is published for production."],
+  [
+    "1. Scope",
+    "This Privacy Policy describes Wossol Platform’s approach to information processed in connection with its public website, merchant workspaces, and supported commerce or business-service integrations.",
+  ],
+  [
+    "2. Information merchants provide",
+    "Merchants may provide account, workspace, business, contact, configuration, and support information needed to use the platform. Information is expected to be provided by or on behalf of the relevant merchant or workspace.",
+  ],
+  [
+    "3. Account, workspace, and commerce information",
+    "Wossol may process identifiers and configuration associated with a merchant or workspace, together with information needed to operate supported commerce workflows. Connections and data are scoped to the relevant merchant or workspace, and backend authorization is authoritative.",
+  ],
+  [
+    "4. Connected services",
+    "Merchants may choose whether to connect supported third-party business services. Where a connection is supported, Wossol may process the account identifiers, authorization metadata, and service information needed to operate that connection. Third-party services remain subject to their own terms and privacy practices.",
+  ],
+  [
+    "5. Bounded operational workflows",
+    "Wossol processes service information only for supported operational workflows. It does not present itself as a general-purpose messaging inbox or claim automatic conversion of conversations into orders.",
+  ],
+  [
+    "6. Referral and advertising evidence",
+    "Where applicable, advertising or referral evidence is used only when deterministic evidence is supplied by the provider. Wossol does not claim heuristic ad attribution.",
+  ],
+  [
+    "7. Purposes",
+    "Information may be processed to operate connected functionality, support bounded order-capture workflows, maintain merchant connections, provide service operation and troubleshooting, protect security, and prevent fraud or abuse.",
+  ],
+  [
+    "8. Data minimization",
+    "Wossol’s architecture is designed to use bounded information required for supported workflows. The platform does not claim to retain unrestricted third-party service content where it is not needed for its operational purpose.",
+  ],
+  [
+    "9. Sharing and service providers",
+    "Wossol may disclose information to service providers that help operate the platform, subject to appropriate contractual and security controls. Wossol does not sell merchant or customer information.",
+  ],
+  [
+    "10. Retention",
+    "Information is retained only for as long as reasonably necessary for the supported purpose, security, troubleshooting, legal obligations, and dispute handling.",
+  ],
+  [
+    "11. Security",
+    "Credentials and access tokens are treated as secrets and are not intended to be exposed in frontend code or audit data. Wossol uses access controls and reasonable technical and organizational measures appropriate to the service. No security certification is claimed by this policy.",
+  ],
+  [
+    "12. Rights and requests",
+    "Subject to applicable law, merchants and individuals may request access, correction, deletion, or other handling of information relating to them. Requests may require verification and may be limited where necessary to protect another person, the service, or legal rights.",
+  ],
+  [
+    "13. Deletion procedure",
+    "To make a privacy or deletion request, contact us using the address below and identify the request clearly. We may ask for information needed to verify the request and protect the information of others.",
+  ],
+  [
+    "14. International processing",
+    "Where information is processed across borders, Wossol will use safeguards appropriate to the applicable service and legal requirements.",
+  ],
+  [
+    "15. Changes",
+    "Wossol may update this policy as the platform and supported workflows change. Material updates will be reflected on this page.",
+  ],
 ];
 
 function PrivacyPolicy() {
-  return <><section className="bg-deep-navy text-deep-navy-foreground"><div className="container-page py-16 md:py-20"><p className="text-sm font-semibold uppercase tracking-[0.18em] text-gold">Legal information</p><h1 className="mt-4 max-w-3xl text-4xl font-semibold tracking-tight md:text-5xl">Privacy Policy</h1><p className="mt-5 max-w-2xl text-base leading-relaxed text-deep-navy-foreground/75">How Wossol Platform handles information for merchant operations and supported integrations.</p><p className="mt-6 text-sm text-deep-navy-foreground/60">Effective date: [EFFECTIVE DATE REQUIRED]</p></div></section><section className="section-pad bg-background"><div className="container-page grid gap-8 lg:grid-cols-[minmax(0,1fr)_280px] lg:items-start"><article className="max-w-3xl space-y-8">{sections.map(([title, body]) => <section key={title}><h2 className="text-xl font-semibold text-navy">{title}</h2><p className="mt-3 text-sm leading-7 text-muted-foreground">{body}</p></section>)}<section><h2 className="text-xl font-semibold text-navy">16. Contact</h2><p className="mt-3 text-sm leading-7 text-muted-foreground">Privacy questions and requests should be directed to: <strong className="text-navy">[PRIVACY CONTACT EMAIL REQUIRED]</strong></p></section></article><aside className="space-y-4 lg:sticky lg:top-24"><div className="rounded-xl border border-amber-300 bg-amber-50 p-5 text-amber-950"><AlertTriangle className="h-5 w-5" /><h2 className="mt-3 text-sm font-semibold">Publication checklist</h2><p className="mt-2 text-sm leading-relaxed">Resolve the highlighted legal and operational placeholders before using this page for Meta App Review or production publication.</p></div><div className="rounded-xl border border-border bg-card p-5"><LockKeyhole className="h-5 w-5 text-gold" /><h2 className="mt-3 text-sm font-semibold text-navy">Policy principles</h2><ul className="mt-3 space-y-3 text-sm text-muted-foreground">{["Bounded workflow data", "Merchant-scoped access", "No unrestricted message history"].map((item) => <li key={item} className="flex gap-2"><CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-gold" />{item}</li>)}</ul></div></aside></div></section></>;
+  return (
+    <>
+      <section className="page-hero">
+        <div className="container-page max-w-3xl">
+          <p className="eyebrow">Privacy</p>
+          <h1 className="page-title">Privacy Policy</h1>
+          <p className="page-intro">
+            How Wossol Platform approaches information for merchant operations and supported
+            integrations.
+          </p>
+        </div>
+      </section>
+      <section className="section-pad bg-background">
+        <div className="container-page grid gap-8 lg:grid-cols-[minmax(0,1fr)_280px] lg:items-start">
+          <article className="max-w-3xl space-y-8">
+            {sections.map(([title, body]) => (
+              <section key={title}>
+                <h2 className="text-xl font-semibold text-navy">{title}</h2>
+                <p className="mt-3 text-sm leading-7 text-muted-foreground">{body}</p>
+              </section>
+            ))}
+            <section>
+              <h2 className="text-xl font-semibold text-navy">16. Contact</h2>
+              <p className="mt-3 text-sm leading-7 text-muted-foreground">
+                Privacy questions and requests can be sent to{" "}
+                <a
+                  href="mailto:international@wossolexport.com"
+                  className="font-semibold text-navy underline decoration-gold underline-offset-4"
+                >
+                  international@wossolexport.com
+                </a>
+                .
+              </p>
+            </section>
+          </article>
+          <aside className="space-y-4 lg:sticky lg:top-24">
+            <div className="rounded-xl border border-border bg-card p-5">
+              <LockKeyhole className="h-5 w-5 text-gold" />
+              <h2 className="mt-3 text-sm font-semibold text-navy">Policy principles</h2>
+              <ul className="mt-3 space-y-3 text-sm text-muted-foreground">
+                {["Bounded workflow data", "Merchant-scoped access", "Controlled integrations"].map(
+                  (item) => (
+                    <li key={item} className="flex gap-2">
+                      <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-gold" />
+                      {item}
+                    </li>
+                  ),
+                )}
+              </ul>
+            </div>
+          </aside>
+        </div>
+      </section>
+    </>
+  );
 }

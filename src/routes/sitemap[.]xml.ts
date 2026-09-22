@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import type {} from "@tanstack/react-start";
 
-const BASE_URL = "";
+const BASE_URL = "https://platform.wossolexport.com";
 
 interface SitemapEntry {
   path: string;
@@ -15,13 +15,12 @@ export const Route = createFileRoute("/sitemap.xml")({
       GET: async () => {
         const entries: SitemapEntry[] = [
           { path: "/", changefreq: "weekly", priority: "1.0" },
-          { path: "/about", changefreq: "monthly", priority: "0.8" },
-          { path: "/sectors", changefreq: "monthly", priority: "0.8" },
-          { path: "/markets", changefreq: "monthly", priority: "0.8" },
-          { path: "/why-choose-wossol-export", changefreq: "monthly", priority: "0.7" },
-          { path: "/opportunities", changefreq: "monthly", priority: "0.8" },
+          { path: "/platform", changefreq: "monthly", priority: "0.9" },
+          { path: "/integrations", changefreq: "monthly", priority: "0.8" },
+          { path: "/security", changefreq: "monthly", priority: "0.7" },
           { path: "/contact", changefreq: "monthly", priority: "0.9" },
           { path: "/privacy-policy", changefreq: "monthly", priority: "0.3" },
+          { path: "/data-requests", changefreq: "monthly", priority: "0.3" },
         ];
 
         const urls = entries.map((e) =>

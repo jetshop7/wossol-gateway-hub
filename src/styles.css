@@ -5,7 +5,7 @@
 @custom-variant dark (&:is(.dark *));
 
 /*
- * Wossol Export — Corporate design system.
+ * Wossol Platform — Corporate design system.
  * Brand: Navy (#062B55), Deep Navy (#031D3A), Gold (#C9A24A),
  * White, Off White (#F8FAFC). Navy = trust/corporate, Gold = accent only.
  */
@@ -73,31 +73,31 @@
   --radius: 0.5rem;
 
   /* Brand palette */
-  --navy: oklch(0.34 0.082 256);          /* #062B55 */
+  --navy: oklch(0.34 0.082 256); /* #062B55 */
   --navy-foreground: oklch(0.99 0 0);
-  --deep-navy: oklch(0.27 0.066 256);     /* #031D3A */
+  --deep-navy: oklch(0.27 0.066 256); /* #031D3A */
   --deep-navy-foreground: oklch(0.99 0 0);
-  --gold: oklch(0.74 0.108 85);           /* #C9A24A */
+  --gold: oklch(0.74 0.108 85); /* #C9A24A */
   --gold-foreground: oklch(0.27 0.066 256);
-  --off-white: oklch(0.984 0.003 247);    /* #F8FAFC */
+  --off-white: oklch(0.984 0.003 247); /* #F8FAFC */
 
   --background: oklch(1 0 0);
-  --foreground: oklch(0.21 0.03 264);     /* #111827 */
+  --foreground: oklch(0.21 0.03 264); /* #111827 */
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.21 0.03 264);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.21 0.03 264);
-  --primary: oklch(0.34 0.082 256);       /* navy */
+  --primary: oklch(0.34 0.082 256); /* navy */
   --primary-foreground: oklch(0.99 0 0);
-  --secondary: oklch(0.984 0.003 247);    /* off-white */
+  --secondary: oklch(0.984 0.003 247); /* off-white */
   --secondary-foreground: oklch(0.34 0.082 256);
   --muted: oklch(0.968 0.004 247);
   --muted-foreground: oklch(0.55 0.03 257); /* #6B7280 */
-  --accent: oklch(0.74 0.108 85);         /* gold */
+  --accent: oklch(0.74 0.108 85); /* gold */
   --accent-foreground: oklch(0.27 0.066 256);
   --destructive: oklch(0.577 0.245 27.325);
   --destructive-foreground: oklch(0.99 0 0);
-  --border: oklch(0.92 0.004 247);        /* #E5E7EB */
+  --border: oklch(0.92 0.004 247); /* #E5E7EB */
   --input: oklch(0.92 0.004 247);
   --ring: oklch(0.74 0.108 85);
   --chart-1: oklch(0.34 0.082 256);
@@ -131,7 +131,10 @@
     font-family: var(--font-arabic);
   }
 
-  h1, h2, h3, h4 {
+  h1,
+  h2,
+  h3,
+  h4 {
     font-weight: 600;
     letter-spacing: -0.01em;
   }
@@ -146,4 +149,47 @@
 
 @utility section-pad {
   padding-block: 4.5rem;
+}
+
+@utility eyebrow {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--gold);
+}
+
+@utility section-title {
+  margin-top: 0.75rem;
+  font-size: clamp(1.875rem, 3vw, 2.5rem);
+  line-height: 1.12;
+  color: var(--navy);
+}
+
+@utility page-hero {
+  background: linear-gradient(
+    135deg,
+    var(--off-white),
+    white 55%,
+    color-mix(in oklab, var(--gold) 12%, white)
+  );
+  padding-block: 5.5rem;
+}
+
+@utility page-title {
+  margin-top: 0.75rem;
+  max-width: 48rem;
+  font-size: clamp(2.5rem, 5vw, 4.5rem);
+  font-weight: 600;
+  line-height: 1.04;
+  letter-spacing: -0.035em;
+  color: var(--navy);
+}
+
+@utility page-intro {
+  margin-top: 1.5rem;
+  max-width: 42rem;
+  font-size: 1.125rem;
+  line-height: 1.7;
+  color: var(--muted-foreground);
 }

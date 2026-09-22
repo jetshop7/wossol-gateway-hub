@@ -40,7 +40,9 @@ function ErrorComponent({ error, reset }: { error: unknown; reset: () => void })
   console.error(error);
   const router = useRouter();
   useEffect(() => {
-    reportLovableError(error instanceof Error ? error : new Error(String(error)), { boundary: "tanstack_root_error_component" });
+    reportLovableError(error instanceof Error ? error : new Error(String(error)), {
+      boundary: "tanstack_root_error_component",
+    });
   }, [error]);
 
   return (
@@ -79,24 +81,25 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Wossol Platform | Merchant operations" },
+      { title: "Wossol Platform | Merchant Operations Platform" },
       {
         name: "description",
         content:
-          "Wossol Platform supports merchant operations and connected commerce workflows.",
+          "Wossol Platform helps merchants coordinate connected commerce and operational workflows.",
       },
       { name: "author", content: "Wossol Platform" },
-      { property: "og:title", content: "Wossol Platform | Merchant operations" },
+      { property: "og:title", content: "Wossol Platform | Merchant Operations Platform" },
       {
         property: "og:description",
         content:
-          "Wossol Platform supports merchant operations and connected commerce workflows.",
+          "Wossol Platform helps merchants coordinate connected commerce and operational workflows.",
       },
       { property: "og:type", content: "website" },
       { property: "og:site_name", content: "Wossol Platform" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
     links: [
+      { rel: "canonical", href: "https://platform.wossolexport.com" },
       { rel: "stylesheet", href: appCss },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
@@ -143,12 +146,12 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       <div className="flex min-h-screen flex-col">
-          <Header />
-          <main className="flex-1">
-            {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-            <Outlet />
-          </main>
-          <Footer />
+        <Header />
+        <main className="flex-1">
+          {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
+          <Outlet />
+        </main>
+        <Footer />
       </div>
     </QueryClientProvider>
   );
