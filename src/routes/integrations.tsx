@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowRight, ChartNoAxesCombined, MessageCircle, PlugZap, ShoppingBag } from "lucide-react";
-import { ProductWorkflowVisual } from "../components/ProductWorkflowVisual";
 import { IntegrationArchitecture } from "../components/IntegrationArchitecture";
+import { ConnectionFlowVisual } from "../components/ConnectionFlowVisual";
 export const Route = createFileRoute("/integrations")({
   head: () => ({
     meta: [
@@ -19,22 +19,22 @@ const integrations = [
   [
     ShoppingBag,
     "Commerce channels",
-    "Wossol has commerce-channel architecture and Shopify-oriented implementation work that connects store context to merchant operations.",
+    "Shopify product and variant connection workflows are implemented in the merchant product surface, including explicit linking, review, and connection health.",
   ],
   [
     ChartNoAxesCombined,
     "Advertising",
-    "Advertising connections and reporting foundations are designed to keep provider information scoped to the merchant and connected to operational evidence.",
+    "Advertising mappings and reporting foundations keep provider context scoped to the merchant and connected to product or variant evidence.",
   ],
   [
     MessageCircle,
     "Messaging",
-    "Wossol has a limited Meta WhatsApp integration path for authorized merchant connections and bounded operational workflows. It is not a general messaging inbox.",
+    "Meta and WhatsApp messaging is treated as a bounded, merchant-authorized operational path. It is not presented as a general messaging inbox.",
   ],
   [
     PlugZap,
     "Integration foundations",
-    "Connections are designed around merchant and workspace context, controlled authorization, and deliberate operational boundaries.",
+    "Where a provider path is not complete, Wossol treats it as a scoped foundation rather than presenting it as finished capability.",
   ],
 ] as const;
 function Integrations() {
@@ -96,7 +96,7 @@ function Integrations() {
       </section>
       <section className="section-pad">
         <div className="container-page grid gap-10 lg:grid-cols-[1.1fr_.9fr] lg:items-center">
-          <ProductWorkflowVisual tone="dark" />
+          <ConnectionFlowVisual />
           <div>
             <p className="eyebrow">Operational center</p>
             <h2 className="section-title">Connected services should support real work.</h2>

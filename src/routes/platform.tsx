@@ -1,16 +1,9 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import {
-  ArrowRight,
-  BarChart3,
-  Boxes,
-  ClipboardCheck,
-  Package,
-  ShieldCheck,
-  Truck,
-  UsersRound,
-} from "lucide-react";
-import { OperationsVisual } from "../components/OperationsVisual";
-import { ProductWorkflowVisual } from "../components/ProductWorkflowVisual";
+import { createFileRoute } from "@tanstack/react-router";
+import { BarChart3, Boxes, ClipboardCheck, Package, Truck, UsersRound } from "lucide-react";
+import { ConfirmationQueueVisual } from "../components/ConfirmationQueueVisual";
+import { CommerceFoundationVisual } from "../components/CommerceFoundationVisual";
+import { FulfilmentTrackingVisual } from "../components/FulfilmentTrackingVisual";
+import { MerchantContextVisual } from "../components/MerchantContextVisual";
 import merchantWorkspace from "../assets/platform/merchant-workspace.jpg";
 export const Route = createFileRoute("/platform")({
   head: () => ({
@@ -70,7 +63,7 @@ function Platform() {
               people, shipment activity, and operational review.
             </p>
           </div>
-          <OperationsVisual />
+          <MerchantContextVisual />
         </div>
       </section>
       <section className="section-pad">
@@ -91,7 +84,7 @@ function Platform() {
         </div>
       </section>
       <section className="section-pad bg-off-white">
-        <div className="container-page grid gap-10 lg:grid-cols-[.85fr_1.15fr]">
+        <div className="container-page grid gap-10 lg:grid-cols-[.85fr_1.15fr] lg:items-center">
           <div>
             <p className="eyebrow">Operations, not noise</p>
             <h2 className="section-title">Work moves through clear operational stages.</h2>
@@ -100,7 +93,33 @@ function Platform() {
               and visibility—while keeping the relevant merchant context present.
             </p>
           </div>
-          <ProductWorkflowVisual />
+          <CommerceFoundationVisual />
+        </div>
+      </section>
+      <section className="section-pad">
+        <div className="container-page grid gap-10 lg:grid-cols-[1.1fr_.9fr] lg:items-center">
+          <ConfirmationQueueVisual />
+          <div>
+            <p className="eyebrow">Order operations</p>
+            <h2 className="section-title">Confirmation work has a place to go.</h2>
+            <p className="mt-4 text-base leading-relaxed text-muted-foreground">
+              Orders can be reviewed, assigned, followed up, and moved forward with the relevant
+              team and merchant context attached.
+            </p>
+          </div>
+        </div>
+      </section>
+      <section className="section-pad bg-off-white">
+        <div className="container-page grid gap-10 lg:grid-cols-[.9fr_1.1fr] lg:items-center">
+          <div>
+            <p className="eyebrow">Fulfilment and delivery</p>
+            <h2 className="section-title">From dispatch activity to tracking visibility.</h2>
+            <p className="mt-4 text-base leading-relaxed text-muted-foreground">
+              Operational handling and provider-reported movement are kept distinct, so teams can
+              review what happened without manufacturing a shipment state.
+            </p>
+          </div>
+          <FulfilmentTrackingVisual />
         </div>
       </section>
       <section className="section-pad">
@@ -113,38 +132,23 @@ function Platform() {
               className="h-72 w-full object-cover"
             />
             <div className="p-6">
-              <p className="eyebrow">Merchant workspace</p>
+              <p className="eyebrow">Operational visibility</p>
               <h2 className="mt-3 text-2xl font-semibold text-navy">
-                A platform for the people making the next decision.
+                Review the next decision with context.
               </h2>
               <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
-                Merchant, team, workspace, and role context stay close to the work being reviewed.
+                Focused dashboards and workspace-aware views bring products, orders, people, and
+                activity into one operational picture.
               </p>
             </div>
           </div>
-          <ProductWorkflowVisual tone="dark" />
-        </div>
-      </section>
-      <section className="section-pad">
-        <div className="container-page grid gap-8 rounded-2xl bg-deep-navy p-8 text-deep-navy-foreground lg:grid-cols-[1fr_.8fr] lg:p-10">
           <div>
-            <p className="eyebrow text-gold">A controlled foundation</p>
-            <h2 className="mt-3 text-3xl font-semibold tracking-tight">
-              Built for merchant-aware operations.
-            </h2>
-            <p className="mt-4 max-w-xl text-sm leading-relaxed text-deep-navy-foreground/75">
+            <p className="eyebrow">A controlled foundation</p>
+            <h2 className="section-title">Built for merchant-aware operations.</h2>
+            <p className="mt-4 text-base leading-relaxed text-muted-foreground">
               Wossol uses workspace-aware context, controlled access, and backend-evaluated
-              operational workflows to support deliberate commerce work.
+              workflows to support deliberate commerce work.
             </p>
-          </div>
-          <div className="flex items-center">
-            <Link
-              to="/security"
-              className="inline-flex items-center gap-2 text-sm font-semibold text-gold hover:text-gold/80"
-            >
-              <ShieldCheck className="h-5 w-5" /> Explore Security & Privacy{" "}
-              <ArrowRight className="h-4 w-4" />
-            </Link>
           </div>
         </div>
       </section>
