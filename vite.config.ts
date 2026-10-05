@@ -7,6 +7,17 @@
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 
 export default defineConfig({
+  // The generated route tree is written atomically by TanStack's generator.
+  // Watching that output feeds its own write back into Vite's route-generator
+  // hook on Windows, which can start concurrent generations and oscillate the
+  // otherwise identical route ordering.
+  vite: {
+    server: {
+      watch: {
+        ignored: ["**/src/routeTree.gen.ts"],
+      },
+    },
+  },
   // Force Nitro output when building outside Lovable, such as on Vercel.
   nitro: true,
   tanstackStart: {
