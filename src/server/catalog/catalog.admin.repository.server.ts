@@ -180,6 +180,20 @@ function slugForName(name: string) {
   return normalizeCatalogSlug(name) || "record";
 }
 
+export async function searchAdminTaxonomyNodes(query: string) {
+  const text = query.trim();
+  return getWossolExportPrisma().catalogTaxonomyNode.findMany({
+    where: text ? { OR: [{ name: { contains: text, mode: "insensitive" } }, { sourceCode: { contains: text, mode: "insensitive" } }] } : {},
+    select: { id: true, name: true, source: true, sourceCode: true, sourceVersion: true, parent: { select: { name: true, sourceCode: true, parent: { select: { name: true, sourceCode: true } } } } },
+    take: 25,
+    orderBy: { name: "asc" },
+  });
+}
+
+function compactPackaging(packaging: Record<string, string | number | null | undefined>) {
+  return Object.fromEntries(Object.entries(packaging).filter(([, value]) => value !== null && value !== undefined));
+}
+
 export async function createAdminProductFamily(companyId: string, brandId: string, input: unknown) {
   const data = catalogProductFamilyInputSchema.parse(input);
   const prisma = getWossolExportPrisma();
@@ -201,7 +215,7 @@ export async function createAdminProduct(companyId: string, input: unknown) {
     try {
       const { variants, ...product } = data;
       const productVariants = variants.length ? variants : [{ name: null, supplierSku: null, mainImageUrl: null, additionalImageUrls: [], packaging: {}, factoryPrice: null, markupPercent: null, sellingPrice: 0, pricingMethod: "FIXED_SELLING_PRICE" as const, status: "ACTIVE" as const, publicationStatus: "DRAFT" as const }];
-      const record = await prisma.product.create({ data: { ...product, companyId, brandId: data.brandId ?? null, taxonomyNodeId: data.taxonomyNodeId ?? null, slug, variants: { create: productVariants.map((variant, index) => { const pricing = resolveVariantPricing(variant.factoryPrice == null && variant.sellingPrice == null && variant.markupPercent == null ? { pricingMethod: "FIXED_SELLING_PRICE", sellingPrice: 0 } : variant); return { ...variant, sku: variant.supplierSku || `${slug}-${index + 1}`, ...pricing, isDefault: variants.length === 0 }; }) } }, select: companyDetailSelect.products.select });
+      const record = await prisma.product.create({ data: { ...product, companyId, brandId: data.brandId ?? null, taxonomyNodeId: data.taxonomyNodeId ?? null, slug, variants: { create: productVariants.map((variant, index) => { const pricing = resolveVariantPricing(variant.factoryPrice == null && variant.sellingPrice == null && variant.markupPercent == null ? { pricingMethod: "FIXED_SELLING_PRICE", sellingPrice: 0 } : variant); return { ...variant, packaging: compactPackaging(variant.packaging), sku: variant.supplierSku || `${slug}-${index + 1}`, ...pricing, isDefault: variants.length === 0 }; }) } }, select: companyDetailSelect.products.select });
       await prisma.variantPriceHistory.createMany({ data: record.variants.map((variant) => ({ variantId: variant.id, pricingMethod: variant.pricingMethod, factoryPrice: variant.factoryPrice, markupPercent: variant.markupPercent, sellingPrice: variant.sellingPrice, currency: variant.currency })) });
       return toAdminProductDto(record);
     } catch (error) {
@@ -251,7 +265,7 @@ export async function updateAdminProduct(companyId: string, productId: string, i
         sku,
         mainImageUrl: variant.mainImageUrl ?? null,
         additionalImageUrls: variant.additionalImageUrls,
-        packaging: variant.packaging,
+        packaging: compactPackaging(variant.packaging),
         pricingMethod: pricing.pricingMethod,
         factoryPrice: pricing.factoryPrice,
         markupPercent: pricing.markupPercent,

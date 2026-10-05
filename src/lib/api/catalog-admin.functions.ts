@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { catalogVariantPackagingSchema } from "../../server/catalog/catalog.validation.ts";
 
 const idSchema = z.string().uuid();
 const companyInput = z.object({
@@ -30,7 +31,7 @@ const productInput = z.object({
   description: z.string().nullable().optional(),
   internalNotes: z.string().nullable().optional(),
   publicationStatus: z.enum(["DRAFT", "IN_REVIEW", "PUBLISHED", "ARCHIVED"]).optional(),
-  variants: z.array(z.object({ id: idSchema.optional(), name: z.string().nullable().optional(), supplierSku: z.string().nullable().optional(), mainImageUrl: z.string().url().nullable().optional(), additionalImageUrls: z.array(z.string().url()).optional(), packaging: z.record(z.string(), z.string()).optional(), factoryPrice: z.number().nonnegative().nullable().optional(), markupPercent: z.number().nullable().optional(), sellingPrice: z.number().nonnegative().nullable().optional(), pricingMethod: z.enum(["MARKUP_PERCENT", "FIXED_SELLING_PRICE"]).nullable().optional(), status: z.enum(["ACTIVE", "INACTIVE", "ARCHIVED"]).optional(), publicationStatus: z.enum(["DRAFT", "IN_REVIEW", "PUBLISHED", "ARCHIVED"]).optional() })).optional(),
+  variants: z.array(z.object({ id: idSchema.optional(), name: z.string().nullable().optional(), supplierSku: z.string().nullable().optional(), mainImageUrl: z.string().url().nullable().optional(), additionalImageUrls: z.array(z.string().url()).optional(), packaging: catalogVariantPackagingSchema.optional(), factoryPrice: z.number().nonnegative().nullable().optional(), markupPercent: z.number().nullable().optional(), sellingPrice: z.number().nonnegative().nullable().optional(), pricingMethod: z.enum(["MARKUP_PERCENT", "FIXED_SELLING_PRICE"]).nullable().optional(), status: z.enum(["ACTIVE", "INACTIVE", "ARCHIVED"]).optional(), publicationStatus: z.enum(["DRAFT", "IN_REVIEW", "PUBLISHED", "ARCHIVED"]).optional() })).optional(),
 });
 
 function safeFailure(error: unknown) {
@@ -70,6 +71,14 @@ export const getAdminCompanyDetail = createServerFn({ method: "GET" })
     return company
       ? { ok: true as const, company }
       : { ok: false as const, error: "Company not found." };
+  });
+
+export const searchAdminTaxonomyNodesFn = createServerFn({ method: "GET" })
+  .inputValidator(z.object({ query: z.string().max(200).default("") }))
+  .handler(async ({ data }) => {
+    await guard("catalog.read_internal");
+    const { searchAdminTaxonomyNodes } = await import("../../server/catalog/catalog.admin.repository.server.ts");
+    return { ok: true as const, nodes: await searchAdminTaxonomyNodes(data.query) };
   });
 
 export const createAdminCompanyFn = createServerFn({ method: "POST" })

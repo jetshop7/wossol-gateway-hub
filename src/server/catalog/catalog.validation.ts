@@ -8,6 +8,31 @@ import {
 } from "./catalog.contracts.ts";
 
 const optionalTrimmedString = z.string().trim().nullable().optional();
+const nonNegativeNumber = z.number().nonnegative().nullable().optional();
+
+export const catalogVariantPackagingSchema = z.object({
+  netQuantity: nonNegativeNumber,
+  netQuantityUnit: z.enum(["g", "kg", "ml", "L", "piece"]).nullable().optional(),
+  packagingType: z.enum(["Bag", "Box", "Bottle", "Jar", "Can", "Sachet", "Other"]).nullable().optional(),
+  unitsPerCarton: nonNegativeNumber,
+  cartonNetWeight: nonNegativeNumber,
+  cartonGrossWeight: nonNegativeNumber,
+  cartonLength: nonNegativeNumber,
+  cartonWidth: nonNegativeNumber,
+  cartonHeight: nonNegativeNumber,
+  unitsPerPallet: nonNegativeNumber,
+  cartonsPerPallet: nonNegativeNumber,
+  moqQuantity: nonNegativeNumber,
+  moqUnit: z.enum(["g", "kg", "piece", "carton", "pallet"]).nullable().optional(),
+  productionCapacityQuantity: nonNegativeNumber,
+  productionCapacityUnit: z.enum(["g", "kg", "piece", "carton", "pallet"]).nullable().optional(),
+  productionCapacityPeriod: z.enum(["day", "week", "month"]).nullable().optional(),
+  leadTimeMinimum: nonNegativeNumber,
+  leadTimeMaximum: nonNegativeNumber,
+  leadTimeUnit: z.enum(["days", "weeks"]).nullable().optional(),
+  availableStock: nonNegativeNumber,
+  sampleAvailable: z.enum(["YES", "NO", "UNKNOWN"]).nullable().optional(),
+});
 
 export const catalogCompanyInputSchema = z.object({
   displayName: z.string().trim().min(1).max(200),
@@ -47,7 +72,7 @@ export const catalogProductInputSchema = z.object({
     supplierSku: optionalTrimmedString,
     mainImageUrl: z.string().url().nullable().optional(),
     additionalImageUrls: z.array(z.string().url()).default([]),
-    packaging: z.record(z.string(), z.string()).default({}),
+    packaging: catalogVariantPackagingSchema.default({}),
     factoryPrice: z.number().nonnegative().nullable().optional(),
     markupPercent: z.number().min(-100).nullable().optional(),
     sellingPrice: z.number().nonnegative().nullable().optional(),
