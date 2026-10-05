@@ -1,9 +1,9 @@
 # Wossol Export Private Catalog / Admin Architecture
 
-**Status:** C-001 architecture foundation
+**Status:** C-002 persistence and domain foundation
 **Repository:** `jetshop7/wossol-gateway-hub`
 **Branch:** `dev/private-catalog`
-**Scope:** discovery and architecture only; no catalog implementation is included in this pass.
+**Scope:** architecture plus the initial server-side persistence/domain foundation; no Admin or Client UI is included.
 
 ## 1. Executive recommendation
 
@@ -388,7 +388,7 @@ Each step should be independently reviewable and should not alter public Wossol 
 
 1. **Initial physical boundary:** keep the Wossol Export server/domain boundary in this repository or place it in a small separate private service. The logical ownership is already decided: Wossol Export.
 2. **Database environment:** dedicated database versus isolated schema, provider, region, backup/restore, migration ownership, and production access policy.
-3. **Private UI location:** this TanStack app behind a Wossol Export API/BFF, a separate private frontend, or another approved surface. The choice must not move data ownership to `wossol-platform`.
+3. **Private runtime and UI location:** choose a Node-compatible private runtime or approved Prisma adapter, then decide whether the UI is this TanStack app behind a Wossol Export API/BFF, a separate private frontend, or another approved surface. The choice must not move data ownership to `wossol-platform`.
 4. **Account model:** separate Wossol Export client organizations versus a deliberate integration mapping to platform identities; no artificial Merchant/Workspace requirement.
 5. **Authentication transport:** Wossol Export-owned sessions, or an explicit identity integration with the platform through a documented contract.
 6. **Object storage:** provider, private/public policy, signed URL lifetime, image transformations, and retention.
@@ -406,6 +406,21 @@ Each step should be independently reviewable and should not alter public Wossol 
 - Adding private credentials or ORM imports to public route modules could leak secrets into SSR/client bundles.
 - Using local filesystem uploads would not be durable or safely shareable across production instances.
 
-## 14. Verification note for C-001
+## 14. C-002 implementation note
 
-This change is documentation-only. No public route, component, asset, copy, legal text, dependency, lockfile, database schema, authentication code, or product behavior is changed by this architecture foundation.
+- Persistence: Wossol Export-owned PostgreSQL boundary, configured with `WOSSOL_EXPORT_DATABASE_URL`; no `DATABASE_URL` or `wossol-platform` database coupling.
+- Prisma schema: `prisma/schema.prisma`.
+- Initial migration: `prisma/migrations/20261005140000_wossol_export_catalog_foundation/migration.sql`.
+- Server-only client boundary: `src/server/catalog/prisma.server.ts`.
+- Repository boundary: `src/server/catalog/catalog.repository.server.ts`.
+- Domain validation/contracts: `src/server/catalog/catalog.contracts.ts` and `src/server/catalog/catalog.validation.ts`.
+- DTO boundary: `src/server/catalog/catalog.dto.ts`; client projections are explicit allowlists and omit internal fields by construction.
+- Pipeline linkage: `CompanyPipelineLink` plus the idempotent source-system/source-record contract; Pipeline evidence remains external and linkage never publishes catalog data.
+- Environment example: `.env.example`; real environment files are ignored and no credentials are committed.
+- C-003 remains responsible for authentication, sessions, actor context, and authorization enforcement.
+
+No database was contacted or migrated during C-002. The migration was generated from the schema diff only. The current website build targets a Cloudflare module by default; before any route invokes Prisma, follow-up work must choose a Node-compatible private runtime or an approved Prisma-compatible adapter. The repository boundary is intentionally not wired into public routes yet.
+
+## 15. Verification note for C-002
+
+This change adds only the persistence/domain foundation and its documentation. No Admin or Client UI, login flow, public route, public-site component, asset, copy, legal text, or production database operation was added.

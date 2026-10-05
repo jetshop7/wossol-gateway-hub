@@ -1,0 +1,145 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  // Wossol Export owns this database boundary. Do not use the platform
+  // repository's DATABASE_URL or connect this schema to its database.
+  url      = env("WOSSOL_EXPORT_DATABASE_URL")
+}
+
+enum CatalogRecordStatus {
+  ACTIVE
+  INACTIVE
+  ARCHIVED
+}
+
+enum CatalogPublicationStatus {
+  DRAFT
+  IN_REVIEW
+  PUBLISHED
+  ARCHIVED
+}
+
+enum PipelineCompanyLinkageStatus {
+  PROPOSED
+  LINKED
+  REJECTED
+  UNLINKED
+}
+
+model Company {
+  id            String              @id @default(uuid()) @db.Uuid
+  displayName   String              @map("display_name")
+  legalName     String?             @map("legal_name")
+  slug          String              @unique
+  countryCode   String?             @map("country_code")
+  website       String?
+  status        CatalogRecordStatus @default(ACTIVE)
+  internalNotes String?             @map("internal_notes")
+  createdAt     DateTime            @default(now()) @map("created_at")
+  updatedAt     DateTime            @updatedAt @map("updated_at")
+
+  brands        Brand[]
+  pipelineLinks CompanyPipelineLink[]
+
+  @@map("catalog_companies")
+}
+
+model Brand {
+  id        String              @id @default(uuid()) @db.Uuid
+  companyId String              @map("company_id") @db.Uuid
+  name      String
+  slug      String
+  status    CatalogRecordStatus @default(ACTIVE)
+  createdAt DateTime            @default(now()) @map("created_at")
+  updatedAt DateTime            @updatedAt @map("updated_at")
+
+  company         Company         @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  productFamilies ProductFamily[]
+
+  @@unique([companyId, slug])
+  @@index([companyId, status])
+  @@map("catalog_brands")
+}
+
+model ProductFamily {
+  id          String              @id @default(uuid()) @db.Uuid
+  brandId     String              @map("brand_id") @db.Uuid
+  name        String
+  slug        String
+  description String?
+  status      CatalogRecordStatus @default(ACTIVE)
+  createdAt   DateTime            @default(now()) @map("created_at")
+  updatedAt   DateTime            @updatedAt @map("updated_at")
+
+  brand    Brand     @relation(fields: [brandId], references: [id], onDelete: Restrict)
+  products Product[]
+
+  @@unique([brandId, slug])
+  @@index([brandId, status])
+  @@map("catalog_product_families")
+}
+
+model Product {
+  id                String                   @id @default(uuid()) @db.Uuid
+  productFamilyId   String                   @map("product_family_id") @db.Uuid
+  name              String
+  slug              String
+  shortDescription  String?                  @map("short_description")
+  description       String?
+  internalNotes     String?                  @map("internal_notes")
+  publicationStatus CatalogPublicationStatus @default(DRAFT) @map("publication_status")
+  createdAt         DateTime                 @default(now()) @map("created_at")
+  updatedAt         DateTime                 @updatedAt @map("updated_at")
+
+  productFamily ProductFamily @relation(fields: [productFamilyId], references: [id], onDelete: Restrict)
+  variants      Variant[]
+
+  @@unique([productFamilyId, slug])
+  @@index([productFamilyId, publicationStatus])
+  @@map("catalog_products")
+}
+
+model Variant {
+  id                String                   @id @default(uuid()) @db.Uuid
+  productId         String                   @map("product_id") @db.Uuid
+  sku               String                   @unique
+  name              String?
+  model             String?
+  attributes        Json?
+  status            CatalogRecordStatus      @default(ACTIVE)
+  publicationStatus CatalogPublicationStatus @default(DRAFT) @map("publication_status")
+  createdAt         DateTime                 @default(now()) @map("created_at")
+  updatedAt         DateTime                 @updatedAt @map("updated_at")
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  @@index([productId, status, publicationStatus])
+  @@map("catalog_variants")
+}
+
+/// A small, idempotent linkage seam from the separate Wossol Export supplier
+/// discovery/outreach Pipeline to the canonical Company owned by this catalog.
+/// Pipeline records and evidence remain in their source system.
+model CompanyPipelineLink {
+  id              String                       @id @default(uuid()) @db.Uuid
+  sourceSystem    String                       @map("source_system")
+  sourceRecordId  String                       @map("source_record_id")
+  companyId       String?                      @map("company_id") @db.Uuid
+  linkageStatus   PipelineCompanyLinkageStatus @default(PROPOSED) @map("linkage_status")
+  sourceUpdatedAt DateTime?                    @map("source_updated_at")
+  reviewedAt      DateTime?                    @map("reviewed_at")
+  reviewedByRef   String?                      @map("reviewed_by_ref")
+  reviewNote      String?                      @map("review_note")
+  createdAt       DateTime                     @default(now()) @map("created_at")
+  updatedAt       DateTime                     @updatedAt @map("updated_at")
+
+  company Company? @relation(fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([sourceSystem, sourceRecordId])
+  @@index([companyId])
+  @@index([linkageStatus, updatedAt])
+  @@map("catalog_company_pipeline_links")
+}
