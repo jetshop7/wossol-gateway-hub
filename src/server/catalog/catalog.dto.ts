@@ -40,6 +40,15 @@ export type AdminBrandDto = {
   updatedAt: Date;
 };
 
+export type AdminCompanySummaryDto = Omit<
+  AdminCompanyDto,
+  "internalNotes" | "pipelineLinks" | "createdAt"
+>;
+
+export type AdminCompanyDetailDto = Omit<AdminCompanyDto, "pipelineLinks"> & {
+  brands: AdminBrandDto[];
+};
+
 export type AdminProductFamilyDto = {
   id: string;
   brandId: string;
@@ -107,6 +116,28 @@ export function toAdminCompanyDto(record: AdminCompanyRecord): AdminCompanyDto {
   return {
     ...record,
     pipelineLinks: record.pipelineLinks ?? [],
+  };
+}
+
+export function toAdminCompanySummaryDto(record: AdminCompanySummaryDto): AdminCompanySummaryDto {
+  return record;
+}
+
+export function toAdminCompanyDetailDto(
+  record: Omit<AdminCompanyDto, "pipelineLinks"> & { brands: AdminBrandDto[] },
+): AdminCompanyDetailDto {
+  return { ...record, brands: record.brands };
+}
+
+export function toAdminBrandDto(record: AdminBrandDto): AdminBrandDto {
+  return {
+    id: record.id,
+    companyId: record.companyId,
+    name: record.name,
+    slug: record.slug,
+    status: record.status,
+    createdAt: record.createdAt,
+    updatedAt: record.updatedAt,
   };
 }
 

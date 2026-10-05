@@ -16,8 +16,13 @@ import { Route as PrivacyPolicyRouteImport } from './routes/privacy-policy'
 import { Route as OpportunitiesRouteImport } from './routes/opportunities'
 import { Route as MarketsRouteImport } from './routes/markets'
 import { Route as ContactRouteImport } from './routes/contact'
+import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AdminLoginRouteImport } from './routes/admin/login'
+import { Route as AdminCatalogRouteImport } from './routes/admin/catalog'
+import { Route as AdminCatalogCompaniesRouteImport } from './routes/admin/catalog/companies'
+import { Route as AdminCatalogCompaniesCompanyIdRouteImport } from './routes/admin/catalog/companies/$companyId'
 
 const WhyChooseWossolExportRoute = WhyChooseWossolExportRouteImport.update({
   id: '/why-choose-wossol-export',
@@ -54,6 +59,11 @@ const ContactRoute = ContactRouteImport.update({
   path: '/contact',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminRoute = AdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AboutRoute = AboutRouteImport.update({
   id: '/about',
   path: '/about',
@@ -64,10 +74,32 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminLoginRoute = AdminLoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminCatalogRoute = AdminCatalogRouteImport.update({
+  id: '/catalog',
+  path: '/catalog',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminCatalogCompaniesRoute = AdminCatalogCompaniesRouteImport.update({
+  id: '/companies',
+  path: '/companies',
+  getParentRoute: () => AdminCatalogRoute,
+} as any)
+const AdminCatalogCompaniesCompanyIdRoute =
+  AdminCatalogCompaniesCompanyIdRouteImport.update({
+    id: '/$companyId',
+    path: '/$companyId',
+    getParentRoute: () => AdminCatalogCompaniesRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
+  '/admin': typeof AdminRouteWithChildren
   '/contact': typeof ContactRoute
   '/markets': typeof MarketsRoute
   '/opportunities': typeof OpportunitiesRoute
@@ -75,10 +107,15 @@ export interface FileRoutesByFullPath {
   '/sectors': typeof SectorsRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/why-choose-wossol-export': typeof WhyChooseWossolExportRoute
+  '/admin/catalog': typeof AdminCatalogRouteWithChildren
+  '/admin/login': typeof AdminLoginRoute
+  '/admin/catalog/companies': typeof AdminCatalogCompaniesRouteWithChildren
+  '/admin/catalog/companies/$companyId': typeof AdminCatalogCompaniesCompanyIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
+  '/admin': typeof AdminRouteWithChildren
   '/contact': typeof ContactRoute
   '/markets': typeof MarketsRoute
   '/opportunities': typeof OpportunitiesRoute
@@ -86,11 +123,16 @@ export interface FileRoutesByTo {
   '/sectors': typeof SectorsRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/why-choose-wossol-export': typeof WhyChooseWossolExportRoute
+  '/admin/catalog': typeof AdminCatalogRouteWithChildren
+  '/admin/login': typeof AdminLoginRoute
+  '/admin/catalog/companies': typeof AdminCatalogCompaniesRouteWithChildren
+  '/admin/catalog/companies/$companyId': typeof AdminCatalogCompaniesCompanyIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
+  '/admin': typeof AdminRouteWithChildren
   '/contact': typeof ContactRoute
   '/markets': typeof MarketsRoute
   '/opportunities': typeof OpportunitiesRoute
@@ -98,12 +140,17 @@ export interface FileRoutesById {
   '/sectors': typeof SectorsRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/why-choose-wossol-export': typeof WhyChooseWossolExportRoute
+  '/admin/catalog': typeof AdminCatalogRouteWithChildren
+  '/admin/login': typeof AdminLoginRoute
+  '/admin/catalog/companies': typeof AdminCatalogCompaniesRouteWithChildren
+  '/admin/catalog/companies/$companyId': typeof AdminCatalogCompaniesCompanyIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
     | '/about'
+    | '/admin'
     | '/contact'
     | '/markets'
     | '/opportunities'
@@ -111,10 +158,15 @@ export interface FileRouteTypes {
     | '/sectors'
     | '/sitemap.xml'
     | '/why-choose-wossol-export'
+    | '/admin/catalog'
+    | '/admin/login'
+    | '/admin/catalog/companies'
+    | '/admin/catalog/companies/$companyId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/about'
+    | '/admin'
     | '/contact'
     | '/markets'
     | '/opportunities'
@@ -122,10 +174,15 @@ export interface FileRouteTypes {
     | '/sectors'
     | '/sitemap.xml'
     | '/why-choose-wossol-export'
+    | '/admin/catalog'
+    | '/admin/login'
+    | '/admin/catalog/companies'
+    | '/admin/catalog/companies/$companyId'
   id:
     | '__root__'
     | '/'
     | '/about'
+    | '/admin'
     | '/contact'
     | '/markets'
     | '/opportunities'
@@ -133,11 +190,16 @@ export interface FileRouteTypes {
     | '/sectors'
     | '/sitemap.xml'
     | '/why-choose-wossol-export'
+    | '/admin/catalog'
+    | '/admin/login'
+    | '/admin/catalog/companies'
+    | '/admin/catalog/companies/$companyId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AboutRoute: typeof AboutRoute
+  AdminRoute: typeof AdminRouteWithChildren
   ContactRoute: typeof ContactRoute
   MarketsRoute: typeof MarketsRoute
   OpportunitiesRoute: typeof OpportunitiesRoute
@@ -198,6 +260,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ContactRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/about': {
       id: '/about'
       path: '/about'
@@ -212,12 +281,78 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/login': {
+      id: '/admin/login'
+      path: '/login'
+      fullPath: '/admin/login'
+      preLoaderRoute: typeof AdminLoginRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/catalog': {
+      id: '/admin/catalog'
+      path: '/catalog'
+      fullPath: '/admin/catalog'
+      preLoaderRoute: typeof AdminCatalogRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/catalog/companies': {
+      id: '/admin/catalog/companies'
+      path: '/companies'
+      fullPath: '/admin/catalog/companies'
+      preLoaderRoute: typeof AdminCatalogCompaniesRouteImport
+      parentRoute: typeof AdminCatalogRoute
+    }
+    '/admin/catalog/companies/$companyId': {
+      id: '/admin/catalog/companies/$companyId'
+      path: '/$companyId'
+      fullPath: '/admin/catalog/companies/$companyId'
+      preLoaderRoute: typeof AdminCatalogCompaniesCompanyIdRouteImport
+      parentRoute: typeof AdminCatalogCompaniesRoute
+    }
   }
 }
+
+interface AdminCatalogCompaniesRouteChildren {
+  AdminCatalogCompaniesCompanyIdRoute: typeof AdminCatalogCompaniesCompanyIdRoute
+}
+
+const AdminCatalogCompaniesRouteChildren: AdminCatalogCompaniesRouteChildren = {
+  AdminCatalogCompaniesCompanyIdRoute: AdminCatalogCompaniesCompanyIdRoute,
+}
+
+const AdminCatalogCompaniesRouteWithChildren =
+  AdminCatalogCompaniesRoute._addFileChildren(
+    AdminCatalogCompaniesRouteChildren,
+  )
+
+interface AdminCatalogRouteChildren {
+  AdminCatalogCompaniesRoute: typeof AdminCatalogCompaniesRouteWithChildren
+}
+
+const AdminCatalogRouteChildren: AdminCatalogRouteChildren = {
+  AdminCatalogCompaniesRoute: AdminCatalogCompaniesRouteWithChildren,
+}
+
+const AdminCatalogRouteWithChildren = AdminCatalogRoute._addFileChildren(
+  AdminCatalogRouteChildren,
+)
+
+interface AdminRouteChildren {
+  AdminCatalogRoute: typeof AdminCatalogRouteWithChildren
+  AdminLoginRoute: typeof AdminLoginRoute
+}
+
+const AdminRouteChildren: AdminRouteChildren = {
+  AdminCatalogRoute: AdminCatalogRouteWithChildren,
+  AdminLoginRoute: AdminLoginRoute,
+}
+
+const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AboutRoute: AboutRoute,
+  AdminRoute: AdminRouteWithChildren,
   ContactRoute: ContactRoute,
   MarketsRoute: MarketsRoute,
   OpportunitiesRoute: OpportunitiesRoute,

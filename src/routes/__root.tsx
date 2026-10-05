@@ -6,6 +6,7 @@ import {
   useRouter,
   HeadContent,
   Scripts,
+  useLocation,
 } from "@tanstack/react-router";
 import { useEffect, type ReactNode } from "react";
 
@@ -212,17 +213,18 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  const isAdminSurface = useLocation().pathname.startsWith("/admin");
 
   return (
     <QueryClientProvider client={queryClient}>
       <LanguageProvider>
         <div className="flex min-h-screen flex-col">
-          <Header />
+          {!isAdminSurface && <Header />}
           <main className="flex-1">
             {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
             <Outlet />
           </main>
-          <Footer />
+          {!isAdminSurface && <Footer />}
         </div>
       </LanguageProvider>
     </QueryClientProvider>

@@ -19,6 +19,16 @@ export const catalogCompanyInputSchema = z.object({
   internalNotes: optionalTrimmedString,
 });
 
+export const catalogCompanyUpdateInputSchema = catalogCompanyInputSchema.extend({
+  status: z.enum(catalogRecordStatuses),
+});
+
+export const catalogBrandInputSchema = z.object({
+  name: z.string().trim().min(1).max(200),
+  slug: z.string().trim().min(1).max(120).transform(normalizeCatalogSlug),
+  status: z.enum(catalogRecordStatuses).default("ACTIVE"),
+});
+
 export const catalogRecordStatusSchema = z.enum(catalogRecordStatuses);
 export const catalogPublicationStatusSchema = z.enum(catalogPublicationStatuses);
 

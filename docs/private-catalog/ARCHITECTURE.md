@@ -436,3 +436,21 @@ No database was contacted or migrated during C-002. The migration was generated 
 ## 16. Verification note for C-002
 
 This change adds only the persistence/domain foundation and its documentation. No Admin or Client UI, login flow, public route, public-site component, asset, copy, legal text, or production database operation was added.
+
+## 17. C-004 Admin implementation note
+
+C-004 adds the first visually testable private Admin surface without changing the public website. The implemented routes are `/admin/login`, `/admin/catalog/companies`, and `/admin/catalog/companies/:companyId`; `/admin/catalog` is the protected shell boundary. Company list/create/edit/status operations require `catalog.company.manage`, and Brand create/edit/status operations require `catalog.brand.manage`. Reads require `catalog.read_internal`. Every cookie-authenticated mutation uses the C-003 CSRF cookie/header and same-origin check, while all Prisma access remains in server-only repositories and returns allowlisted DTOs.
+
+For safe local visual testing, configure a non-production `WOSSOL_EXPORT_DATABASE_URL`, apply the checked-in migrations with `bunx prisma migrate deploy`, and create an operator only through the existing explicit bootstrap command:
+
+```powershell
+$env:WOSSOL_EXPORT_DATABASE_URL = "postgresql://<local-user>:<local-password>@<local-host>:5432/<local-database>"
+$env:WOSSOL_EXPORT_BOOTSTRAP_CONFIRM = "CREATE"
+$env:WOSSOL_EXPORT_BOOTSTRAP_EMAIL = "<operator-email>"
+$env:WOSSOL_EXPORT_BOOTSTRAP_PASSWORD = "<operator-password-of-at-least-12-characters>"
+bunx prisma migrate deploy --schema prisma/schema.prisma
+bun run bootstrap:internal-admin
+bun run dev
+```
+
+Open `http://127.0.0.1:8080/admin/login`. C-004 does not apply migrations, create credentials, connect to production, or implement Product Family/Product/Variant, client, pricing, or import UI. The current default Cloudflare build still requires a Node-compatible private Prisma runtime before deploying these private routes.
