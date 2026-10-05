@@ -12,6 +12,7 @@
     "test:catalog": "node --experimental-strip-types --test src/server/catalog/catalog.contracts.test.ts",
     "test:admin": "node --experimental-strip-types --test src/server/catalog/catalog.admin.test.ts",
     "test:auth": "node --experimental-strip-types --test src/server/auth/auth.security.test.ts",
+    "postinstall": "prisma generate --schema prisma/schema.prisma",
     "bootstrap:internal-admin": "node --experimental-strip-types scripts/bootstrap-internal-admin.ts",
     "prisma:format": "prisma format --schema prisma/schema.prisma",
     "prisma:validate": "prisma validate --schema prisma/schema.prisma",

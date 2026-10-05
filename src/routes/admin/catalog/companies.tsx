@@ -1,5 +1,5 @@
 import { cloneElement, useState, type FormEvent, type ReactElement } from "react";
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
 import { ArrowRight, Building2, Globe2, Plus, Search } from "lucide-react";
 
 import { createAdminCompanyFn, getAdminCompanies } from "@/lib/api/catalog-admin.functions";
@@ -11,6 +11,10 @@ export const Route = createFileRoute("/admin/catalog/companies")({
 });
 
 function CompaniesPage() {
+  const isCompanyDetailRoute = useRouterState({
+    select: (state) =>
+      state.matches.some((match) => match.routeId === "/admin/catalog/companies/$companyId"),
+  });
   const result = Route.useLoaderData();
   const navigate = useNavigate();
   const [showForm, setShowForm] = useState(false);
@@ -31,6 +35,8 @@ function CompaniesPage() {
       .toLowerCase()
       .includes(query.toLowerCase()),
   );
+
+  if (isCompanyDetailRoute) return <Outlet />;
 
   const createCompany = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
