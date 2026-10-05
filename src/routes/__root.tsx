@@ -14,7 +14,6 @@ import { reportLovableError } from "../lib/lovable-error-reporting";
 import { LanguageProvider } from "../i18n/LanguageContext";
 import { Header } from "../components/Header";
 import { Footer } from "../components/Footer";
-import wossolLogo from "../assets/logo.png";
 
 function NotFoundComponent() {
   return (
@@ -155,12 +154,17 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     links: [
       {
         rel: "icon",
-        type: "image/png",
-        href: wossolLogo,
+        type: "image/svg+xml",
+        href: "/favicon.svg?v=2",
+      },
+      {
+        rel: "shortcut icon",
+        type: "image/svg+xml",
+        href: "/favicon.svg?v=2",
       },
       {
         rel: "apple-touch-icon",
-        href: wossolLogo,
+        href: "/favicon.svg?v=2",
       },
       {
         rel: "stylesheet",
