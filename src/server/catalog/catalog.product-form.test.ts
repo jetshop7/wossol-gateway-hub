@@ -14,7 +14,7 @@ test("rejects invalid structured packaging units", () => {
 });
 
 test("client product DTO excludes internal product and commercial fields", () => {
-  const dto = toClientCatalogProductDto({ id: "product", companyId: "company", brandId: null, taxonomyNodeId: null, name: "Safe", slug: "safe", shortDescription: null, description: null, internalNotes: "private", variants: [{ id: "variant", sku: "SKU", name: "1 kg", model: null, factoryPrice: "700", markupPercent: "25", sellingPrice: "875" }] as never });
+  const dto = toClientCatalogProductDto({ id: "product", companyId: "company", brandId: null, taxonomyNodeId: null, name: "Safe", slug: "safe", shortDescription: null, description: null, internalNotes: "private", variants: [{ id: "variant", sku: "SKU", name: "1 kg", model: null, factoryPrice: "700", markupPercent: "25", sellingPrice: "875" }] } as never);
   assert.equal("internalNotes" in dto, false);
   assert.equal("factoryPrice" in dto.variants[0]!, false);
   assert.equal("markupPercent" in dto.variants[0]!, false);

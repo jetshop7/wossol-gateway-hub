@@ -86,7 +86,7 @@ const companyDetailSelect = {
       id: true, companyId: true, brandId: true, taxonomyNodeId: true, name: true, slug: true,
       shortDescription: true, description: true, internalNotes: true, countryOfOrigin: true,
       publicationStatus: true, createdAt: true, updatedAt: true,
-      variants: { select: { id: true, productId: true, sku: true, name: true, model: true, attributes: true, supplierSku: true, mainImageUrl: true, additionalImageUrls: true, packaging: true, pricingMethod: true, factoryPrice: true, markupPercent: true, sellingPrice: true, currency: true, status: true, publicationStatus: true, createdAt: true, updatedAt: true } },
+      variants: { where: { status: "ACTIVE" }, orderBy: { createdAt: "asc" }, select: { id: true, productId: true, sku: true, name: true, model: true, attributes: true, supplierSku: true, mainImageUrl: true, additionalImageUrls: true, packaging: true, pricingMethod: true, factoryPrice: true, markupPercent: true, sellingPrice: true, currency: true, status: true, publicationStatus: true, createdAt: true, updatedAt: true } },
     }, orderBy: { name: "asc" },
   },
 } as const;
