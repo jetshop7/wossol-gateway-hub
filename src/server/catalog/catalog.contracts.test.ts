@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { getPipelineCompanyLinkIdempotencyKey, normalizeCatalogSlug } from "./catalog.contracts.ts";
+import {
+  getCatalogProductIdentity,
+  getPipelineCompanyLinkIdempotencyKey,
+  normalizeCatalogSlug,
+} from "./catalog.contracts.ts";
 import { toClientCatalogProductDto } from "./catalog.dto.ts";
 import { validatePipelineCompanyLink } from "./catalog.validation.ts";
 
@@ -41,6 +45,19 @@ test("client product projection allowlists public fields", () => {
   });
   assert.equal("internalNotes" in result, false);
   assert.equal("acquisitionCost" in result, false);
+});
+
+test("product identity is scoped by Product Family and slug", () => {
+  const sharedSlug = "shared-product";
+
+  assert.deepEqual(getCatalogProductIdentity("family-a", sharedSlug), {
+    productFamilyId: "family-a",
+    slug: sharedSlug,
+  });
+  assert.notDeepEqual(getCatalogProductIdentity("family-a", sharedSlug), {
+    productFamilyId: "family-b",
+    slug: sharedSlug,
+  });
 });
 
 test("Pipeline linkage key is deterministic and linked records require review metadata", () => {

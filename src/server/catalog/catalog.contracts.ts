@@ -32,6 +32,10 @@ export type PipelineCompanyLinkInput = {
   reviewNote?: string | null;
 };
 
+export function getCatalogProductIdentity(productFamilyId: string, slug: string) {
+  return { productFamilyId, slug };
+}
+
 export function normalizeCatalogSlug(value: string): string {
   return value
     .trim()

@@ -1,7 +1,11 @@
 import { catalogCompanyInputSchema, validatePipelineCompanyLink } from "./catalog.validation.ts";
 import { getWossolExportPrisma } from "./prisma.server.ts";
 import { toAdminCompanyDto, toClientCatalogProductDto } from "./catalog.dto.ts";
-import type { CatalogCompanyInput, PipelineCompanyLinkInput } from "./catalog.contracts.ts";
+import {
+  getCatalogProductIdentity,
+  type CatalogCompanyInput,
+  type PipelineCompanyLinkInput,
+} from "./catalog.contracts.ts";
 import type { AdminCompanyDto, ClientCatalogProductDto } from "./catalog.dto.ts";
 
 const adminCompanySelect = {
@@ -37,6 +41,7 @@ const clientPublishedProductSelect = {
   slug: true,
   shortDescription: true,
   description: true,
+  publicationStatus: true,
   variants: {
     where: {
       status: "ACTIVE",
@@ -77,18 +82,20 @@ export async function findCompanyById(id: string): Promise<AdminCompanyDto | nul
   return record ? toAdminCompanyDto(record) : null;
 }
 
-export async function findPublishedProductBySlug(
+export async function findPublishedProductByFamilyAndSlug(
+  productFamilyId: string,
   slug: string,
 ): Promise<ClientCatalogProductDto | null> {
-  const record = await getWossolExportPrisma().product.findFirst({
+  const record = await getWossolExportPrisma().product.findUnique({
     where: {
-      slug,
-      publicationStatus: "PUBLISHED",
+      productFamilyId_slug: getCatalogProductIdentity(productFamilyId, slug),
     },
     select: clientPublishedProductSelect,
   });
 
-  return record ? toClientCatalogProductDto(record) : null;
+  if (!record || record.publicationStatus !== "PUBLISHED") return null;
+
+  return toClientCatalogProductDto(record);
 }
 
 /**
