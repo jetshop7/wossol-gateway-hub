@@ -202,6 +202,7 @@ export async function createAdminProduct(companyId: string, input: unknown) {
       const { variants, ...product } = data;
       const productVariants = variants.length ? variants : [{ name: null, supplierSku: null, mainImageUrl: null, additionalImageUrls: [], packaging: {}, factoryPrice: null, markupPercent: null, sellingPrice: 0, pricingMethod: "FIXED_SELLING_PRICE" as const, status: "ACTIVE" as const, publicationStatus: "DRAFT" as const }];
       const record = await prisma.product.create({ data: { ...product, companyId, brandId: data.brandId ?? null, taxonomyNodeId: data.taxonomyNodeId ?? null, slug, variants: { create: productVariants.map((variant, index) => { const pricing = resolveVariantPricing(variant.factoryPrice == null && variant.sellingPrice == null && variant.markupPercent == null ? { pricingMethod: "FIXED_SELLING_PRICE", sellingPrice: 0 } : variant); return { ...variant, sku: variant.supplierSku || `${slug}-${index + 1}`, ...pricing, isDefault: variants.length === 0 }; }) } }, select: companyDetailSelect.products.select });
+      await prisma.variantPriceHistory.createMany({ data: record.variants.map((variant) => ({ variantId: variant.id, pricingMethod: variant.pricingMethod, factoryPrice: variant.factoryPrice, markupPercent: variant.markupPercent, sellingPrice: variant.sellingPrice, currency: variant.currency })) });
       return toAdminProductDto(record);
     } catch (error) {
       if (typeof error === "object" && error !== null && "code" in error && error.code === "P2002") continue;
@@ -214,9 +215,62 @@ export async function createAdminProduct(companyId: string, input: unknown) {
 export async function updateAdminProduct(companyId: string, productId: string, input: unknown) {
   const data = catalogProductInputSchema.parse(input);
   const prisma = getWossolExportPrisma();
-  const product = await prisma.product.findFirst({ where: { id: productId, companyId } });
+  const product = await prisma.product.findFirst({ where: { id: productId, companyId }, include: { variants: true } });
   if (!product) throw new Error("The selected product does not belong to this company.");
-  const { variants: _variants, ...productData } = data;
-  const record = await prisma.product.update({ where: { id: productId }, data: { ...productData, brandId: data.brandId ?? null, taxonomyNodeId: data.taxonomyNodeId ?? null }, select: companyDetailSelect.products.select });
+  const submittedIds = data.variants.flatMap((variant) => variant.id ? [variant.id] : []);
+  const ownedIds = new Set(product.variants.map((variant) => variant.id));
+  if (submittedIds.some((variantId) => !ownedIds.has(variantId))) {
+    throw new Error("A submitted variant does not belong to this product.");
+  }
+
+  const { variants, ...productData } = data;
+  await prisma.$transaction(async (tx) => {
+    await tx.product.update({
+      where: { id: productId },
+      data: { ...productData, brandId: data.brandId ?? null, taxonomyNodeId: data.taxonomyNodeId ?? null },
+    });
+
+    const submittedVariantIds = new Set(submittedIds);
+    for (const existing of product.variants) {
+      if (!submittedVariantIds.has(existing.id)) {
+        await tx.variant.update({ where: { id: existing.id }, data: { status: "ARCHIVED", publicationStatus: "ARCHIVED" } });
+      }
+    }
+
+    for (const [index, variant] of variants.entries()) {
+      const pricing = resolveVariantPricing({
+        factoryPrice: variant.factoryPrice,
+        markupPercent: variant.markupPercent,
+        sellingPrice: variant.sellingPrice,
+        pricingMethod: variant.pricingMethod,
+      });
+      const sku = variant.supplierSku || `${slugForName(data.name)}-${index + 1}`;
+      const values = {
+        name: variant.name ?? null,
+        supplierSku: variant.supplierSku ?? null,
+        sku,
+        mainImageUrl: variant.mainImageUrl ?? null,
+        additionalImageUrls: variant.additionalImageUrls,
+        packaging: variant.packaging,
+        pricingMethod: pricing.pricingMethod,
+        factoryPrice: pricing.factoryPrice,
+        markupPercent: pricing.markupPercent,
+        sellingPrice: pricing.sellingPrice,
+        currency: "DZD",
+        status: variant.status,
+        publicationStatus: variant.publicationStatus,
+      };
+      if (variant.id) {
+        const previous = product.variants.find((candidate) => candidate.id === variant.id);
+        const pricingChanged = previous?.factoryPrice?.toString() !== (pricing.factoryPrice?.toString() ?? null) || previous?.markupPercent?.toString() !== (pricing.markupPercent?.toString() ?? null) || previous?.sellingPrice?.toString() !== (pricing.sellingPrice?.toString() ?? null) || previous?.pricingMethod !== pricing.pricingMethod;
+        await tx.variant.update({ where: { id: variant.id }, data: values });
+        if (pricingChanged) await tx.variantPriceHistory.create({ data: { variantId: variant.id, pricingMethod: pricing.pricingMethod, factoryPrice: pricing.factoryPrice, markupPercent: pricing.markupPercent, sellingPrice: pricing.sellingPrice, currency: "DZD" } });
+      } else {
+        const created = await tx.variant.create({ data: { productId, isDefault: product.variants.length === 0 && index === 0, ...values } });
+        await tx.variantPriceHistory.create({ data: { variantId: created.id, pricingMethod: pricing.pricingMethod, factoryPrice: pricing.factoryPrice, markupPercent: pricing.markupPercent, sellingPrice: pricing.sellingPrice, currency: "DZD" } });
+      }
+    }
+  });
+  const record = await prisma.product.findUniqueOrThrow({ where: { id: productId }, select: companyDetailSelect.products.select });
   return toAdminProductDto(record);
 }
