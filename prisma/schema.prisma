@@ -22,6 +22,23 @@ enum CatalogPublicationStatus {
   ARCHIVED
 }
 
+enum CatalogTaxonomySource {
+  GS1_GPC
+  WOSSOL_EXTENSION
+}
+
+enum CatalogTaxonomyLevel {
+  SEGMENT
+  FAMILY
+  CLASS
+  BRICK
+}
+
+enum VariantPricingMethod {
+  MARKUP_PERCENT
+  FIXED_SELLING_PRICE
+}
+
 enum PipelineCompanyLinkageStatus {
   PROPOSED
   LINKED
@@ -68,6 +85,7 @@ model Company {
   updatedAt     DateTime            @updatedAt @map("updated_at")
 
   brands        Brand[]
+  products      Product[]
   pipelineLinks CompanyPipelineLink[]
 
   @@map("catalog_companies")
@@ -75,15 +93,18 @@ model Company {
 
 model Brand {
   id        String              @id @default(uuid()) @db.Uuid
-  companyId String              @map("company_id") @db.Uuid
+  /// Legacy association retained for imported C-005 records. New brands may be
+  /// independent of a supplier Company and are selected from Product instead.
+  companyId String?             @map("company_id") @db.Uuid
   name      String
   slug      String
   status    CatalogRecordStatus @default(ACTIVE)
   createdAt DateTime            @default(now()) @map("created_at")
   updatedAt DateTime            @updatedAt @map("updated_at")
 
-  company         Company         @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  company         Company?        @relation(fields: [companyId], references: [id], onDelete: Restrict)
   productFamilies ProductFamily[]
+  products        Product[]
 
   @@unique([companyId, slug])
   @@index([companyId, status])
@@ -110,21 +131,31 @@ model ProductFamily {
 
 model Product {
   id                String                   @id @default(uuid()) @db.Uuid
-  productFamilyId   String                   @map("product_family_id") @db.Uuid
+  /// Retained only for deterministic migration history; new products do not use
+  /// ProductFamily as an identity or workflow boundary.
+  productFamilyId   String?                  @map("product_family_id") @db.Uuid
+  companyId         String                   @map("company_id") @db.Uuid
+  brandId           String?                  @map("brand_id") @db.Uuid
+  taxonomyNodeId    String?                  @map("taxonomy_node_id") @db.Uuid
   name              String
   slug              String
   shortDescription  String?                  @map("short_description")
   description       String?
   internalNotes     String?                  @map("internal_notes")
+  countryOfOrigin   String                   @default("DZ") @map("country_of_origin")
   publicationStatus CatalogPublicationStatus @default(DRAFT) @map("publication_status")
   createdAt         DateTime                 @default(now()) @map("created_at")
   updatedAt         DateTime                 @updatedAt @map("updated_at")
 
-  productFamily ProductFamily @relation(fields: [productFamilyId], references: [id], onDelete: Restrict)
+  productFamily ProductFamily? @relation(fields: [productFamilyId], references: [id], onDelete: Restrict)
+  company       Company        @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  brand         Brand?         @relation(fields: [brandId], references: [id], onDelete: Restrict)
+  taxonomyNode  CatalogTaxonomyNode? @relation(fields: [taxonomyNodeId], references: [id], onDelete: Restrict)
   variants      Variant[]
 
-  @@unique([productFamilyId, slug])
-  @@index([productFamilyId, publicationStatus])
+  @@index([companyId, publicationStatus])
+  @@index([brandId])
+  @@index([taxonomyNodeId])
   @@map("catalog_products")
 }
 
@@ -135,15 +166,73 @@ model Variant {
   name              String?
   model             String?
   attributes        Json?
+  supplierSku       String?                  @map("supplier_sku")
+  mainImageUrl      String?                  @map("main_image_url")
+  additionalImageUrls Json?                  @map("additional_image_urls")
+  packaging         Json?
+  pricingMethod     VariantPricingMethod?    @map("pricing_method")
+  factoryPrice      Decimal?                 @db.Decimal(14, 2) @map("factory_price")
+  markupPercent     Decimal?                 @db.Decimal(8, 2) @map("markup_percent")
+  sellingPrice      Decimal?                 @db.Decimal(14, 2) @map("selling_price")
+  currency          String                   @default("DZD")
+  isDefault         Boolean                  @default(false) @map("is_default")
   status            CatalogRecordStatus      @default(ACTIVE)
   publicationStatus CatalogPublicationStatus @default(DRAFT) @map("publication_status")
   createdAt         DateTime                 @default(now()) @map("created_at")
   updatedAt         DateTime                 @updatedAt @map("updated_at")
 
   product Product @relation(fields: [productId], references: [id], onDelete: Restrict)
+  priceHistory VariantPriceHistory[]
 
   @@index([productId, status, publicationStatus])
   @@map("catalog_variants")
+}
+
+/// Versioned taxonomy structure. GS1 GPC and Wossol extensions are kept
+/// distinguishable so a future full GPC importer can be idempotent.
+model CatalogTaxonomyNode {
+  id                String                @id @default(uuid()) @db.Uuid
+  source            CatalogTaxonomySource
+  sourceCode        String                @map("source_code")
+  sourceVersion     String                @map("source_version")
+  level             CatalogTaxonomyLevel
+  name              String
+  parentId          String?               @map("parent_id") @db.Uuid
+  status            CatalogRecordStatus   @default(ACTIVE)
+  deprecatedAt      DateTime?             @map("deprecated_at")
+  replacementId     String?               @map("replacement_id") @db.Uuid
+  createdAt         DateTime              @default(now()) @map("created_at")
+  updatedAt         DateTime              @updatedAt @map("updated_at")
+
+  parent            CatalogTaxonomyNode?  @relation("TaxonomyParent", fields: [parentId], references: [id], onDelete: Restrict)
+  children          CatalogTaxonomyNode[] @relation("TaxonomyParent")
+  replacement       CatalogTaxonomyNode?  @relation("TaxonomyReplacement", fields: [replacementId], references: [id], onDelete: Restrict)
+  replacedNodes     CatalogTaxonomyNode[] @relation("TaxonomyReplacement")
+  products          Product[]
+
+  @@unique([source, sourceCode, sourceVersion])
+  @@index([parentId])
+  @@map("catalog_taxonomy_nodes")
+}
+
+/// Append-only commercial audit trail. Product/client DTOs never expose these
+/// internal commercial values.
+model VariantPriceHistory {
+  id              String                @id @default(uuid()) @db.Uuid
+  variantId       String                @map("variant_id") @db.Uuid
+  pricingMethod   VariantPricingMethod? @map("pricing_method")
+  factoryPrice    Decimal?              @db.Decimal(14, 2) @map("factory_price")
+  markupPercent   Decimal?              @db.Decimal(8, 2) @map("markup_percent")
+  sellingPrice    Decimal?              @db.Decimal(14, 2) @map("selling_price")
+  currency        String                @default("DZD")
+  changedByUserId String?               @map("changed_by_user_id") @db.Uuid
+  createdAt       DateTime              @default(now()) @map("created_at")
+
+  variant         Variant               @relation(fields: [variantId], references: [id], onDelete: Restrict)
+  changedBy       InternalUser?         @relation(fields: [changedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([variantId, createdAt])
+  @@map("catalog_variant_price_history")
 }
 
 /// A small, idempotent linkage seam from the separate Wossol Export supplier
@@ -182,6 +271,7 @@ model InternalUser {
 
   sessions    AuthSession[]
   auditEvents AuthAuditEvent[]
+  priceHistory VariantPriceHistory[]
 
   @@map("export_internal_users")
 }

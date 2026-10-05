@@ -17,7 +17,6 @@ export type CatalogCompanyInput = {
   legalName?: string | null;
   countryCode?: string | null;
   website?: string | null;
-  category?: string | null;
   internalNotes?: string | null;
 };
 
@@ -32,8 +31,8 @@ export type PipelineCompanyLinkInput = {
   reviewNote?: string | null;
 };
 
-export function getCatalogProductIdentity(productFamilyId: string, slug: string) {
-  return { productFamilyId, slug };
+export function getCatalogProductIdentity(productId: string) {
+  return { id: productId };
 }
 
 export function normalizeCatalogSlug(value: string): string {

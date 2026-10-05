@@ -1,11 +1,7 @@
 import { catalogCompanyInputSchema, validatePipelineCompanyLink } from "./catalog.validation.ts";
 import { getWossolExportPrisma } from "./prisma.server.ts";
 import { toAdminCompanyDto, toClientCatalogProductDto } from "./catalog.dto.ts";
-import {
-  getCatalogProductIdentity,
-  type CatalogCompanyInput,
-  type PipelineCompanyLinkInput,
-} from "./catalog.contracts.ts";
+import { type CatalogCompanyInput, type PipelineCompanyLinkInput } from "./catalog.contracts.ts";
 import type { AdminCompanyDto, ClientCatalogProductDto } from "./catalog.dto.ts";
 
 const adminCompanySelect = {
@@ -15,7 +11,6 @@ const adminCompanySelect = {
   slug: true,
   countryCode: true,
   website: true,
-  category: true,
   status: true,
   internalNotes: true,
   createdAt: true,
@@ -37,7 +32,9 @@ const adminCompanySelect = {
 
 const clientPublishedProductSelect = {
   id: true,
-  productFamilyId: true,
+  companyId: true,
+  brandId: true,
+  taxonomyNodeId: true,
   name: true,
   slug: true,
   shortDescription: true,
@@ -63,7 +60,7 @@ export async function createCompany(input: CatalogCompanyInput): Promise<AdminCo
   const baseSlug = data.displayName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "company";
   for (let suffix = 0; suffix < 1000; suffix += 1) {
     try {
-      const record = await prisma.company.create({ data: { ...data, slug: suffix === 0 ? baseSlug : `${baseSlug}-${suffix + 1}`, status: "ACTIVE", internalNotes: data.internalNotes ?? null, legalName: data.legalName ?? null, countryCode: data.countryCode ?? null, website: data.website ?? null, category: data.category ?? null }, select: adminCompanySelect });
+      const record = await prisma.company.create({ data: { ...data, slug: suffix === 0 ? baseSlug : `${baseSlug}-${suffix + 1}`, status: "ACTIVE", internalNotes: data.internalNotes ?? null, legalName: data.legalName ?? null, countryCode: data.countryCode ?? null, website: data.website ?? null }, select: adminCompanySelect });
       return toAdminCompanyDto(record);
     } catch (error) {
       if (typeof error === "object" && error !== null && "code" in error && error.code === "P2002") continue;
@@ -82,14 +79,11 @@ export async function findCompanyById(id: string): Promise<AdminCompanyDto | nul
   return record ? toAdminCompanyDto(record) : null;
 }
 
-export async function findPublishedProductByFamilyAndSlug(
-  productFamilyId: string,
-  slug: string,
+export async function findPublishedProductById(
+  id: string,
 ): Promise<ClientCatalogProductDto | null> {
   const record = await getWossolExportPrisma().product.findUnique({
-    where: {
-      productFamilyId_slug: getCatalogProductIdentity(productFamilyId, slug),
-    },
+    where: { id },
     select: clientPublishedProductSelect,
   });
 

@@ -7,10 +7,12 @@ import {
   catalogProductInputSchema,
 } from "./catalog.validation.ts";
 import { normalizeCatalogSlug } from "./catalog.contracts.ts";
+import { resolveVariantPricing } from "./variant-pricing.ts";
 import {
   toAdminBrandDto,
   toAdminCompanyDetailDto,
   toAdminCompanySummaryDto,
+  toAdminProductDto,
   type AdminBrandDto,
   type AdminCompanyDetailDto,
   type AdminCompanySummaryDto,
@@ -23,7 +25,6 @@ const companySummarySelect = {
   slug: true,
   countryCode: true,
   website: true,
-  category: true,
   status: true,
   updatedAt: true,
 } as const;
@@ -35,7 +36,6 @@ const companyDetailSelect = {
   slug: true,
   countryCode: true,
   website: true,
-  category: true,
   status: true,
   internalNotes: true,
   createdAt: true,
@@ -81,6 +81,14 @@ const companyDetailSelect = {
     },
     orderBy: { name: "asc" },
   },
+  products: {
+    select: {
+      id: true, companyId: true, brandId: true, taxonomyNodeId: true, name: true, slug: true,
+      shortDescription: true, description: true, internalNotes: true, countryOfOrigin: true,
+      publicationStatus: true, createdAt: true, updatedAt: true,
+      variants: { select: { id: true, productId: true, sku: true, name: true, model: true, attributes: true, supplierSku: true, mainImageUrl: true, additionalImageUrls: true, packaging: true, pricingMethod: true, factoryPrice: true, markupPercent: true, sellingPrice: true, currency: true, status: true, publicationStatus: true, createdAt: true, updatedAt: true } },
+    }, orderBy: { name: "asc" },
+  },
 } as const;
 
 const brandSelect = {
@@ -117,7 +125,7 @@ export async function createAdminCompany(input: unknown): Promise<AdminCompanyDe
     const slug = suffix === 0 ? baseSlug : `${baseSlug}-${suffix + 1}`;
     try {
       const record = await prisma.company.create({
-        data: { ...data, slug, legalName: data.legalName ?? null, countryCode: data.countryCode ?? null, website: data.website ?? null, category: data.category ?? null, internalNotes: data.internalNotes ?? null },
+        data: { ...data, slug, legalName: data.legalName ?? null, countryCode: data.countryCode ?? null, website: data.website ?? null, internalNotes: data.internalNotes ?? null },
         select: companyDetailSelect,
       });
       return toAdminCompanyDetailDto(record);
@@ -141,7 +149,6 @@ export async function updateAdminCompany(
       legalName: data.legalName ?? null,
       countryCode: data.countryCode ?? null,
       website: data.website ?? null,
-      category: data.category ?? null,
       internalNotes: data.internalNotes ?? null,
     },
     select: companyDetailSelect,
@@ -149,10 +156,11 @@ export async function updateAdminCompany(
   return toAdminCompanyDetailDto(record);
 }
 
-export async function createAdminBrand(companyId: string, input: unknown): Promise<AdminBrandDto> {
+export async function createAdminBrand(companyId: string | null, input: unknown): Promise<AdminBrandDto> {
   const data = catalogBrandInputSchema.parse(input);
+  const slug = slugForName(data.name);
   const record = await getWossolExportPrisma().brand.create({
-    data: { companyId, ...data },
+    data: { companyId, ...data, slug },
     select: brandSelect,
   });
   return toAdminBrandDto(record);
@@ -162,7 +170,7 @@ export async function updateAdminBrand(id: string, input: unknown): Promise<Admi
   const data = catalogBrandInputSchema.parse(input);
   const record = await getWossolExportPrisma().brand.update({
     where: { id },
-    data,
+    data: { ...data, slug: slugForName(data.name) },
     select: brandSelect,
   });
   return toAdminBrandDto(record);
@@ -182,16 +190,19 @@ export async function createAdminProductFamily(companyId: string, brandId: strin
   return record;
 }
 
-export async function createAdminProduct(companyId: string, productFamilyId: string, input: unknown) {
+export async function createAdminProduct(companyId: string, input: unknown) {
   const data = catalogProductInputSchema.parse(input);
   const prisma = getWossolExportPrisma();
-  const family = await prisma.productFamily.findFirst({ where: { id: productFamilyId, brand: { companyId } } });
-  if (!family) throw new Error("The selected product family does not belong to this company.");
+  if (data.brandId && !await prisma.brand.findUnique({ where: { id: data.brandId } })) throw new Error("The selected brand was not found.");
+  if (data.taxonomyNodeId && !await prisma.catalogTaxonomyNode.findUnique({ where: { id: data.taxonomyNodeId } })) throw new Error("The selected taxonomy classification was not found.");
   const baseSlug = slugForName(data.name);
   for (let suffix = 0; suffix < 1000; suffix += 1) {
     const slug = suffix === 0 ? baseSlug : `${baseSlug}-${suffix + 1}`;
     try {
-      return await prisma.product.create({ data: { ...data, productFamilyId, slug }, select: { id: true, productFamilyId: true, name: true, slug: true, shortDescription: true, description: true, internalNotes: true, publicationStatus: true, createdAt: true, updatedAt: true, variants: { select: { id: true, productId: true, sku: true, name: true, model: true, attributes: true, status: true, publicationStatus: true, createdAt: true, updatedAt: true } } } });
+      const { variants, ...product } = data;
+      const productVariants = variants.length ? variants : [{ name: null, supplierSku: null, mainImageUrl: null, additionalImageUrls: [], packaging: {}, factoryPrice: null, markupPercent: null, sellingPrice: 0, pricingMethod: "FIXED_SELLING_PRICE" as const, status: "ACTIVE" as const, publicationStatus: "DRAFT" as const }];
+      const record = await prisma.product.create({ data: { ...product, companyId, brandId: data.brandId ?? null, taxonomyNodeId: data.taxonomyNodeId ?? null, slug, variants: { create: productVariants.map((variant, index) => { const pricing = resolveVariantPricing(variant.factoryPrice == null && variant.sellingPrice == null && variant.markupPercent == null ? { pricingMethod: "FIXED_SELLING_PRICE", sellingPrice: 0 } : variant); return { ...variant, sku: variant.supplierSku || `${slug}-${index + 1}`, ...pricing, isDefault: variants.length === 0 }; }) } }, select: companyDetailSelect.products.select });
+      return toAdminProductDto(record);
     } catch (error) {
       if (typeof error === "object" && error !== null && "code" in error && error.code === "P2002") continue;
       throw error;
@@ -203,7 +214,9 @@ export async function createAdminProduct(companyId: string, productFamilyId: str
 export async function updateAdminProduct(companyId: string, productId: string, input: unknown) {
   const data = catalogProductInputSchema.parse(input);
   const prisma = getWossolExportPrisma();
-  const product = await prisma.product.findFirst({ where: { id: productId, productFamily: { brand: { companyId } } } });
+  const product = await prisma.product.findFirst({ where: { id: productId, companyId } });
   if (!product) throw new Error("The selected product does not belong to this company.");
-  return prisma.product.update({ where: { id: productId }, data, select: { id: true, productFamilyId: true, name: true, slug: true, shortDescription: true, description: true, internalNotes: true, publicationStatus: true, createdAt: true, updatedAt: true, variants: { select: { id: true, productId: true, sku: true, name: true, model: true, attributes: true, status: true, publicationStatus: true, createdAt: true, updatedAt: true } } } });
+  const { variants: _variants, ...productData } = data;
+  const record = await prisma.product.update({ where: { id: productId }, data: { ...productData, brandId: data.brandId ?? null, taxonomyNodeId: data.taxonomyNodeId ?? null }, select: companyDetailSelect.products.select });
+  return toAdminProductDto(record);
 }

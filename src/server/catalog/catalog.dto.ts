@@ -3,6 +3,7 @@ import type {
   CatalogRecordStatus,
   PipelineCompanyLinkageStatus,
 } from "./catalog.contracts.ts";
+import type { Prisma } from "@prisma/client";
 
 export type AdminPipelineCompanyLinkDto = {
   id: string;
@@ -23,7 +24,6 @@ export type AdminCompanyDto = {
   slug: string;
   countryCode: string | null;
   website: string | null;
-  category: string | null;
   status: CatalogRecordStatus;
   internalNotes: string | null;
   createdAt: Date;
@@ -33,7 +33,7 @@ export type AdminCompanyDto = {
 
 export type AdminBrandDto = {
   id: string;
-  companyId: string;
+  companyId: string | null;
   name: string;
   slug: string;
   status: CatalogRecordStatus;
@@ -49,6 +49,7 @@ export type AdminCompanySummaryDto = Omit<
 
 export type AdminCompanyDetailDto = Omit<AdminCompanyDto, "pipelineLinks"> & {
   brands: AdminBrandDto[];
+  products: AdminProductDto[];
 };
 
 export type AdminProductFamilyDto = {
@@ -69,7 +70,16 @@ export type AdminVariantDto = {
   sku: string;
   name: string | null;
   model: string | null;
-  attributes: unknown;
+  attributes: Prisma.JsonValue | null;
+  supplierSku: string | null;
+  mainImageUrl: string | null;
+  additionalImageUrls: Prisma.JsonValue | null;
+  packaging: Prisma.JsonValue | null;
+  pricingMethod: "MARKUP_PERCENT" | "FIXED_SELLING_PRICE" | null;
+  factoryPrice: string | null;
+  markupPercent: string | null;
+  sellingPrice: string | null;
+  currency: string;
   status: CatalogRecordStatus;
   publicationStatus: CatalogPublicationStatus;
   createdAt: Date;
@@ -78,12 +88,15 @@ export type AdminVariantDto = {
 
 export type AdminProductDto = {
   id: string;
-  productFamilyId: string;
+  companyId: string | null;
+  brandId: string | null;
+  taxonomyNodeId: string | null;
   name: string;
   slug: string;
   shortDescription: string | null;
   description: string | null;
   internalNotes: string | null;
+  countryOfOrigin: string;
   publicationStatus: CatalogPublicationStatus;
   createdAt: Date;
   updatedAt: Date;
@@ -99,7 +112,9 @@ export type ClientCatalogVariantDto = {
 
 export type ClientCatalogProductDto = {
   id: string;
-  productFamilyId: string;
+  companyId: string;
+  brandId: string | null;
+  taxonomyNodeId: string | null;
   name: string;
   slug: string;
   shortDescription: string | null;
@@ -126,10 +141,39 @@ export function toAdminCompanySummaryDto(record: AdminCompanySummaryDto): AdminC
   return record;
 }
 
-export function toAdminCompanyDetailDto(
-  record: Omit<AdminCompanyDto, "pipelineLinks"> & { brands: AdminBrandDto[] },
-): AdminCompanyDetailDto {
-  return { ...record, brands: record.brands };
+type AdminCompanyDetailRecord = Omit<AdminCompanyDto, "pipelineLinks"> & {
+  brands: AdminBrandDto[];
+  products: AdminProductRecord[];
+};
+
+export function toAdminCompanyDetailDto(record: AdminCompanyDetailRecord): AdminCompanyDetailDto {
+  return {
+    ...record,
+    brands: record.brands,
+    products: record.products.map(toAdminProductDto),
+  };
+}
+
+type DecimalLike = { toString(): string };
+type AdminProductRecord = Omit<AdminProductDto, "variants"> & {
+  variants: Array<Omit<AdminVariantDto, "factoryPrice" | "markupPercent" | "sellingPrice"> & {
+    factoryPrice: DecimalLike | null;
+    markupPercent: DecimalLike | null;
+    sellingPrice: DecimalLike | null;
+  }>;
+};
+
+/** Converts Prisma Decimal values at the server/UI boundary without loss. */
+export function toAdminProductDto(record: AdminProductRecord): AdminProductDto {
+  return {
+    ...record,
+    variants: record.variants.map((variant) => ({
+      ...variant,
+      factoryPrice: variant.factoryPrice?.toString() ?? null,
+      markupPercent: variant.markupPercent?.toString() ?? null,
+      sellingPrice: variant.sellingPrice?.toString() ?? null,
+    })),
+  };
 }
 
 export function toAdminBrandDto(record: AdminBrandDto): AdminBrandDto {
@@ -149,7 +193,9 @@ export function toClientCatalogProductDto(
 ): ClientCatalogProductDto {
   return {
     id: record.id,
-    productFamilyId: record.productFamilyId,
+    companyId: record.companyId,
+    brandId: record.brandId,
+    taxonomyNodeId: record.taxonomyNodeId,
     name: record.name,
     slug: record.slug,
     shortDescription: record.shortDescription,

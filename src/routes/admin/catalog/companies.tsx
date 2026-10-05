@@ -26,7 +26,6 @@ function CompaniesPage() {
     legalName: "",
     countryCode: "",
     website: "",
-    category: "",
     internalNotes: "",
   });
   const companies = result.ok ? result.companies : [];
@@ -135,9 +134,6 @@ function CompaniesPage() {
                 onChange={(event) => setForm({ ...form, website: event.target.value })}
                 placeholder="https://example.com"
               />
-            </Field>
-            <Field label="Category / sector">
-              <input value={form.category} onChange={(event) => setForm({ ...form, category: event.target.value })} placeholder="e.g. Consumer goods" />
             </Field>
             <Field label="Internal notes">
               <input

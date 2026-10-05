@@ -7,7 +7,6 @@ const companyInput = z.object({
   legalName: z.string().nullable().optional(),
   countryCode: z.string().nullable().optional(),
   website: z.string().nullable().optional(),
-  category: z.string().nullable().optional(),
   internalNotes: z.string().nullable().optional(),
 });
 const companyUpdateInput = companyInput.extend({
@@ -15,7 +14,6 @@ const companyUpdateInput = companyInput.extend({
 });
 const brandInput = z.object({
   name: z.string(),
-  slug: z.string(),
   status: z.enum(["ACTIVE", "INACTIVE", "ARCHIVED"]).optional(),
 });
 const productFamilyInput = z.object({
@@ -25,10 +23,14 @@ const productFamilyInput = z.object({
 });
 const productInput = z.object({
   name: z.string(),
+  brandId: idSchema.nullable().optional(),
+  taxonomyNodeId: idSchema.nullable().optional(),
+  countryOfOrigin: z.string().length(2).optional(),
   shortDescription: z.string().nullable().optional(),
   description: z.string().nullable().optional(),
   internalNotes: z.string().nullable().optional(),
   publicationStatus: z.enum(["DRAFT", "IN_REVIEW", "PUBLISHED", "ARCHIVED"]).optional(),
+  variants: z.array(z.object({ id: idSchema.optional(), name: z.string().nullable().optional(), supplierSku: z.string().nullable().optional(), mainImageUrl: z.string().url().nullable().optional(), additionalImageUrls: z.array(z.string().url()).optional(), packaging: z.record(z.string(), z.string()).optional(), factoryPrice: z.number().nonnegative().nullable().optional(), markupPercent: z.number().nullable().optional(), sellingPrice: z.number().nonnegative().nullable().optional(), pricingMethod: z.enum(["MARKUP_PERCENT", "FIXED_SELLING_PRICE"]).nullable().optional(), status: z.enum(["ACTIVE", "INACTIVE", "ARCHIVED"]).optional(), publicationStatus: z.enum(["DRAFT", "IN_REVIEW", "PUBLISHED", "ARCHIVED"]).optional() })).optional(),
 });
 
 function safeFailure(error: unknown) {
@@ -97,13 +99,13 @@ export const updateAdminCompanyFn = createServerFn({ method: "POST" })
   });
 
 export const createAdminBrandFn = createServerFn({ method: "POST" })
-  .inputValidator(z.object({ companyId: idSchema, data: brandInput }))
+  .inputValidator(z.object({ companyId: idSchema.nullable().optional(), data: brandInput }))
   .handler(async ({ data }) => {
     try {
       await guard("catalog.brand.manage");
       const { createAdminBrand } =
         await import("../../server/catalog/catalog.admin.repository.server.ts");
-      return { ok: true as const, brand: await createAdminBrand(data.companyId, data.data) };
+      return { ok: true as const, brand: await createAdminBrand(data.companyId ?? null, data.data) };
     } catch (error) {
       return safeFailure(error);
     }
@@ -133,12 +135,12 @@ export const createAdminProductFamilyFn = createServerFn({ method: "POST" })
   });
 
 export const createAdminProductFn = createServerFn({ method: "POST" })
-  .inputValidator(z.object({ companyId: idSchema, productFamilyId: idSchema, data: productInput }))
+  .inputValidator(z.object({ companyId: idSchema, data: productInput }))
   .handler(async ({ data }) => {
     try {
       await guard("catalog.product.manage");
       const { createAdminProduct } = await import("../../server/catalog/catalog.admin.repository.server.ts");
-      return { ok: true as const, product: await createAdminProduct(data.companyId, data.productFamilyId, data.data) };
+      return { ok: true as const, product: await createAdminProduct(data.companyId, data.data) };
     } catch (error) { return safeFailure(error); }
   });
 

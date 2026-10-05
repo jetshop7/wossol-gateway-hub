@@ -3,7 +3,6 @@ import { z } from "zod";
 import {
   catalogPublicationStatuses,
   catalogRecordStatuses,
-  normalizeCatalogSlug,
   pipelineCompanyLinkageStatuses,
   type PipelineCompanyLinkInput,
 } from "./catalog.contracts.ts";
@@ -15,7 +14,6 @@ export const catalogCompanyInputSchema = z.object({
   legalName: optionalTrimmedString,
   countryCode: z.string().trim().length(2).toUpperCase().nullable().optional(),
   website: z.string().trim().url().nullable().optional(),
-  category: optionalTrimmedString,
   internalNotes: optionalTrimmedString,
 });
 
@@ -25,7 +23,6 @@ export const catalogCompanyUpdateInputSchema = catalogCompanyInputSchema.extend(
 
 export const catalogBrandInputSchema = z.object({
   name: z.string().trim().min(1).max(200),
-  slug: z.string().trim().min(1).max(120).transform(normalizeCatalogSlug),
   status: z.enum(catalogRecordStatuses).default("ACTIVE"),
 });
 
@@ -37,10 +34,27 @@ export const catalogProductFamilyInputSchema = z.object({
 
 export const catalogProductInputSchema = z.object({
   name: z.string().trim().min(1).max(200),
+  brandId: z.string().uuid().nullable().optional(),
+  taxonomyNodeId: z.string().uuid().nullable().optional(),
+  countryOfOrigin: z.string().trim().length(2).toUpperCase().default("DZ"),
   shortDescription: optionalTrimmedString,
   description: optionalTrimmedString,
   internalNotes: optionalTrimmedString,
   publicationStatus: z.enum(catalogPublicationStatuses).default("DRAFT"),
+  variants: z.array(z.object({
+    id: z.string().uuid().optional(),
+    name: optionalTrimmedString,
+    supplierSku: optionalTrimmedString,
+    mainImageUrl: z.string().url().nullable().optional(),
+    additionalImageUrls: z.array(z.string().url()).default([]),
+    packaging: z.record(z.string(), z.string()).default({}),
+    factoryPrice: z.number().nonnegative().nullable().optional(),
+    markupPercent: z.number().min(-100).nullable().optional(),
+    sellingPrice: z.number().nonnegative().nullable().optional(),
+    pricingMethod: z.enum(["MARKUP_PERCENT", "FIXED_SELLING_PRICE"]).nullable().optional(),
+    status: z.enum(catalogRecordStatuses).default("ACTIVE"),
+    publicationStatus: z.enum(catalogPublicationStatuses).default("DRAFT"),
+  })).default([]),
 });
 
 export const catalogRecordStatusSchema = z.enum(catalogRecordStatuses);

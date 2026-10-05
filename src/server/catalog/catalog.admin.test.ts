@@ -9,15 +9,14 @@ import {
 } from "./catalog.validation.ts";
 import { toAdminCompanyDetailDto } from "./catalog.dto.ts";
 
-test("company and brand inputs normalize scoped slugs and country codes", () => {
+test("company and brand inputs omit category and generate slugs server-side", () => {
   const company = catalogCompanyInputSchema.parse({
     displayName: "  Acme  ",
     countryCode: "dz",
-    category: " Consumer goods ",
   });
-  const brand = catalogBrandInputSchema.parse({ name: " North Line ", slug: "North Line" });
-  assert.deepEqual(company, { displayName: "Acme", countryCode: "DZ", category: "Consumer goods" });
-  assert.deepEqual(brand, { name: "North Line", slug: "north-line", status: "ACTIVE" });
+  const brand = catalogBrandInputSchema.parse({ name: " North Line " });
+  assert.deepEqual(company, { displayName: "Acme", countryCode: "DZ" });
+  assert.deepEqual(brand, { name: "North Line", status: "ACTIVE" });
 });
 
 test("brand DTO preserves its Company hierarchy without exposing internal fields", () => {
@@ -28,7 +27,6 @@ test("brand DTO preserves its Company hierarchy without exposing internal fields
     slug: "acme",
     countryCode: "DZ",
     website: null,
-    category: "Consumer goods",
     status: "ACTIVE",
     internalNotes: "private",
     createdAt: new Date("2026-10-05T00:00:00Z"),
@@ -44,6 +42,7 @@ test("brand DTO preserves its Company hierarchy without exposing internal fields
         updatedAt: new Date(),
       },
     ],
+    products: [],
   });
   assert.equal(result.brands[0]?.companyId, "company-1");
   assert.equal("pipelineLinks" in result, false);
@@ -56,13 +55,11 @@ test("company creation input owns display data only; technical slug is server-ma
   assert.equal("slug" in company, false);
 });
 
-test("product administration requires a family-scoped name and keeps publication controls explicit", () => {
-  assert.deepEqual(catalogProductFamilyInputSchema.parse({ name: "Core range" }), {
-    name: "Core range",
-    status: "ACTIVE",
-  });
+test("products belong directly to a Company and variants carry commercial data", () => {
   assert.deepEqual(catalogProductInputSchema.parse({ name: "Starter kit" }), {
     name: "Starter kit",
+    countryOfOrigin: "DZ",
     publicationStatus: "DRAFT",
+    variants: [],
   });
 });

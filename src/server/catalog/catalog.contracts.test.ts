@@ -16,7 +16,9 @@ test("normalizes catalog slugs without changing the canonical identity input", (
 test("client product projection allowlists public fields", () => {
   const result = toClientCatalogProductDto({
     id: "product-1",
-    productFamilyId: "family-1",
+    companyId: "company-1",
+    brandId: null,
+    taxonomyNodeId: "taxonomy-1",
     name: "Visible product",
     slug: "visible-product",
     shortDescription: "Safe summary",
@@ -36,7 +38,9 @@ test("client product projection allowlists public fields", () => {
 
   assert.deepEqual(result, {
     id: "product-1",
-    productFamilyId: "family-1",
+    companyId: "company-1",
+    brandId: null,
+    taxonomyNodeId: "taxonomy-1",
     name: "Visible product",
     slug: "visible-product",
     shortDescription: "Safe summary",
@@ -47,16 +51,9 @@ test("client product projection allowlists public fields", () => {
   assert.equal("acquisitionCost" in result, false);
 });
 
-test("product identity is scoped by Product Family and slug", () => {
-  const sharedSlug = "shared-product";
-
-  assert.deepEqual(getCatalogProductIdentity("family-a", sharedSlug), {
-    productFamilyId: "family-a",
-    slug: sharedSlug,
-  });
-  assert.notDeepEqual(getCatalogProductIdentity("family-a", sharedSlug), {
-    productFamilyId: "family-b",
-    slug: sharedSlug,
+test("product identity uses the stable product id, not a ProductFamily slug", () => {
+  assert.deepEqual(getCatalogProductIdentity("00000000-0000-0000-0000-000000000001"), {
+    id: "00000000-0000-0000-0000-000000000001",
   });
 });
 
