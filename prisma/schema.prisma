@@ -29,6 +29,31 @@ enum PipelineCompanyLinkageStatus {
   UNLINKED
 }
 
+enum InternalUserStatus {
+  ACTIVE
+  DISABLED
+}
+
+enum InternalCatalogRole {
+  CATALOG_ADMIN
+  CATALOG_EDITOR
+}
+
+enum ClientAccountStatus {
+  ACTIVE
+  DISABLED
+}
+
+enum ClientUserStatus {
+  ACTIVE
+  DISABLED
+}
+
+enum AuthActorType {
+  INTERNAL
+  CLIENT
+}
+
 model Company {
   id            String              @id @default(uuid()) @db.Uuid
   displayName   String              @map("display_name")
@@ -142,4 +167,108 @@ model CompanyPipelineLink {
   @@index([companyId])
   @@index([linkageStatus, updatedAt])
   @@map("catalog_company_pipeline_links")
+}
+
+model InternalUser {
+  id           String              @id @default(uuid()) @db.Uuid
+  email        String              @unique
+  displayName  String              @map("display_name")
+  passwordHash String              @map("password_hash")
+  role         InternalCatalogRole @default(CATALOG_EDITOR)
+  status       InternalUserStatus  @default(ACTIVE)
+  createdAt    DateTime            @default(now()) @map("created_at")
+  updatedAt    DateTime            @updatedAt @map("updated_at")
+
+  sessions    AuthSession[]
+  auditEvents AuthAuditEvent[]
+
+  @@map("export_internal_users")
+}
+
+model ClientAccount {
+  id        String              @id @default(uuid()) @db.Uuid
+  name      String
+  status    ClientAccountStatus @default(ACTIVE)
+  createdAt DateTime            @default(now()) @map("created_at")
+  updatedAt DateTime            @updatedAt @map("updated_at")
+
+  users       ClientUser[]
+  sessions    AuthSession[]
+  auditEvents AuthAuditEvent[]
+
+  @@map("export_client_accounts")
+}
+
+model ClientUser {
+  id              String           @id @default(uuid()) @db.Uuid
+  clientAccountId String           @map("client_account_id") @db.Uuid
+  email           String           @unique
+  displayName     String           @map("display_name")
+  passwordHash    String           @map("password_hash")
+  status          ClientUserStatus @default(ACTIVE)
+  createdAt       DateTime         @default(now()) @map("created_at")
+  updatedAt       DateTime         @updatedAt @map("updated_at")
+
+  clientAccount ClientAccount    @relation(fields: [clientAccountId], references: [id], onDelete: Restrict)
+  sessions      AuthSession[]
+  auditEvents   AuthAuditEvent[]
+
+  @@map("export_client_users")
+}
+
+model AuthSession {
+  id              String        @id @default(uuid()) @db.Uuid
+  tokenHash       String        @unique @map("token_hash")
+  actorType       AuthActorType @map("actor_type")
+  internalUserId  String?       @map("internal_user_id") @db.Uuid
+  clientUserId    String?       @map("client_user_id") @db.Uuid
+  clientAccountId String?       @map("client_account_id") @db.Uuid
+  expiresAt       DateTime      @map("expires_at")
+  revokedAt       DateTime?     @map("revoked_at")
+  createdAt       DateTime      @default(now()) @map("created_at")
+  lastSeenAt      DateTime      @default(now()) @map("last_seen_at")
+
+  internalUser  InternalUser?  @relation(fields: [internalUserId], references: [id], onDelete: Restrict)
+  clientUser    ClientUser?    @relation(fields: [clientUserId], references: [id], onDelete: Restrict)
+  clientAccount ClientAccount? @relation(fields: [clientAccountId], references: [id], onDelete: Restrict)
+
+  @@index([internalUserId, revokedAt, expiresAt])
+  @@index([clientUserId, revokedAt, expiresAt])
+  @@index([expiresAt])
+  @@map("export_auth_sessions")
+}
+
+model AuthAuditEvent {
+  id              String         @id @default(uuid()) @db.Uuid
+  action          String
+  actorType       AuthActorType? @map("actor_type")
+  internalUserId  String?        @map("internal_user_id") @db.Uuid
+  clientUserId    String?        @map("client_user_id") @db.Uuid
+  clientAccountId String?        @map("client_account_id") @db.Uuid
+  entityType      String?        @map("entity_type")
+  entityId        String?        @map("entity_id")
+  ipAddress       String?        @map("ip_address")
+  metadata        Json?
+  createdAt       DateTime       @default(now()) @map("created_at")
+
+  internalUser  InternalUser?  @relation(fields: [internalUserId], references: [id], onDelete: SetNull)
+  clientUser    ClientUser?    @relation(fields: [clientUserId], references: [id], onDelete: SetNull)
+  clientAccount ClientAccount? @relation(fields: [clientAccountId], references: [id], onDelete: SetNull)
+
+  @@index([action, createdAt])
+  @@index([internalUserId, createdAt])
+  @@index([clientUserId, createdAt])
+  @@map("export_auth_audit_events")
+}
+
+model AuthRateLimit {
+  id           String    @id @default(uuid()) @db.Uuid
+  key          String    @unique
+  failures     Int       @default(0)
+  windowStart  DateTime  @map("window_start")
+  blockedUntil DateTime? @map("blocked_until")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  @@index([blockedUntil])
+  @@map("export_auth_rate_limits")
 }

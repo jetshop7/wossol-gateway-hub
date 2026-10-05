@@ -421,6 +421,18 @@ Each step should be independently reviewable and should not alter public Wossol 
 
 No database was contacted or migrated during C-002. The migration was generated from the schema diff only. The current website build targets a Cloudflare module by default; before any route invokes Prisma, follow-up work must choose a Node-compatible private runtime or an approved Prisma-compatible adapter. The repository boundary is intentionally not wired into public routes yet.
 
-## 15. Verification note for C-002
+## 15. C-003 authentication implementation note
+
+- **Identity ownership:** Wossol Export owns separate `InternalUser`, `ClientAccount`, and `ClientUser` records. Client users belong to exactly one client account for the MVP; no `wossol-platform` identity or table is referenced.
+- **Roles/capabilities:** `CATALOG_ADMIN` receives all documented catalog capabilities. `CATALOG_EDITOR` receives internal reads, hierarchy/product/variant/media management, and import upload; approval, publication, client management, and audit-read remain administrator capabilities. The capability map is centralized in `src/server/auth/auth.types.ts` so additional roles can evolve without changing session transport.
+- **Passwords:** Node-compatible built-in `scrypt` with a per-password 128-bit salt, 64-byte derived-key comparison material, and a versioned encoded format. Password hashes are selected only inside server repositories and never enter actor or login DTOs.
+- **Sessions:** `AuthSession` stores a SHA-256 hash of a random opaque token, expiration, revocation time, and actor foreign keys. The browser receives only an HttpOnly session cookie; every resolution rechecks expiry, revocation, and current user/account status.
+- **Cookies and CSRF:** the session cookie is `HttpOnly`, `SameSite=Lax`, `Secure` in production, path `/`, and eight hours by default. A separate non-HttpOnly CSRF cookie is paired with `X-Wossol-CSRF` and same-origin `Origin` validation for cookie-authenticated mutations. Deployments must preserve a trusted origin/proxy configuration.
+- **Bootstrap:** `bun run bootstrap:internal-admin` requires explicit `WOSSOL_EXPORT_BOOTSTRAP_CONFIRM=CREATE`, email, and password environment values, refuses duplicate email, and never runs automatically. No credentials are committed or used against production by this task.
+- **Audit and throttling:** successful/failed login and logout write `AuthAuditEvent` records without passwords or secrets. `AuthRateLimit` provides durable per-identity/IP failure windows; after five failures in fifteen minutes, login is blocked for fifteen minutes. Database failure does not silently fall back to an in-memory limiter.
+- **Runtime boundary:** authentication modules are server-only and use TanStack Start server request/cookie utilities. The existing default Cloudflare build still requires an approved Node-compatible private runtime/Prisma adapter before a deployed private route invokes this boundary; C-003 adds no public/private UI routes.
+- **Remaining C-004+ work:** internal lifecycle/admin UI, client account management UI, catalog CRUD authorization call sites, durable cleanup jobs, deployment runtime selection, trusted proxy/origin configuration, reset/invitation flows, and C-009 catalog scopes/pricing remain open.
+
+## 16. Verification note for C-002
 
 This change adds only the persistence/domain foundation and its documentation. No Admin or Client UI, login flow, public route, public-site component, asset, copy, legal text, or production database operation was added.

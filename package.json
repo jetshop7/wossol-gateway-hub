@@ -10,6 +10,8 @@
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "test:catalog": "node --experimental-strip-types --test src/server/catalog/catalog.contracts.test.ts",
+    "test:auth": "node --experimental-strip-types --test src/server/auth/auth.security.test.ts",
+    "bootstrap:internal-admin": "node --experimental-strip-types scripts/bootstrap-internal-admin.ts",
     "prisma:format": "prisma format --schema prisma/schema.prisma",
     "prisma:validate": "prisma validate --schema prisma/schema.prisma",
     "prisma:generate": "prisma generate --schema prisma/schema.prisma",
