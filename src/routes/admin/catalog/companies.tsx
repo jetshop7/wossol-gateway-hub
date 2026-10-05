@@ -20,9 +20,9 @@ function CompaniesPage() {
   const [form, setForm] = useState({
     displayName: "",
     legalName: "",
-    slug: "",
     countryCode: "",
     website: "",
+    category: "",
     internalNotes: "",
   });
   const companies = result.ok ? result.companies : [];
@@ -108,14 +108,6 @@ function CompaniesPage() {
                 onChange={(event) => setForm({ ...form, displayName: event.target.value })}
               />
             </Field>
-            <Field label="Slug *">
-              <input
-                required
-                value={form.slug}
-                onChange={(event) => setForm({ ...form, slug: event.target.value })}
-                placeholder="company-slug"
-              />
-            </Field>
             <Field label="Legal name">
               <input
                 value={form.legalName}
@@ -137,6 +129,9 @@ function CompaniesPage() {
                 onChange={(event) => setForm({ ...form, website: event.target.value })}
                 placeholder="https://example.com"
               />
+            </Field>
+            <Field label="Category / sector">
+              <input value={form.category} onChange={(event) => setForm({ ...form, category: event.target.value })} placeholder="e.g. Consumer goods" />
             </Field>
             <Field label="Internal notes">
               <input

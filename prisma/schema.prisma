@@ -61,6 +61,7 @@ model Company {
   slug          String              @unique
   countryCode   String?             @map("country_code")
   website       String?
+  category      String?
   status        CatalogRecordStatus @default(ACTIVE)
   internalNotes String?             @map("internal_notes")
   createdAt     DateTime            @default(now()) @map("created_at")

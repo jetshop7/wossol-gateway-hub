@@ -1,17 +1,22 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { catalogBrandInputSchema, catalogCompanyInputSchema } from "./catalog.validation.ts";
+import {
+  catalogBrandInputSchema,
+  catalogCompanyInputSchema,
+  catalogProductFamilyInputSchema,
+  catalogProductInputSchema,
+} from "./catalog.validation.ts";
 import { toAdminCompanyDetailDto } from "./catalog.dto.ts";
 
 test("company and brand inputs normalize scoped slugs and country codes", () => {
   const company = catalogCompanyInputSchema.parse({
     displayName: "  Acme  ",
-    slug: "Acme Supply",
     countryCode: "dz",
+    category: " Consumer goods ",
   });
   const brand = catalogBrandInputSchema.parse({ name: " North Line ", slug: "North Line" });
-  assert.deepEqual(company, { displayName: "Acme", slug: "acme-supply", countryCode: "DZ" });
+  assert.deepEqual(company, { displayName: "Acme", countryCode: "DZ", category: "Consumer goods" });
   assert.deepEqual(brand, { name: "North Line", slug: "north-line", status: "ACTIVE" });
 });
 
@@ -23,6 +28,7 @@ test("brand DTO preserves its Company hierarchy without exposing internal fields
     slug: "acme",
     countryCode: "DZ",
     website: null,
+    category: "Consumer goods",
     status: "ACTIVE",
     internalNotes: "private",
     createdAt: new Date("2026-10-05T00:00:00Z"),
@@ -42,4 +48,21 @@ test("brand DTO preserves its Company hierarchy without exposing internal fields
   assert.equal(result.brands[0]?.companyId, "company-1");
   assert.equal("pipelineLinks" in result, false);
   assert.equal(result.internalNotes, "private");
+});
+
+test("company creation input owns display data only; technical slug is server-managed", () => {
+  const company = catalogCompanyInputSchema.parse({ displayName: "North & Coast" });
+  assert.equal(company.displayName, "North & Coast");
+  assert.equal("slug" in company, false);
+});
+
+test("product administration requires a family-scoped name and keeps publication controls explicit", () => {
+  assert.deepEqual(catalogProductFamilyInputSchema.parse({ name: "Core range" }), {
+    name: "Core range",
+    status: "ACTIVE",
+  });
+  assert.deepEqual(catalogProductInputSchema.parse({ name: "Starter kit" }), {
+    name: "Starter kit",
+    publicationStatus: "DRAFT",
+  });
 });

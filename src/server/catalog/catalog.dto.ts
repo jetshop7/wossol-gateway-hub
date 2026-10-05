@@ -23,6 +23,7 @@ export type AdminCompanyDto = {
   slug: string;
   countryCode: string | null;
   website: string | null;
+  category: string | null;
   status: CatalogRecordStatus;
   internalNotes: string | null;
   createdAt: Date;
@@ -38,6 +39,7 @@ export type AdminBrandDto = {
   status: CatalogRecordStatus;
   createdAt: Date;
   updatedAt: Date;
+  productFamilies?: AdminProductFamilyDto[];
 };
 
 export type AdminCompanySummaryDto = Omit<
@@ -58,6 +60,7 @@ export type AdminProductFamilyDto = {
   status: CatalogRecordStatus;
   createdAt: Date;
   updatedAt: Date;
+  products?: AdminProductDto[];
 };
 
 export type AdminVariantDto = {

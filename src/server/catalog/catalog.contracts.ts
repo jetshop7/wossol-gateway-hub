@@ -15,9 +15,9 @@ export type PipelineCompanyLinkageStatus = (typeof pipelineCompanyLinkageStatuse
 export type CatalogCompanyInput = {
   displayName: string;
   legalName?: string | null;
-  slug: string;
   countryCode?: string | null;
   website?: string | null;
+  category?: string | null;
   internalNotes?: string | null;
 };
 

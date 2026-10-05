@@ -5,6 +5,9 @@ import { ArrowLeft, Plus, Save, Tag } from "lucide-react";
 import {
   getAdminCompanyDetail,
   createAdminBrandFn,
+  createAdminProductFamilyFn,
+  createAdminProductFn,
+  updateAdminProductFn,
   updateAdminBrandFn,
   updateAdminCompanyFn,
 } from "@/lib/api/catalog-admin.functions";
@@ -20,6 +23,9 @@ function CompanyDetailPage() {
   const navigate = useNavigate();
   const [brandFormOpen, setBrandFormOpen] = useState(false);
   const [brandEditing, setBrandEditing] = useState<string | null>(null);
+  const [familyFormOpen, setFamilyFormOpen] = useState<string | null>(null);
+  const [productFormOpen, setProductFormOpen] = useState<string | null>(null);
+  const [productEditing, setProductEditing] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
   const company = result.ok ? result.company : null;
@@ -28,9 +34,9 @@ function CompanyDetailPage() {
       ? {
           displayName: company.displayName,
           legalName: company.legalName ?? "",
-          slug: company.slug,
           countryCode: company.countryCode ?? "",
           website: company.website ?? "",
+          category: company.category ?? "",
           internalNotes: company.internalNotes ?? "",
           status: company.status,
         }
@@ -40,8 +46,9 @@ function CompanyDetailPage() {
           slug: "",
           countryCode: "",
           website: "",
+          category: "",
           internalNotes: "",
-          status: "ACTIVE" as const,
+          status: "ACTIVE" as "ACTIVE" | "INACTIVE" | "ARCHIVED",
         },
   );
   const [brandForm, setBrandForm] = useState({
@@ -49,6 +56,8 @@ function CompanyDetailPage() {
     slug: "",
     status: "ACTIVE" as "ACTIVE" | "INACTIVE" | "ARCHIVED",
   });
+  const [familyForm, setFamilyForm] = useState({ name: "", description: "", status: "ACTIVE" as "ACTIVE" | "INACTIVE" | "ARCHIVED" });
+  const [productForm, setProductForm] = useState({ name: "", shortDescription: "", description: "", internalNotes: "", publicationStatus: "DRAFT" as "DRAFT" | "IN_REVIEW" | "PUBLISHED" | "ARCHIVED" });
   if (!company)
     return (
       <div className="rounded-xl border border-red-200 bg-red-50 p-6 text-sm text-red-700">
@@ -114,6 +123,24 @@ function CompanyDetailPage() {
     }
   };
 
+  const saveFamily = async (event: FormEvent<HTMLFormElement>, brandId: string) => {
+    event.preventDefault(); if (saving) return; setSaving(true); setError("");
+    try {
+      const response = await createAdminProductFamilyFn({ data: { companyId: company.id, brandId, data: familyForm }, headers: { "x-wossol-csrf": readCsrfToken() ?? "" } });
+      if (!response.ok) setError(response.error); else { setFamilyFormOpen(null); setFamilyForm({ name: "", description: "", status: "ACTIVE" }); await navigate({ to: "/admin/catalog/companies/$companyId", params: { companyId: company.id }, replace: true }); }
+    } catch { setError("The product family could not be saved. Please try again."); } finally { setSaving(false); }
+  };
+
+  const saveProduct = async (event: FormEvent<HTMLFormElement>, familyId: string) => {
+    event.preventDefault(); if (saving) return; setSaving(true); setError("");
+    try {
+      const response = productEditing
+        ? await updateAdminProductFn({ data: { companyId: company.id, productId: productEditing, data: productForm }, headers: { "x-wossol-csrf": readCsrfToken() ?? "" } })
+        : await createAdminProductFn({ data: { companyId: company.id, productFamilyId: familyId, data: productForm }, headers: { "x-wossol-csrf": readCsrfToken() ?? "" } });
+      if (!response.ok) setError(response.error); else { setProductFormOpen(null); setProductEditing(null); setProductForm({ name: "", shortDescription: "", description: "", internalNotes: "", publicationStatus: "DRAFT" }); await navigate({ to: "/admin/catalog/companies/$companyId", params: { companyId: company.id }, replace: true }); }
+    } catch { setError("The product could not be saved. Please try again."); } finally { setSaving(false); }
+  };
+
   return (
     <div className="mx-auto max-w-6xl space-y-6">
       <Link
@@ -173,13 +200,6 @@ function CompanyDetailPage() {
               onChange={(event) => setForm({ ...form, displayName: event.target.value })}
             />
           </Field>
-          <Field label="Slug *">
-            <input
-              required
-              value={form.slug}
-              onChange={(event) => setForm({ ...form, slug: event.target.value })}
-            />
-          </Field>
           <Field label="Legal name">
             <input
               value={form.legalName}
@@ -199,6 +219,9 @@ function CompanyDetailPage() {
               value={form.website}
               onChange={(event) => setForm({ ...form, website: event.target.value })}
             />
+          </Field>
+          <Field label="Category / sector">
+            <input value={form.category} onChange={(event) => setForm({ ...form, category: event.target.value })} />
           </Field>
           <Field label="Status">
             <select
@@ -303,10 +326,8 @@ function CompanyDetailPage() {
         ) : (
           <div className="divide-y divide-slate-100">
             {company.brands.map((brand) => (
-              <div
-                key={brand.id}
-                className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6"
-              >
+              <div key={brand.id}>
+                <div className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
                 <div>
                   <p className="font-semibold text-slate-950">{brand.name}</p>
                   <p className="mt-1 text-xs text-slate-500">
@@ -323,6 +344,40 @@ function CompanyDetailPage() {
                 >
                   Edit brand
                 </button>
+                <button
+                  onClick={() => { setFamilyFormOpen(brand.id); setFamilyForm({ name: "", description: "", status: "ACTIVE" }); }}
+                  className="inline-flex h-8 items-center justify-center rounded-md border border-amber-300 px-3 text-xs font-semibold text-amber-700 hover:bg-amber-50"
+                >
+                  Add product family
+                </button>
+                </div>
+              {familyFormOpen === brand.id && (
+                <form onSubmit={(event) => saveFamily(event, brand.id)} className="border-t border-slate-100 bg-slate-50 px-5 py-4 sm:px-6">
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <Field label="Product family *"><input required value={familyForm.name} onChange={(event) => setFamilyForm({ ...familyForm, name: event.target.value })} /></Field>
+                    <Field label="Description"><input value={familyForm.description} onChange={(event) => setFamilyForm({ ...familyForm, description: event.target.value })} /></Field>
+                  </div>
+                  <div className="mt-3 flex gap-2"><button disabled={saving} className="rounded-md bg-[#102c50] px-3 py-2 text-xs font-semibold text-white">{saving ? "Saving…" : "Create family"}</button><button type="button" onClick={() => setFamilyFormOpen(null)} className="rounded-md border border-slate-300 px-3 py-2 text-xs font-semibold">Cancel</button></div>
+                </form>
+              )}
+              {(brand.productFamilies ?? []).map((family) => (
+                <div key={family.id} className="border-t border-slate-100 bg-slate-50/60 px-5 py-4 sm:px-6">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <div><p className="text-sm font-semibold text-slate-900">{family.name}</p><p className="text-xs text-slate-500">{family.products?.length ?? 0} products · /{family.slug}</p></div>
+                    <button onClick={() => { setProductFormOpen(family.id); setProductEditing(null); setProductForm({ name: "", shortDescription: "", description: "", internalNotes: "", publicationStatus: "DRAFT" }); }} className="inline-flex h-8 items-center justify-center rounded-md bg-amber-500 px-3 text-xs font-semibold text-slate-950">Add product</button>
+                  </div>
+                  {productFormOpen === family.id && (
+                    <form onSubmit={(event) => saveProduct(event, family.id)} className="mt-4 grid gap-3 rounded-md border border-slate-200 bg-white p-4 sm:grid-cols-2">
+                      <Field label="Product name *"><input required value={productForm.name} onChange={(event) => setProductForm({ ...productForm, name: event.target.value })} /></Field>
+                      <Field label="Publication status"><select value={productForm.publicationStatus} onChange={(event) => setProductForm({ ...productForm, publicationStatus: event.target.value as typeof productForm.publicationStatus })}><option value="DRAFT">Draft</option><option value="IN_REVIEW">In review</option><option value="PUBLISHED">Published</option><option value="ARCHIVED">Archived</option></select></Field>
+                      <Field label="Short description"><input value={productForm.shortDescription} onChange={(event) => setProductForm({ ...productForm, shortDescription: event.target.value })} /></Field>
+                      <Field label="Internal notes"><input value={productForm.internalNotes} onChange={(event) => setProductForm({ ...productForm, internalNotes: event.target.value })} /></Field>
+                      <div className="sm:col-span-2 flex gap-2"><button disabled={saving} className="rounded-md bg-[#102c50] px-3 py-2 text-xs font-semibold text-white">{saving ? "Saving…" : "Create product"}</button><button type="button" onClick={() => setProductFormOpen(null)} className="rounded-md border border-slate-300 px-3 py-2 text-xs font-semibold">Cancel</button></div>
+                    </form>
+                  )}
+                  {(family.products ?? []).map((product) => <div key={product.id} className="mt-3 flex items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-3"><div><p className="text-sm font-medium text-slate-900">{product.name}</p><p className="text-xs text-slate-500">/{product.slug} · {product.publicationStatus.toLowerCase()}</p></div><button onClick={() => { setProductEditing(product.id); setProductFormOpen(family.id); setProductForm({ name: product.name, shortDescription: product.shortDescription ?? "", description: product.description ?? "", internalNotes: product.internalNotes ?? "", publicationStatus: product.publicationStatus }); }} className="text-xs font-semibold text-slate-700 underline">Edit product</button></div>)}
+                </div>
+              ))}
               </div>
             ))}
           </div>

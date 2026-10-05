@@ -15,6 +15,7 @@ const adminCompanySelect = {
   slug: true,
   countryCode: true,
   website: true,
+  category: true,
   status: true,
   internalNotes: true,
   createdAt: true,
@@ -58,19 +59,18 @@ const clientPublishedProductSelect = {
 
 export async function createCompany(input: CatalogCompanyInput): Promise<AdminCompanyDto> {
   const data = catalogCompanyInputSchema.parse(input);
-  const record = await getWossolExportPrisma().company.create({
-    data: {
-      ...data,
-      status: "ACTIVE",
-      internalNotes: data.internalNotes ?? null,
-      legalName: data.legalName ?? null,
-      countryCode: data.countryCode ?? null,
-      website: data.website ?? null,
-    },
-    select: adminCompanySelect,
-  });
-
-  return toAdminCompanyDto(record);
+  const prisma = getWossolExportPrisma();
+  const baseSlug = data.displayName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "company";
+  for (let suffix = 0; suffix < 1000; suffix += 1) {
+    try {
+      const record = await prisma.company.create({ data: { ...data, slug: suffix === 0 ? baseSlug : `${baseSlug}-${suffix + 1}`, status: "ACTIVE", internalNotes: data.internalNotes ?? null, legalName: data.legalName ?? null, countryCode: data.countryCode ?? null, website: data.website ?? null, category: data.category ?? null }, select: adminCompanySelect });
+      return toAdminCompanyDto(record);
+    } catch (error) {
+      if (typeof error === "object" && error !== null && "code" in error && error.code === "P2002") continue;
+      throw error;
+    }
+  }
+  throw new Error("Unable to allocate a unique company slug.");
 }
 
 export async function findCompanyById(id: string): Promise<AdminCompanyDto | null> {

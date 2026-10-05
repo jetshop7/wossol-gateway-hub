@@ -5,9 +5,9 @@ const idSchema = z.string().uuid();
 const companyInput = z.object({
   displayName: z.string(),
   legalName: z.string().nullable().optional(),
-  slug: z.string(),
   countryCode: z.string().nullable().optional(),
   website: z.string().nullable().optional(),
+  category: z.string().nullable().optional(),
   internalNotes: z.string().nullable().optional(),
 });
 const companyUpdateInput = companyInput.extend({
@@ -17,6 +17,18 @@ const brandInput = z.object({
   name: z.string(),
   slug: z.string(),
   status: z.enum(["ACTIVE", "INACTIVE", "ARCHIVED"]).optional(),
+});
+const productFamilyInput = z.object({
+  name: z.string(),
+  description: z.string().nullable().optional(),
+  status: z.enum(["ACTIVE", "INACTIVE", "ARCHIVED"]).optional(),
+});
+const productInput = z.object({
+  name: z.string(),
+  shortDescription: z.string().nullable().optional(),
+  description: z.string().nullable().optional(),
+  internalNotes: z.string().nullable().optional(),
+  publicationStatus: z.enum(["DRAFT", "IN_REVIEW", "PUBLISHED", "ARCHIVED"]).optional(),
 });
 
 function safeFailure(error: unknown) {
@@ -31,7 +43,7 @@ function safeFailure(error: unknown) {
 }
 
 async function guard(
-  capability: "catalog.company.manage" | "catalog.brand.manage" | "catalog.read_internal",
+  capability: "catalog.company.manage" | "catalog.brand.manage" | "catalog.product_family.manage" | "catalog.product.manage" | "catalog.read_internal",
 ) {
   const { requireCatalogCapability, requireMutationCsrf } =
     await import("../../server/auth/auth.context.server.ts");
@@ -108,4 +120,34 @@ export const updateAdminBrandFn = createServerFn({ method: "POST" })
     } catch (error) {
       return safeFailure(error);
     }
+});
+
+export const createAdminProductFamilyFn = createServerFn({ method: "POST" })
+  .inputValidator(z.object({ companyId: idSchema, brandId: idSchema, data: productFamilyInput }))
+  .handler(async ({ data }) => {
+    try {
+      await guard("catalog.product_family.manage");
+      const { createAdminProductFamily } = await import("../../server/catalog/catalog.admin.repository.server.ts");
+      return { ok: true as const, productFamily: await createAdminProductFamily(data.companyId, data.brandId, data.data) };
+    } catch (error) { return safeFailure(error); }
+  });
+
+export const createAdminProductFn = createServerFn({ method: "POST" })
+  .inputValidator(z.object({ companyId: idSchema, productFamilyId: idSchema, data: productInput }))
+  .handler(async ({ data }) => {
+    try {
+      await guard("catalog.product.manage");
+      const { createAdminProduct } = await import("../../server/catalog/catalog.admin.repository.server.ts");
+      return { ok: true as const, product: await createAdminProduct(data.companyId, data.productFamilyId, data.data) };
+    } catch (error) { return safeFailure(error); }
+  });
+
+export const updateAdminProductFn = createServerFn({ method: "POST" })
+  .inputValidator(z.object({ companyId: idSchema, productId: idSchema, data: productInput }))
+  .handler(async ({ data }) => {
+    try {
+      await guard("catalog.product.manage");
+      const { updateAdminProduct } = await import("../../server/catalog/catalog.admin.repository.server.ts");
+      return { ok: true as const, product: await updateAdminProduct(data.companyId, data.productId, data.data) };
+    } catch (error) { return safeFailure(error); }
   });

@@ -13,9 +13,9 @@ const optionalTrimmedString = z.string().trim().nullable().optional();
 export const catalogCompanyInputSchema = z.object({
   displayName: z.string().trim().min(1).max(200),
   legalName: optionalTrimmedString,
-  slug: z.string().trim().min(1).max(120).transform(normalizeCatalogSlug),
   countryCode: z.string().trim().length(2).toUpperCase().nullable().optional(),
   website: z.string().trim().url().nullable().optional(),
+  category: optionalTrimmedString,
   internalNotes: optionalTrimmedString,
 });
 
@@ -27,6 +27,20 @@ export const catalogBrandInputSchema = z.object({
   name: z.string().trim().min(1).max(200),
   slug: z.string().trim().min(1).max(120).transform(normalizeCatalogSlug),
   status: z.enum(catalogRecordStatuses).default("ACTIVE"),
+});
+
+export const catalogProductFamilyInputSchema = z.object({
+  name: z.string().trim().min(1).max(200),
+  description: optionalTrimmedString,
+  status: z.enum(catalogRecordStatuses).default("ACTIVE"),
+});
+
+export const catalogProductInputSchema = z.object({
+  name: z.string().trim().min(1).max(200),
+  shortDescription: optionalTrimmedString,
+  description: optionalTrimmedString,
+  internalNotes: optionalTrimmedString,
+  publicationStatus: z.enum(catalogPublicationStatuses).default("DRAFT"),
 });
 
 export const catalogRecordStatusSchema = z.enum(catalogRecordStatuses);
