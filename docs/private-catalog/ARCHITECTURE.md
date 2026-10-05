@@ -9,16 +9,38 @@
 
 `wossol-gateway-hub` is currently a public Wossol Export marketing website. It is a TanStack Start/Vite application with static public routes and a small server wrapper, but it has no database client, authentication system, private storage integration, catalog domain, or admin API.
 
-The private catalog should not create a second source of truth inside this public-site repository. The recommended ownership is:
+The private catalog is a Wossol Export-owned domain. It should not become a subordinate extension of merchant/workspace/order/inventory concepts from `wossol-platform`, and it should not create an accidental second source of truth inside the public-site application. The recommended ownership is:
 
 1. Keep the public website and its existing routes in this repository.
-2. Extend the existing private `wossol-platform` backend, or introduce a separately owned private catalog service behind it, as the catalog system of record.
-3. Expose a narrow, versioned client-safe catalog API/read model to any private UI.
-4. If private UI routes are later hosted by this repository, use server-only functions or a server-side BFF to call that API. The browser must never receive database credentials, internal fields, or unrestricted ORM objects.
+2. Create a Wossol Export-owned server-side catalog/domain boundary. It may initially live in this repository if that is operationally simplest, or in a dedicated service later, without changing logical ownership.
+3. Use a dedicated Wossol Export PostgreSQL database or schema owned by that boundary; do not require catalog records to acquire artificial `Merchant` or `Workspace` ownership.
+4. Expose a narrow, versioned client-safe catalog API/read model to any private UI.
+5. If private UI routes are later hosted by this repository, use server-only functions or a server-side BFF to call the Wossol Export boundary. The browser must never receive database credentials, internal fields, or unrestricted ORM objects.
 
-This recommendation is based on the inspected repositories: `wossol-platform` already uses PostgreSQL/Prisma and has user, password, session, role, permission, audit, workspace, and Product/Variant foundations. The public website does not.
+This recommendation is based on the inspected repositories: `wossol-platform` already uses PostgreSQL/Prisma and has useful user, password, session, role, permission, audit, workspace, and Product/Variant foundations. Those are technical assets to learn from or selectively reuse, not a reason to couple Wossol Export catalog data to its database or domain.
 
 The existing operational `Product` and `Variant` models in `wossol-platform` are workspace/merchant-scoped commerce entities used by orders, inventory, and provider mappings. The requested export catalog hierarchy is a different business boundary. It should be modeled explicitly rather than silently reusing or renaming those operational records.
+
+The canonical Wossol Export catalog is:
+
+```text
+Company → Brand → Product Family → Product → Variant
+```
+
+It must remain ready to integrate with Wossol Export supplier discovery and outreach Pipeline data without making discovery records public automatically.
+
+### C-001A decision summary
+
+| Question | Decision |
+| --- | --- |
+| Who owns catalog data? | Wossol Export owns the canonical Company → Brand → Product Family → Product → Variant domain, publication state, client-safe projections, catalog permissions, and audit scope. |
+| Where does the database belong? | In a dedicated Wossol Export-owned PostgreSQL database or clearly isolated PostgreSQL schema with its own migrations and credentials. |
+| Can PostgreSQL/Prisma be reused? | Yes. They are preferred technology choices when used inside the Wossol Export boundary; technical reuse does not imply shared business ownership. |
+| What may be reused from `wossol-platform`? | Reviewed password/session security ideas, authorization/audit conventions, Prisma/migration/validation patterns, and suitable packages or implementation concepts. |
+| What stays isolated? | Catalog entities, supplier intelligence, Pipeline state, catalog migrations/data access, publication, client scopes, price profiles, and internal/client data projections. |
+| How does Pipeline integration work? | Discovery proposes or links to the canonical Wossol Export Company through an explicit, idempotent contract and human review; it does not automatically publish catalog content. |
+| Is the UI compatible with this repository? | Yes. The public site can remain here and later host `/admin/*` and `/client/*` surfaces through a Wossol Export server/API boundary without direct browser/database access. |
+| What is C-002’s boundary? | Establish the Wossol Export server/domain boundary, dedicated persistence/migrations, server-only repositories/DTOs, and Pipeline→Company linkage before CRUD or UI implementation. |
 
 ## 2. Current architecture inventory
 
@@ -48,6 +70,21 @@ The inspected `wossol-platform` repository has:
 - Existing private-upload/storage-key patterns for several platform records.
 
 These are reusable platform capabilities, not proof that the requested export catalog already exists. No Company → Brand → Product Family catalog hierarchy was found in the inspected schema.
+
+### Wossol-platform relationship
+
+`wossol-platform` is a valuable technical reference and a possible future integration peer. It is not automatically the owner, database, or backend of Wossol Export catalog data.
+
+Reuse is allowed where it reduces risk: PostgreSQL operational knowledge, Prisma conventions, migration practices, validation patterns, password/session security patterns, authorization concepts, audit conventions, and carefully reviewed packages or code concepts. Reuse must preserve the Wossol Export identity and data boundary.
+
+The following remain isolated from `wossol-platform` unless a later, explicit integration contract changes the decision:
+
+- Wossol Export `Company`, `Brand`, `ProductFamily`, catalog `Product`, and catalog `Variant` ownership.
+- Supplier intelligence, discovery evidence, outreach Pipeline state, and import provenance.
+- Catalog publication state, client-safe projections, client scopes, and catalog price profiles.
+- Catalog database migrations, retention policy, backup policy, and internal/client data classification.
+
+Any future direct exchange with `wossol-platform` must use a documented API or integration contract. Shared tables, hidden cross-database joins, and implicit foreign-key coupling are out of scope.
 
 ## 3. Ownership and route boundary
 
@@ -110,13 +147,15 @@ No route files are added in C-001.
 
 ### Recommended source of truth
 
-Use PostgreSQL as the catalog system of record and Prisma if the catalog is added to `wossol-platform`. This matches the existing private platform and avoids introducing a second database, migration history, connection policy, and backup strategy for the same Wossol business data.
+The Wossol Export-owned catalog backend/domain boundary should own the catalog system of record. Its database should logically belong to Wossol Export, with a dedicated PostgreSQL database or a clearly isolated PostgreSQL schema and migration history. The first implementation may live in this repository alongside the public/private UI, or in a small separately deployed service; the logical data owner does not change.
 
-The public website should not connect directly to PostgreSQL. It should call a private API or server-only BFF boundary owned by the private platform. If a later decision places the private UI in this repository, the UI location must not change data ownership.
+Prisma and PostgreSQL can still be reused: **yes**, because they are technology choices rather than ownership choices. Prisma is preferred if it provides the smallest maintainable server-side repository and migration layer. The implementation should reuse proven conventions from `wossol-platform` where appropriate while using Wossol Export-owned models, migrations, credentials, connection policy, and audit scope.
+
+The public website and browser should not connect directly to PostgreSQL. They should call a private API or server-only BFF boundary owned by Wossol Export. If a later decision places the private UI in this repository, the UI location must not change data ownership.
 
 ### Why not add an ORM here now
 
-Adding Prisma, Drizzle, Supabase client code, or a new hosted database to the marketing application would create a second persistence boundary before ownership, deployment, migrations, secrets, and data residency are decided. It would also make it easy for public SSR code to accidentally serialize internal catalog data. C-001 therefore records the decision without adding dependencies or schema files.
+Adding Prisma, Drizzle, Supabase client code, or a new hosted database to the marketing application before the Wossol Export boundary is approved would create an accidental persistence boundary. It would also make it easy for public SSR code to serialize internal catalog data. C-001 therefore records the ownership and boundary decision without adding dependencies or schema files. C-002 may add Prisma to the chosen server-side boundary, not to public route modules by default.
 
 ### Required persistence properties
 
@@ -176,15 +215,35 @@ catalogClient.getPublishedProduct()
 
 Do not return Prisma/ORM records directly from server functions. `catalogClient` must select an allowlisted projection and apply publication and client-scope filters in the server query itself.
 
+### Pipeline compatibility
+
+Wossol Export supplier discovery and outreach Pipeline data should feed the canonical Wossol Export `Company` record rather than creating a second supplier/company concept. The conceptual relationship is:
+
+```text
+Supplier discovery / outreach Pipeline
+                 ↓ reviewed linkage
+        canonical Wossol Export Company
+                 ↓
+               Brand
+                 ↓
+           Product Family
+                 ↓
+              Product
+                 ↓
+              Variant
+```
+
+Pipeline records should retain their source evidence, discovery status, outreach history, and confidence. A discovery record may propose a new Company or a possible match to an existing Company, but it must not automatically create published catalog content. A human-reviewed Company linkage and the normal catalog editing/publication workflow remain required. Future integration should use explicit Wossol Export domain interfaces or events, with idempotent external/source identifiers, rather than copying rows between systems.
+
 ## 6. Authentication, sessions, and authorization
 
 ### Authentication ownership
 
-The preferred option is to reuse the private platform’s existing identity and session service through a private API. Do not create a second password database in the marketing site.
+Wossol Export should own the private catalog identity/security boundary. It may reuse or adapt the private platform’s proven password, session, authorization, and audit patterns, but it must not inherit merchant/workspace identity semantics merely for technical convenience. Whether identities are physically shared later is an explicit integration decision, not a C-001 assumption.
 
-If the private UI is later served from `wossol-gateway-hub`, use a server-side BFF/session boundary. Browser storage must not contain database credentials or long-lived refresh credentials. Cookie flags, CSRF handling, domain strategy, login throttling, reset flow, and email delivery require an implementation decision before exposing the routes.
+If the private UI is later served from `wossol-gateway-hub`, use a Wossol Export server-side BFF/session boundary. Browser storage must not contain database credentials or long-lived refresh credentials. Cookie flags, CSRF handling, domain strategy, login throttling, reset flow, and email delivery require an implementation decision before exposing the routes.
 
-The existing platform’s observed baseline is signed access/refresh tokens, salted `scrypt` password hashes, user status checks, and session-version invalidation. Reuse must be deliberate and tested at the API boundary; do not copy the implementation into this repository.
+The existing platform’s observed baseline is signed access/refresh tokens, salted `scrypt` password hashes, user status checks, and session-version invalidation. These can inform the Wossol Export implementation, but reuse must be deliberate, security-reviewed, and tested at the API boundary; do not copy the implementation into public route modules or create hidden shared-table coupling.
 
 ### Minimal permission model
 
@@ -203,7 +262,7 @@ Use explicit server-side capabilities, not route-name checks alone:
 - `catalog.client.manage`
 - `catalog.audit.read`
 
-The first internal release can map these to a small `CATALOG_ADMIN` and `CATALOG_EDITOR` role set. Keep import approval and publication separate from ordinary editing so one user cannot accidentally turn an upload into public data without an explicit transition. The platform’s existing roles/permissions should be extended rather than bypassed.
+The first internal release can map these to a small `CATALOG_ADMIN` and `CATALOG_EDITOR` role set. Keep import approval and publication separate from ordinary editing so one user cannot accidentally turn an upload into public data without an explicit transition. The implementation may mirror the platform’s permission conventions, but Wossol Export remains the authorization owner.
 
 ### Client access
 
@@ -281,8 +340,8 @@ The current repository has static public assets only. It does not currently prov
 
 This sequence keeps security and data ownership ahead of UI breadth:
 
-1. **C-002 — persistence boundary:** choose the owning backend, database environment, migrations, server-only repository interfaces, and DTO conventions.
-2. **C-003 — identity foundation:** reuse/extend platform authentication, session transport, catalog permissions, audit context, and admin/client separation.
+1. **C-002 — Wossol Export domain boundary:** choose whether the initial server-side boundary lives in this repository or a small dedicated service; establish the dedicated PostgreSQL database/schema, Prisma/migration ownership, server-only repositories, DTO conventions, and the Company/Pipeline linkage contract. Do not add catalog tables to the `wossol-platform` database as a convenience default.
+2. **C-003 — identity foundation:** establish Wossol Export authentication/session ownership and authorization. Reuse reviewed platform security patterns where useful, while keeping catalog identity and permissions within the Wossol Export boundary.
 3. **C-004 — Company and Brand administration:** internal CRUD with hierarchy and permission checks.
 4. **C-005 — Product Family, Product, Variant, and media:** internal CRUD, validation, and non-public storage association.
 5. **C-006 — publication and client-safe read model:** explicit state transitions and allowlisted projections.
@@ -299,9 +358,11 @@ Each step should be independently reviewable and should not alter public Wossol 
 ### CURRENT MVP — architecture decisions to preserve now
 
 - Public website remains a separate presentation surface.
-- Catalog source of truth is owned by the existing private platform or an explicitly approved private catalog service.
-- PostgreSQL/Prisma is the default persistence direction if the existing private platform is extended.
+- Catalog source of truth is owned by Wossol Export through a dedicated server-side domain boundary.
+- PostgreSQL/Prisma remain the preferred technology direction when they are used with Wossol Export-owned database/schema and migrations.
+- `wossol-platform` is a technical reference and possible integration peer, not the default catalog owner.
 - Company → Brand → Product Family → Product → Variant is an explicit hierarchy.
+- Supplier discovery/Pipeline data links into the canonical Wossol Export Company concept through reviewed integration, not automatic publication.
 - Internal and client-safe projections are separate.
 - Publication uses explicit states and human approval.
 - Excel import is staged and never auto-publishes.
@@ -311,8 +372,8 @@ Each step should be independently reviewable and should not alter public Wossol 
 
 ### FUTURE ROADMAP — deliberately not implemented here
 
-- Final decision on whether private UI lives in this repository, the platform frontend, or a separate private app.
-- Catalog schema migrations and repository services.
+- Final decision on whether the initial private UI and server boundary live in this repository or a small separate private app/service.
+- Wossol Export catalog schema migrations and repository services.
 - Admin/client login and session transport integration.
 - Company/Brand/Product Family/Product/Variant CRUD.
 - Private media upload, image validation, signed delivery, and retention.
@@ -325,13 +386,13 @@ Each step should be independently reviewable and should not alter public Wossol 
 
 ### Decisions required before implementation
 
-1. **System ownership:** extend `wossol-platform` or create a separate private catalog service. The recommendation is to extend the existing private backend rather than duplicate data in `wossol-gateway-hub`.
-2. **Private UI location:** platform frontend, this TanStack app behind a private API/BFF, or a separate application.
-3. **Account model:** whether client organizations map to existing merchants/workspaces or are a separate catalog customer concept.
-4. **Authentication transport:** reuse the platform token flow directly through a private frontend/API or terminate it at a server-side BFF.
-5. **Database environment:** provider, region, backup/restore, migration ownership, and production access policy.
+1. **Initial physical boundary:** keep the Wossol Export server/domain boundary in this repository or place it in a small separate private service. The logical ownership is already decided: Wossol Export.
+2. **Database environment:** dedicated database versus isolated schema, provider, region, backup/restore, migration ownership, and production access policy.
+3. **Private UI location:** this TanStack app behind a Wossol Export API/BFF, a separate private frontend, or another approved surface. The choice must not move data ownership to `wossol-platform`.
+4. **Account model:** separate Wossol Export client organizations versus a deliberate integration mapping to platform identities; no artificial Merchant/Workspace requirement.
+5. **Authentication transport:** Wossol Export-owned sessions, or an explicit identity integration with the platform through a documented contract.
 6. **Object storage:** provider, private/public policy, signed URL lifetime, image transformations, and retention.
-7. **Catalog identity:** canonical keys for company, brand, family, product, and variant; especially duplicate matching during imports.
+7. **Catalog/Pipeline identity:** canonical keys for Company, Brand, Family, Product, and Variant; especially duplicate matching and reviewed supplier/company linkage.
 8. **Publication policy:** required fields/media, reviewer role, unpublish behavior, and whether published history is versioned.
 9. **Client scopes:** whether access is assigned at company, brand, family, product, or a future collection level.
 10. **Pricing semantics:** currency, tax inclusion, validity windows, rounding, and whether prices are per product or per variant.
