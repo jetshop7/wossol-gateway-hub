@@ -14,6 +14,7 @@ import { reportLovableError } from "../lib/lovable-error-reporting";
 import { LanguageProvider } from "../i18n/LanguageContext";
 import { Header } from "../components/Header";
 import { Footer } from "../components/Footer";
+import wossolLogo from "../assets/logo.png";
 
 function NotFoundComponent() {
   return (
@@ -152,6 +153,15 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     ],
 
     links: [
+      {
+        rel: "icon",
+        type: "image/png",
+        href: wossolLogo,
+      },
+      {
+        rel: "apple-touch-icon",
+        href: wossolLogo,
+      },
       {
         rel: "stylesheet",
         href: appCss,
