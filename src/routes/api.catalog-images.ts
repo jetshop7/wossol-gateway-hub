@@ -30,40 +30,8 @@ export const Route = createFileRoute("/api/catalog-images")({
         } catch { return new Response("Image storage unavailable", { status: 404 }); }
       },
       POST: async ({ request }) => {
-        try {
-          const [{ requireCatalogCapability, requireMutationCsrf }, { getWossolExportPrisma }, { storeCatalogImage, catalogImageReference }] = await Promise.all([
-            import("@/server/auth/auth.context.server"),
-            import("@/server/catalog/prisma.server"),
-            import("@/server/catalog/catalog-image-storage.server"),
-          ]);
-          requireMutationCsrf(); await requireCatalogCapability("catalog.product.manage");
-          const form = await request.formData();
-          const variantId = String(form.get("variantId") ?? "");
-          const slot = String(form.get("slot") ?? "");
-          const file = form.get("file");
-          if (!/^[0-9a-f-]{36}$/i.test(variantId) || !(file instanceof File) || !["main", "additional"].includes(slot)) return new Response("Invalid upload request", { status: 400 });
-          const prisma = getWossolExportPrisma();
-          const variant = await prisma.variant.findUnique({ where: { id: variantId }, select: { id: true, mainImageUrl: true, additionalImageUrls: true } });
-          if (!variant) return new Response("Variant not found", { status: 404 });
-          const stored = await storeCatalogImage(file);
-          const reference = catalogImageReference(stored.imageId);
-          const existing = Array.isArray(variant.additionalImageUrls) ? variant.additionalImageUrls.filter((entry): entry is string => typeof entry === "string") : [];
-          await prisma.variant.update({ where: { id: variantId }, data: slot === "main" ? { mainImageUrl: reference } : { additionalImageUrls: [...existing, reference] } });
-          const previousId = slot === "main" && variant.mainImageUrl ? /^\/api\/catalog-images\?imageId=([0-9a-f-]{36})$/i.exec(variant.mainImageUrl)?.[1] : undefined;
-          if (previousId && previousId !== stored.imageId) {
-            const previousReference = catalogImageReference(previousId);
-            const stillReferenced = await prisma.variant.findFirst({ where: { OR: [{ mainImageUrl: previousReference }, { additionalImageUrls: { array_contains: [previousReference] } }] }, select: { id: true } });
-            if (!stillReferenced) {
-              try { const { removeCatalogImage } = await import("@/server/catalog/catalog-image-storage.server"); await removeCatalogImage(previousId); }
-              catch (error) { console.warn("Replaced catalog image could not be cleaned up.", error); }
-            }
-          }
-          return Response.json({ ok: true, image: { imageId: stored.imageId, reference, mimeType: stored.mimeType, size: stored.size } });
-        } catch (error) {
-          const message = error instanceof Error ? error.message : "Upload failed";
-          const status = isAuthorizationFailure(error) ? 403 : message.includes("Unsupported") || message.includes("8 MB") || message.includes("content does not match") ? 415 : 500;
-          return new Response(status === 403 ? "Forbidden" : status === 415 ? message : "Image upload failed", { status });
-        }
+        const { handleCatalogImageUpload } = await import("@/server/catalog/catalog-image-upload.server");
+        return handleCatalogImageUpload(request);
       },
       DELETE: async ({ request }) => {
         try {

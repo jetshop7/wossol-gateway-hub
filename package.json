@@ -9,7 +9,7 @@
     "build:dev": "vite build --mode development",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
-    "test:catalog": "node --experimental-strip-types --test src/server/catalog/catalog.contracts.test.ts src/server/catalog/catalog-image-storage.test.ts",
+    "test:catalog": "node --experimental-strip-types --test src/server/catalog/catalog.contracts.test.ts src/server/catalog/catalog-image-storage.test.ts src/server/catalog/catalog-image-upload.test.ts",
     "test:admin": "node --experimental-strip-types --test src/server/catalog/catalog.admin.test.ts",
     "test:auth": "node --experimental-strip-types --test src/server/auth/auth.security.test.ts",
     "postinstall": "prisma generate --schema prisma/schema.prisma",
