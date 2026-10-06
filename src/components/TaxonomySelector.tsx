@@ -173,36 +173,38 @@ export function TaxonomySelector({
             placeholder="Search by category name or GPC code"
             className="h-10 w-full rounded border px-3"
           />
-          <div className="mt-2 max-h-64 overflow-auto rounded border" aria-live="polite">
-            {!query.trim() ? (
-              <p className="p-3 text-sm text-slate-500">Search by product category or GPC code.</p>
-            ) : searchLoading ? (
-              <p className="p-3 text-sm text-slate-500">Searching categories…</p>
-            ) : searchResults.length ? (
-              searchResults.map((item) => (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => onSelect(item)}
-                  className={`block w-full border-b p-3 text-left text-sm last:border-b-0 hover:bg-slate-50 ${selected?.id === item.id ? "bg-amber-50" : ""}`}
-                >
-                  <span className="block font-medium">
-                    {item.name}{" "}
-                    <span className="font-normal text-slate-500">· GPC {item.sourceCode}</span>
-                  </span>
-                  <span className="mt-0.5 block text-xs text-slate-500">
-                    {item.breadcrumb
-                      .slice(0, -1)
-                      .map((crumb) => crumb.name)
-                      .join(" › ")}
-                  </span>
-                </button>
-              ))
-            ) : (
-              <p className="p-3 text-sm text-slate-500">No matching active GPC Bricks found.</p>
-            )}
-          </div>
-          <p className="mt-1 text-xs text-slate-500">Showing up to 25 matching Bricks.</p>
+          {query.trim() && (
+            <>
+              <div className="mt-2 max-h-64 overflow-auto rounded border" aria-live="polite">
+                {searchLoading ? (
+                  <p className="p-3 text-sm text-slate-500">Searching categories…</p>
+                ) : searchResults.length ? (
+                  searchResults.map((item) => (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => onSelect(item)}
+                      className={`block w-full border-b p-3 text-left text-sm last:border-b-0 hover:bg-slate-50 ${selected?.id === item.id ? "bg-amber-50" : ""}`}
+                    >
+                      <span className="block font-medium">
+                        {item.name}{" "}
+                        <span className="font-normal text-slate-500">· GPC {item.sourceCode}</span>
+                      </span>
+                      <span className="mt-0.5 block text-xs text-slate-500">
+                        {item.breadcrumb
+                          .slice(0, -1)
+                          .map((crumb) => crumb.name)
+                          .join(" › ")}
+                      </span>
+                    </button>
+                  ))
+                ) : (
+                  <p className="p-3 text-sm text-slate-500">No matching active GPC Bricks found.</p>
+                )}
+              </div>
+              <p className="mt-1 text-xs text-slate-500">Showing up to 25 matching Bricks.</p>
+            </>
+          )}
         </div>
       ) : (
         <div className="mt-3">
