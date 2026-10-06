@@ -1,6 +1,9 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { catalogImageReferenceSchema, catalogVariantPackagingSchema } from "../../server/catalog/catalog.validation.ts";
+import {
+  catalogImageReferenceSchema,
+  catalogVariantPackagingSchema,
+} from "../../server/catalog/catalog.validation.ts";
 
 const idSchema = z.string().uuid();
 const companyInput = z.object({
@@ -31,7 +34,25 @@ const productInput = z.object({
   description: z.string().nullable().optional(),
   internalNotes: z.string().nullable().optional(),
   publicationStatus: z.enum(["DRAFT", "IN_REVIEW", "PUBLISHED", "ARCHIVED"]).optional(),
-  variants: z.array(z.object({ id: idSchema.optional(), clientKey: idSchema.optional(), name: z.string().nullable().optional(), supplierSku: z.string().nullable().optional(), mainImageUrl: catalogImageReferenceSchema.nullable().optional(), additionalImageUrls: z.array(catalogImageReferenceSchema).optional(), packaging: catalogVariantPackagingSchema.optional(), factoryPrice: z.number().nonnegative().nullable().optional(), markupPercent: z.number().nullable().optional(), sellingPrice: z.number().nonnegative().nullable().optional(), pricingMethod: z.enum(["MARKUP_PERCENT", "FIXED_SELLING_PRICE"]).nullable().optional(), status: z.enum(["ACTIVE", "INACTIVE", "ARCHIVED"]).optional(), publicationStatus: z.enum(["DRAFT", "IN_REVIEW", "PUBLISHED", "ARCHIVED"]).optional() })).optional(),
+  variants: z
+    .array(
+      z.object({
+        id: idSchema.optional(),
+        clientKey: idSchema.optional(),
+        name: z.string().nullable().optional(),
+        supplierSku: z.string().nullable().optional(),
+        mainImageUrl: catalogImageReferenceSchema.nullable().optional(),
+        additionalImageUrls: z.array(catalogImageReferenceSchema).optional(),
+        packaging: catalogVariantPackagingSchema.optional(),
+        factoryPrice: z.number().nonnegative().nullable().optional(),
+        markupPercent: z.number().nullable().optional(),
+        sellingPrice: z.number().nonnegative().nullable().optional(),
+        pricingMethod: z.enum(["MARKUP_PERCENT", "FIXED_SELLING_PRICE"]).nullable().optional(),
+        status: z.enum(["ACTIVE", "INACTIVE", "ARCHIVED"]).optional(),
+        publicationStatus: z.enum(["DRAFT", "IN_REVIEW", "PUBLISHED", "ARCHIVED"]).optional(),
+      }),
+    )
+    .optional(),
 });
 
 function safeFailure(error: unknown) {
@@ -46,7 +67,12 @@ function safeFailure(error: unknown) {
 }
 
 async function guard(
-  capability: "catalog.company.manage" | "catalog.brand.manage" | "catalog.product_family.manage" | "catalog.product.manage" | "catalog.read_internal",
+  capability:
+    | "catalog.company.manage"
+    | "catalog.brand.manage"
+    | "catalog.product_family.manage"
+    | "catalog.product.manage"
+    | "catalog.read_internal",
 ) {
   const { requireCatalogCapability, requireMutationCsrf } =
     await import("../../server/auth/auth.context.server.ts");
@@ -77,9 +103,17 @@ export const searchAdminTaxonomyNodesFn = createServerFn({ method: "GET" })
   .inputValidator(z.object({ query: z.string().max(200).default("") }))
   .handler(async ({ data }) => {
     await guard("catalog.read_internal");
-    const { searchAdminTaxonomyNodes } = await import("../../server/catalog/catalog.admin.repository.server.ts");
+    const { searchAdminTaxonomyNodes } =
+      await import("../../server/catalog/catalog.admin.repository.server.ts");
     return { ok: true as const, nodes: await searchAdminTaxonomyNodes(data.query) };
   });
+
+export const getAdminTaxonomyStatusFn = createServerFn({ method: "GET" }).handler(async () => {
+  await guard("catalog.read_internal");
+  const { getAdminTaxonomyStatus } =
+    await import("../../server/catalog/catalog.admin.repository.server.ts");
+  return { ok: true as const, ...(await getAdminTaxonomyStatus()) };
+});
 
 export const createAdminCompanyFn = createServerFn({ method: "POST" })
   .inputValidator(companyInput)
@@ -114,7 +148,10 @@ export const createAdminBrandFn = createServerFn({ method: "POST" })
       await guard("catalog.brand.manage");
       const { createAdminBrand } =
         await import("../../server/catalog/catalog.admin.repository.server.ts");
-      return { ok: true as const, brand: await createAdminBrand(data.companyId ?? null, data.data) };
+      return {
+        ok: true as const,
+        brand: await createAdminBrand(data.companyId ?? null, data.data),
+      };
     } catch (error) {
       return safeFailure(error);
     }
@@ -131,16 +168,22 @@ export const updateAdminBrandFn = createServerFn({ method: "POST" })
     } catch (error) {
       return safeFailure(error);
     }
-});
+  });
 
 export const createAdminProductFamilyFn = createServerFn({ method: "POST" })
   .inputValidator(z.object({ companyId: idSchema, brandId: idSchema, data: productFamilyInput }))
   .handler(async ({ data }) => {
     try {
       await guard("catalog.product_family.manage");
-      const { createAdminProductFamily } = await import("../../server/catalog/catalog.admin.repository.server.ts");
-      return { ok: true as const, productFamily: await createAdminProductFamily(data.companyId, data.brandId, data.data) };
-    } catch (error) { return safeFailure(error); }
+      const { createAdminProductFamily } =
+        await import("../../server/catalog/catalog.admin.repository.server.ts");
+      return {
+        ok: true as const,
+        productFamily: await createAdminProductFamily(data.companyId, data.brandId, data.data),
+      };
+    } catch (error) {
+      return safeFailure(error);
+    }
   });
 
 export const createAdminProductFn = createServerFn({ method: "POST" })
@@ -148,10 +191,13 @@ export const createAdminProductFn = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     try {
       await guard("catalog.product.manage");
-      const { createAdminProduct } = await import("../../server/catalog/catalog.admin.repository.server.ts");
+      const { createAdminProduct } =
+        await import("../../server/catalog/catalog.admin.repository.server.ts");
       const created = await createAdminProduct(data.companyId, data.data);
       return { ok: true as const, ...created };
-    } catch (error) { return safeFailure(error); }
+    } catch (error) {
+      return safeFailure(error);
+    }
   });
 
 export const updateAdminProductFn = createServerFn({ method: "POST" })
@@ -159,8 +205,11 @@ export const updateAdminProductFn = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     try {
       await guard("catalog.product.manage");
-      const { updateAdminProduct } = await import("../../server/catalog/catalog.admin.repository.server.ts");
+      const { updateAdminProduct } =
+        await import("../../server/catalog/catalog.admin.repository.server.ts");
       const updated = await updateAdminProduct(data.companyId, data.productId, data.data);
       return { ok: true as const, ...updated };
-    } catch (error) { return safeFailure(error); }
+    } catch (error) {
+      return safeFailure(error);
+    }
   });
