@@ -4,6 +4,7 @@ import type {
   PipelineCompanyLinkageStatus,
 } from "./catalog.contracts.ts";
 import type { Prisma } from "@prisma/client";
+import type { AdminTaxonomySelection, CatalogTaxonomyLevel } from "./catalog.taxonomy.ts";
 
 export type AdminPipelineCompanyLinkDto = {
   id: string;
@@ -91,6 +92,7 @@ export type AdminProductDto = {
   companyId: string | null;
   brandId: string | null;
   taxonomyNodeId: string | null;
+  taxonomyNode: AdminTaxonomySelection | null;
   name: string;
   slug: string;
   shortDescription: string | null;
@@ -157,18 +159,49 @@ export function toAdminCompanyDetailDto(record: AdminCompanyDetailRecord): Admin
 }
 
 type DecimalLike = { toString(): string };
-type AdminProductRecord = Omit<AdminProductDto, "variants"> & {
+type AdminProductRecord = Omit<AdminProductDto, "variants" | "taxonomyNode"> & {
   variants: Array<Omit<AdminVariantDto, "factoryPrice" | "markupPercent" | "sellingPrice"> & {
     factoryPrice: DecimalLike | null;
     markupPercent: DecimalLike | null;
     sellingPrice: DecimalLike | null;
   }>;
+  taxonomyNode: AdminTaxonomyRecord | null;
 };
+
+type AdminTaxonomyRecord = {
+  id: string;
+  sourceCode: string;
+  level: CatalogTaxonomyLevel;
+  translations: Array<{ name: string }>;
+  parent?: AdminTaxonomyRecord | null;
+};
+
+function toAdminTaxonomySelection(
+  record: AdminTaxonomyRecord | null,
+): AdminTaxonomySelection | null {
+  if (!record) return null;
+  const ancestry: AdminTaxonomyRecord[] = [];
+  let current: AdminTaxonomyRecord | null | undefined = record;
+  while (current) {
+    ancestry.push(current);
+    current = current.parent;
+  }
+  const breadcrumb = ancestry.reverse().map((node) => ({
+    id: node.id,
+    sourceCode: node.sourceCode,
+    name: node.translations[0]?.name ?? node.sourceCode,
+    level: node.level,
+  }));
+  const selected = breadcrumb.at(-1);
+  if (!selected) return null;
+  return { ...selected, breadcrumb };
+}
 
 /** Converts Prisma Decimal values at the server/UI boundary without loss. */
 export function toAdminProductDto(record: AdminProductRecord): AdminProductDto {
   return {
     ...record,
+    taxonomyNode: toAdminTaxonomySelection(record.taxonomyNode),
     variants: record.variants.map((variant) => ({
       ...variant,
       factoryPrice: variant.factoryPrice?.toString() ?? null,

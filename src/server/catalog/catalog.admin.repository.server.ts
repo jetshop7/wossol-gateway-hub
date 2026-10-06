@@ -8,7 +8,7 @@ import {
 } from "./catalog.validation.ts";
 import { normalizeCatalogSlug } from "./catalog.contracts.ts";
 import { resolveVariantPricing } from "./variant-pricing.ts";
-import { activeProductBrickWhere } from "./catalog.taxonomy.ts";
+import { activeGs1TaxonomyNodeWhere, activeProductBrickWhere } from "./catalog.taxonomy.ts";
 import {
   toAdminBrandDto,
   toAdminCompanyDetailDto,
@@ -28,6 +28,32 @@ const companySummarySelect = {
   website: true,
   status: true,
   updatedAt: true,
+} as const;
+
+const adminTaxonomyLabelSelect = {
+  id: true,
+  sourceCode: true,
+  level: true,
+  translations: {
+    where: { languageCode: "EN" },
+    select: { name: true },
+    take: 1,
+  },
+} as const;
+
+const adminTaxonomyNodeSelect = {
+  ...adminTaxonomyLabelSelect,
+  parent: {
+    select: {
+      ...adminTaxonomyLabelSelect,
+      parent: {
+        select: {
+          ...adminTaxonomyLabelSelect,
+          parent: { select: adminTaxonomyLabelSelect },
+        },
+      },
+    },
+  },
 } as const;
 
 const companyDetailSelect = {
@@ -101,6 +127,7 @@ const companyDetailSelect = {
       companyId: true,
       brandId: true,
       taxonomyNodeId: true,
+      taxonomyNode: { select: adminTaxonomyNodeSelect },
       name: true,
       slug: true,
       shortDescription: true,
@@ -242,48 +269,34 @@ function slugForName(name: string) {
 
 export async function searchAdminTaxonomyNodes(query: string) {
   const text = query.trim();
+  if (!text) return [];
   return getWossolExportPrisma()
     .catalogTaxonomyNode.findMany({
       where: {
-        ...activeProductBrickWhere(),
-        ...(text
-          ? {
-              AND: [
-                {
-                  OR: [
-                    {
-                      translations: {
-                        some: {
-                          languageCode: "EN",
-                          name: { contains: text, mode: "insensitive" as const },
-                        },
-                      },
-                    },
-                    { sourceCode: { contains: text, mode: "insensitive" as const } },
-                  ],
-                },
-              ],
-            }
-          : {}),
+        ...activeGs1TaxonomyNodeWhere(),
+        level: "BRICK",
+        OR: [
+          {
+            translations: {
+              some: {
+                languageCode: "EN",
+                name: { contains: text, mode: "insensitive" as const },
+              },
+            },
+          },
+          { sourceCode: { contains: text, mode: "insensitive" as const } },
+        ],
       },
       select: {
-        id: true,
-        source: true,
-        sourceCode: true,
-        sourceVersion: true,
-        translations: {
-          where: { languageCode: "EN" },
-          select: { name: true, description: true, languageCode: true, source: true },
-          take: 1,
-        },
+        ...adminTaxonomyLabelSelect,
+        translations: { where: { languageCode: "EN" }, select: { name: true }, take: 1 },
         parent: {
           select: {
-            sourceCode: true,
-            translations: { where: { languageCode: "EN" }, select: { name: true }, take: 1 },
+            ...adminTaxonomyLabelSelect,
             parent: {
               select: {
-                sourceCode: true,
-                translations: { where: { languageCode: "EN" }, select: { name: true }, take: 1 },
+                ...adminTaxonomyLabelSelect,
+                parent: { select: adminTaxonomyLabelSelect },
               },
             },
           },
@@ -293,28 +306,64 @@ export async function searchAdminTaxonomyNodes(query: string) {
       orderBy: { sourceCode: "asc" },
     })
     .then((nodes) =>
-      nodes.map((node) => ({
-        id: node.id,
-        name: node.translations[0]?.name ?? node.sourceCode,
-        description: node.translations[0]?.description ?? null,
-        translationSource: node.translations[0]?.source ?? null,
-        source: node.source,
-        sourceCode: node.sourceCode,
-        sourceVersion: node.sourceVersion,
-        parent: node.parent
-          ? {
-              sourceCode: node.parent.sourceCode,
-              name: node.parent.translations[0]?.name ?? node.parent.sourceCode,
-              parent: node.parent.parent
-                ? {
-                    sourceCode: node.parent.parent.sourceCode,
-                    name: node.parent.parent.translations[0]?.name ?? node.parent.parent.sourceCode,
-                  }
-                : null,
-            }
-          : null,
-      })),
+      nodes.map((node) => {
+        const ancestry = [node.parent?.parent?.parent, node.parent?.parent, node.parent, node]
+          .filter((entry) => entry !== null && entry !== undefined)
+          .map((entry) => ({
+            id: entry.id,
+            sourceCode: entry.sourceCode,
+            name: entry.translations[0]?.name ?? entry.sourceCode,
+            level: entry.level,
+          }));
+        const selected = ancestry.at(-1)!;
+        return { ...selected, breadcrumb: ancestry };
+      }),
     );
+}
+
+const nextTaxonomyLevel = {
+  SEGMENT: "FAMILY",
+  FAMILY: "CLASS",
+  CLASS: "BRICK",
+  BRICK: null,
+} as const;
+
+const taxonomyPageSize = 100;
+
+export async function browseAdminTaxonomyNodes(parentId: string | null, page: number) {
+  const prisma = getWossolExportPrisma();
+  let expectedLevel: keyof typeof nextTaxonomyLevel | "SEGMENT" = "SEGMENT";
+  if (parentId) {
+    const parent = await prisma.catalogTaxonomyNode.findFirst({
+      where: activeGs1TaxonomyNodeWhere(parentId),
+      select: { level: true },
+    });
+    if (!parent) throw new Error("Choose a parent from the active GS1 taxonomy.");
+    const childLevel = nextTaxonomyLevel[parent.level];
+    if (!childLevel) throw new Error("A Brick is the final taxonomy level.");
+    expectedLevel = childLevel;
+  }
+  const nodes = await prisma.catalogTaxonomyNode.findMany({
+    where: {
+      ...activeGs1TaxonomyNodeWhere(),
+      level: expectedLevel,
+      ...(parentId ? { parentId } : { parentId: null }),
+    },
+    select: adminTaxonomyLabelSelect,
+    orderBy: { sourceCode: "asc" },
+    skip: page * taxonomyPageSize,
+    take: taxonomyPageSize + 1,
+  });
+  const hasMore = nodes.length > taxonomyPageSize;
+  return {
+    nodes: nodes.slice(0, taxonomyPageSize).map((node) => ({
+      id: node.id,
+      sourceCode: node.sourceCode,
+      level: node.level,
+      name: node.translations[0]?.name ?? node.sourceCode,
+    })),
+    hasMore,
+  };
 }
 
 export async function getAdminTaxonomyStatus() {
@@ -345,7 +394,7 @@ export async function getAdminTaxonomyStatus() {
   };
 }
 
-async function assertProductTaxonomyNode(taxonomyNodeId: string | null | undefined) {
+export async function assertProductTaxonomyNode(taxonomyNodeId: string | null | undefined) {
   if (!taxonomyNodeId) return;
   const prisma = getWossolExportPrisma();
   const node = await prisma.catalogTaxonomyNode.findFirst({

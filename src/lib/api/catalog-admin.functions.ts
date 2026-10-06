@@ -108,6 +108,17 @@ export const searchAdminTaxonomyNodesFn = createServerFn({ method: "GET" })
     return { ok: true as const, nodes: await searchAdminTaxonomyNodes(data.query) };
   });
 
+export const browseAdminTaxonomyNodesFn = createServerFn({ method: "GET" })
+  .inputValidator(
+    z.object({ parentId: idSchema.nullable().default(null), page: z.number().int().min(0).max(1000).default(0) }),
+  )
+  .handler(async ({ data }) => {
+    await guard("catalog.read_internal");
+    const { browseAdminTaxonomyNodes } =
+      await import("../../server/catalog/catalog.admin.repository.server.ts");
+    return { ok: true as const, ...(await browseAdminTaxonomyNodes(data.parentId, data.page)) };
+  });
+
 export const getAdminTaxonomyStatusFn = createServerFn({ method: "GET" }).handler(async () => {
   await guard("catalog.read_internal");
   const { getAdminTaxonomyStatus } =
