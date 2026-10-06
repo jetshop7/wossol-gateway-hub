@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { catalogVariantPackagingSchema } from "../../server/catalog/catalog.validation.ts";
+import { catalogImageReferenceSchema, catalogVariantPackagingSchema } from "../../server/catalog/catalog.validation.ts";
 
 const idSchema = z.string().uuid();
 const companyInput = z.object({
@@ -31,7 +31,7 @@ const productInput = z.object({
   description: z.string().nullable().optional(),
   internalNotes: z.string().nullable().optional(),
   publicationStatus: z.enum(["DRAFT", "IN_REVIEW", "PUBLISHED", "ARCHIVED"]).optional(),
-  variants: z.array(z.object({ id: idSchema.optional(), name: z.string().nullable().optional(), supplierSku: z.string().nullable().optional(), mainImageUrl: z.string().url().nullable().optional(), additionalImageUrls: z.array(z.string().url()).optional(), packaging: catalogVariantPackagingSchema.optional(), factoryPrice: z.number().nonnegative().nullable().optional(), markupPercent: z.number().nullable().optional(), sellingPrice: z.number().nonnegative().nullable().optional(), pricingMethod: z.enum(["MARKUP_PERCENT", "FIXED_SELLING_PRICE"]).nullable().optional(), status: z.enum(["ACTIVE", "INACTIVE", "ARCHIVED"]).optional(), publicationStatus: z.enum(["DRAFT", "IN_REVIEW", "PUBLISHED", "ARCHIVED"]).optional() })).optional(),
+  variants: z.array(z.object({ id: idSchema.optional(), clientKey: idSchema.optional(), name: z.string().nullable().optional(), supplierSku: z.string().nullable().optional(), mainImageUrl: catalogImageReferenceSchema.nullable().optional(), additionalImageUrls: z.array(catalogImageReferenceSchema).optional(), packaging: catalogVariantPackagingSchema.optional(), factoryPrice: z.number().nonnegative().nullable().optional(), markupPercent: z.number().nullable().optional(), sellingPrice: z.number().nonnegative().nullable().optional(), pricingMethod: z.enum(["MARKUP_PERCENT", "FIXED_SELLING_PRICE"]).nullable().optional(), status: z.enum(["ACTIVE", "INACTIVE", "ARCHIVED"]).optional(), publicationStatus: z.enum(["DRAFT", "IN_REVIEW", "PUBLISHED", "ARCHIVED"]).optional() })).optional(),
 });
 
 function safeFailure(error: unknown) {
@@ -149,7 +149,8 @@ export const createAdminProductFn = createServerFn({ method: "POST" })
     try {
       await guard("catalog.product.manage");
       const { createAdminProduct } = await import("../../server/catalog/catalog.admin.repository.server.ts");
-      return { ok: true as const, product: await createAdminProduct(data.companyId, data.data) };
+      const created = await createAdminProduct(data.companyId, data.data);
+      return { ok: true as const, ...created };
     } catch (error) { return safeFailure(error); }
   });
 
@@ -159,6 +160,7 @@ export const updateAdminProductFn = createServerFn({ method: "POST" })
     try {
       await guard("catalog.product.manage");
       const { updateAdminProduct } = await import("../../server/catalog/catalog.admin.repository.server.ts");
-      return { ok: true as const, product: await updateAdminProduct(data.companyId, data.productId, data.data) };
+      const updated = await updateAdminProduct(data.companyId, data.productId, data.data);
+      return { ok: true as const, ...updated };
     } catch (error) { return safeFailure(error); }
   });

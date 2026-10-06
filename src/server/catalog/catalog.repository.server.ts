@@ -50,6 +50,8 @@ const clientPublishedProductSelect = {
       sku: true,
       name: true,
       model: true,
+      mainImageUrl: true,
+      additionalImageUrls: true,
     },
   },
 } as const;

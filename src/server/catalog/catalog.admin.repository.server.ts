@@ -214,10 +214,19 @@ export async function createAdminProduct(companyId: string, input: unknown) {
     const slug = suffix === 0 ? baseSlug : `${baseSlug}-${suffix + 1}`;
     try {
       const { variants, ...product } = data;
-      const productVariants = variants.length ? variants : [{ name: null, supplierSku: null, mainImageUrl: null, additionalImageUrls: [], packaging: {}, factoryPrice: null, markupPercent: null, sellingPrice: 0, pricingMethod: "FIXED_SELLING_PRICE" as const, status: "ACTIVE" as const, publicationStatus: "DRAFT" as const }];
-      const record = await prisma.product.create({ data: { ...product, companyId, brandId: data.brandId ?? null, taxonomyNodeId: data.taxonomyNodeId ?? null, slug, variants: { create: productVariants.map((variant, index) => { const pricing = resolveVariantPricing(variant.factoryPrice == null && variant.sellingPrice == null && variant.markupPercent == null ? { pricingMethod: "FIXED_SELLING_PRICE", sellingPrice: 0 } : variant); return { ...variant, packaging: compactPackaging(variant.packaging), sku: variant.supplierSku || `${slug}-${index + 1}`, ...pricing, isDefault: variants.length === 0 }; }) } }, select: companyDetailSelect.products.select });
-      await prisma.variantPriceHistory.createMany({ data: record.variants.map((variant) => ({ variantId: variant.id, pricingMethod: variant.pricingMethod, factoryPrice: variant.factoryPrice, markupPercent: variant.markupPercent, sellingPrice: variant.sellingPrice, currency: variant.currency })) });
-      return toAdminProductDto(record);
+      const variantIdsByClientKey: Record<string, string> = {};
+      const record = await prisma.$transaction(async (tx) => {
+        const createdProduct = await tx.product.create({ data: { ...product, companyId, brandId: data.brandId ?? null, taxonomyNodeId: data.taxonomyNodeId ?? null, slug } });
+        const variantsToCreate = variants.length ? variants : [{ clientKey: undefined, name: null, supplierSku: null, mainImageUrl: null, additionalImageUrls: [], packaging: {}, factoryPrice: null, markupPercent: null, sellingPrice: 0, pricingMethod: "FIXED_SELLING_PRICE" as const, status: "ACTIVE" as const, publicationStatus: "DRAFT" as const }];
+        for (const [index, variant] of variantsToCreate.entries()) {
+          const pricing = resolveVariantPricing(variant.factoryPrice == null && variant.sellingPrice == null && variant.markupPercent == null ? { pricingMethod: "FIXED_SELLING_PRICE", sellingPrice: 0 } : variant);
+          const createdVariant = await tx.variant.create({ data: { productId: createdProduct.id, name: variant.name ?? null, supplierSku: variant.supplierSku ?? null, sku: variant.supplierSku || `${slug}-${index + 1}`, mainImageUrl: variant.mainImageUrl ?? null, additionalImageUrls: variant.additionalImageUrls, packaging: compactPackaging(variant.packaging), ...pricing, status: variant.status, publicationStatus: variant.publicationStatus, isDefault: variants.length === 0 } });
+          if (variant.clientKey) variantIdsByClientKey[variant.clientKey] = createdVariant.id;
+          await tx.variantPriceHistory.create({ data: { variantId: createdVariant.id, pricingMethod: pricing.pricingMethod, factoryPrice: pricing.factoryPrice, markupPercent: pricing.markupPercent, sellingPrice: pricing.sellingPrice, currency: "DZD" } });
+        }
+        return tx.product.findUniqueOrThrow({ where: { id: createdProduct.id }, select: companyDetailSelect.products.select });
+      });
+      return { product: toAdminProductDto(record), variantIdsByClientKey };
     } catch (error) {
       if (typeof error === "object" && error !== null && "code" in error && error.code === "P2002") continue;
       throw error;
@@ -237,7 +246,27 @@ export async function updateAdminProduct(companyId: string, productId: string, i
     throw new Error("A submitted variant does not belong to this product.");
   }
 
+  const imageIdsIn = (main: string | null | undefined, additional: string[] | undefined) =>
+    [main, ...(additional ?? [])].flatMap((reference) => {
+      const match = typeof reference === "string" ? /^\/api\/catalog-images\?imageId=([0-9a-f-]{36})$/i.exec(reference) : null;
+      return match?.[1] ? [match[1]] : [];
+    });
+  const removedImageIds = new Set<string>();
+  for (const variant of data.variants) {
+    if (!variant.id) {
+      if (imageIdsIn(variant.mainImageUrl, variant.additionalImageUrls).length) throw new Error("Saved images must belong to the edited variant.");
+      continue;
+    }
+    const existing = product.variants.find((candidate) => candidate.id === variant.id);
+    if (!existing) continue;
+    const existingImages = imageIdsIn(existing.mainImageUrl, Array.isArray(existing.additionalImageUrls) ? existing.additionalImageUrls.filter((entry): entry is string => typeof entry === "string") : []);
+    const submittedImages = imageIdsIn(variant.mainImageUrl, variant.additionalImageUrls);
+    if (submittedImages.some((imageId) => !existingImages.includes(imageId))) throw new Error("A submitted saved image does not belong to this variant.");
+    for (const imageId of existingImages) if (!submittedImages.includes(imageId)) removedImageIds.add(imageId);
+  }
+
   const { variants, ...productData } = data;
+  const variantIdsByClientKey: Record<string, string> = {};
   await prisma.$transaction(async (tx) => {
     await tx.product.update({
       where: { id: productId },
@@ -281,10 +310,23 @@ export async function updateAdminProduct(companyId: string, productId: string, i
         if (pricingChanged) await tx.variantPriceHistory.create({ data: { variantId: variant.id, pricingMethod: pricing.pricingMethod, factoryPrice: pricing.factoryPrice, markupPercent: pricing.markupPercent, sellingPrice: pricing.sellingPrice, currency: "DZD" } });
       } else {
         const created = await tx.variant.create({ data: { productId, isDefault: product.variants.length === 0 && index === 0, ...values } });
+        if (variant.clientKey) variantIdsByClientKey[variant.clientKey] = created.id;
         await tx.variantPriceHistory.create({ data: { variantId: created.id, pricingMethod: pricing.pricingMethod, factoryPrice: pricing.factoryPrice, markupPercent: pricing.markupPercent, sellingPrice: pricing.sellingPrice, currency: "DZD" } });
       }
     }
   });
+  for (const imageId of removedImageIds) {
+    const reference = `/api/catalog-images?imageId=${imageId}`;
+    const stillReferenced = await prisma.variant.findFirst({ where: { OR: [{ mainImageUrl: reference }, { additionalImageUrls: { array_contains: [reference] } }] }, select: { id: true } });
+    if (!stillReferenced) {
+      try {
+        const { removeCatalogImage } = await import("./catalog-image-storage.server.ts");
+        await removeCatalogImage(imageId);
+      } catch (error) {
+        console.warn("Catalog image reference was removed, but storage cleanup could not complete.", error);
+      }
+    }
+  }
   const record = await prisma.product.findUniqueOrThrow({ where: { id: productId }, select: companyDetailSelect.products.select });
-  return toAdminProductDto(record);
+  return { product: toAdminProductDto(record), variantIdsByClientKey };
 }

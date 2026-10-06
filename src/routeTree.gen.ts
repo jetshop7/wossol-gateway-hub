@@ -21,6 +21,7 @@ import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as WhyChooseWossolExportRouteImport } from './routes/why-choose-wossol-export'
 import { Route as AdminCatalogRouteImport } from './routes/admin/catalog'
 import { Route as AdminLoginRouteImport } from './routes/admin/login'
+import { Route as ApiCatalogImagesRouteImport } from './routes/api.catalog-images'
 import { Route as AdminCatalogCompaniesRouteImport } from './routes/admin/catalog/companies'
 import { Route as AdminCatalogCompaniesCompanyIdRouteImport } from './routes/admin/catalog/companies/$companyId'
 
@@ -84,6 +85,11 @@ const AdminLoginRoute = AdminLoginRouteImport.update({
   path: '/login',
   getParentRoute: () => AdminRoute,
 } as any)
+const ApiCatalogImagesRoute = ApiCatalogImagesRouteImport.update({
+  id: '/api/catalog-images',
+  path: '/api/catalog-images',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminCatalogCompaniesRoute = AdminCatalogCompaniesRouteImport.update({
   id: '/companies',
   path: '/companies',
@@ -109,6 +115,7 @@ export interface FileRoutesByFullPath {
   '/why-choose-wossol-export': typeof WhyChooseWossolExportRoute
   '/admin/catalog': typeof AdminCatalogRouteWithChildren
   '/admin/login': typeof AdminLoginRoute
+  '/api/catalog-images': typeof ApiCatalogImagesRoute
   '/admin/catalog/companies': typeof AdminCatalogCompaniesRouteWithChildren
   '/admin/catalog/companies/$companyId': typeof AdminCatalogCompaniesCompanyIdRoute
 }
@@ -125,6 +132,7 @@ export interface FileRoutesByTo {
   '/why-choose-wossol-export': typeof WhyChooseWossolExportRoute
   '/admin/catalog': typeof AdminCatalogRouteWithChildren
   '/admin/login': typeof AdminLoginRoute
+  '/api/catalog-images': typeof ApiCatalogImagesRoute
   '/admin/catalog/companies': typeof AdminCatalogCompaniesRouteWithChildren
   '/admin/catalog/companies/$companyId': typeof AdminCatalogCompaniesCompanyIdRoute
 }
@@ -142,6 +150,7 @@ export interface FileRoutesById {
   '/why-choose-wossol-export': typeof WhyChooseWossolExportRoute
   '/admin/catalog': typeof AdminCatalogRouteWithChildren
   '/admin/login': typeof AdminLoginRoute
+  '/api/catalog-images': typeof ApiCatalogImagesRoute
   '/admin/catalog/companies': typeof AdminCatalogCompaniesRouteWithChildren
   '/admin/catalog/companies/$companyId': typeof AdminCatalogCompaniesCompanyIdRoute
 }
@@ -160,6 +169,7 @@ export interface FileRouteTypes {
     | '/why-choose-wossol-export'
     | '/admin/catalog'
     | '/admin/login'
+    | '/api/catalog-images'
     | '/admin/catalog/companies'
     | '/admin/catalog/companies/$companyId'
   fileRoutesByTo: FileRoutesByTo
@@ -176,6 +186,7 @@ export interface FileRouteTypes {
     | '/why-choose-wossol-export'
     | '/admin/catalog'
     | '/admin/login'
+    | '/api/catalog-images'
     | '/admin/catalog/companies'
     | '/admin/catalog/companies/$companyId'
   id:
@@ -192,6 +203,7 @@ export interface FileRouteTypes {
     | '/why-choose-wossol-export'
     | '/admin/catalog'
     | '/admin/login'
+    | '/api/catalog-images'
     | '/admin/catalog/companies'
     | '/admin/catalog/companies/$companyId'
   fileRoutesById: FileRoutesById
@@ -207,6 +219,7 @@ export interface RootRouteChildren {
   SectorsRoute: typeof SectorsRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   WhyChooseWossolExportRoute: typeof WhyChooseWossolExportRoute
+  ApiCatalogImagesRoute: typeof ApiCatalogImagesRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -295,6 +308,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminLoginRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/api/catalog-images': {
+      id: '/api/catalog-images'
+      path: '/api/catalog-images'
+      fullPath: '/api/catalog-images'
+      preLoaderRoute: typeof ApiCatalogImagesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin/catalog/companies': {
       id: '/admin/catalog/companies'
       path: '/companies'
@@ -360,6 +380,7 @@ const rootRouteChildren: RootRouteChildren = {
   SectorsRoute: SectorsRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   WhyChooseWossolExportRoute: WhyChooseWossolExportRoute,
+  ApiCatalogImagesRoute: ApiCatalogImagesRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

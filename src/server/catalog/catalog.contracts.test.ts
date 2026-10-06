@@ -29,6 +29,8 @@ test("client product projection allowlists public fields", () => {
         sku: "SKU-1",
         name: "Visible variant",
         model: "MODEL-1",
+        mainImageUrl: null,
+        additionalImageUrls: [],
         internalNotes: "must not leak",
         acquisitionCost: 12,
         pipelineSourceId: "source-1",
@@ -45,7 +47,7 @@ test("client product projection allowlists public fields", () => {
     slug: "visible-product",
     shortDescription: "Safe summary",
     description: "Safe description",
-    variants: [{ id: "variant-1", sku: "SKU-1", name: "Visible variant", model: "MODEL-1" }],
+    variants: [{ id: "variant-1", sku: "SKU-1", name: "Visible variant", model: "MODEL-1", mainImageUrl: null, additionalImageUrls: [] }],
   });
   assert.equal("internalNotes" in result, false);
   assert.equal("acquisitionCost" in result, false);

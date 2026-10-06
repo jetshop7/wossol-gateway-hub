@@ -34,6 +34,12 @@ export const catalogVariantPackagingSchema = z.object({
   sampleAvailable: z.enum(["YES", "NO", "UNKNOWN"]).nullable().optional(),
 });
 
+export const catalogImageReferenceSchema = z.string().refine((value) => {
+  if (/^\/api\/catalog-images\?imageId=[0-9a-f-]{36}$/i.test(value)) return true;
+  try { const url = new URL(value); return url.protocol === "https:" || url.protocol === "http:"; }
+  catch { return false; }
+}, "Enter a valid image reference.");
+
 export const catalogCompanyInputSchema = z.object({
   displayName: z.string().trim().min(1).max(200),
   legalName: optionalTrimmedString,
@@ -68,10 +74,11 @@ export const catalogProductInputSchema = z.object({
   publicationStatus: z.enum(catalogPublicationStatuses).default("DRAFT"),
   variants: z.array(z.object({
     id: z.string().uuid().optional(),
+    clientKey: z.string().uuid().optional(),
     name: optionalTrimmedString,
     supplierSku: optionalTrimmedString,
-    mainImageUrl: z.string().url().nullable().optional(),
-    additionalImageUrls: z.array(z.string().url()).default([]),
+    mainImageUrl: catalogImageReferenceSchema.nullable().optional(),
+    additionalImageUrls: z.array(catalogImageReferenceSchema).default([]),
     packaging: catalogVariantPackagingSchema.default({}),
     factoryPrice: z.number().nonnegative().nullable().optional(),
     markupPercent: z.number().min(-100).nullable().optional(),

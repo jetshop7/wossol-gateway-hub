@@ -108,6 +108,8 @@ export type ClientCatalogVariantDto = {
   sku: string;
   name: string | null;
   model: string | null;
+  mainImageUrl: string | null;
+  additionalImageUrls: string[];
 };
 
 export type ClientCatalogProductDto = {
@@ -127,7 +129,7 @@ type AdminCompanyRecord = Omit<AdminCompanyDto, "pipelineLinks"> & {
 };
 
 type ClientCatalogProductRecord = Omit<ClientCatalogProductDto, "variants"> & {
-  variants: ClientCatalogVariantDto[];
+  variants: Array<Omit<ClientCatalogVariantDto, "additionalImageUrls"> & { additionalImageUrls: Prisma.JsonValue | null }>;
 };
 
 export function toAdminCompanyDto(record: AdminCompanyRecord): AdminCompanyDto {
@@ -205,6 +207,8 @@ export function toClientCatalogProductDto(
       sku: variant.sku,
       name: variant.name,
       model: variant.model,
+      mainImageUrl: variant.mainImageUrl,
+      additionalImageUrls: Array.isArray(variant.additionalImageUrls) ? variant.additionalImageUrls.filter((item): item is string => typeof item === "string") : [],
     })),
   };
 }
