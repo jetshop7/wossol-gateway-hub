@@ -12,6 +12,13 @@ export type GpcImportRow = {
 };
 
 export type GpcImportError = { row: number; code?: string; message: string };
+export type GpcLanguageCode = "EN" | "FR";
+export type GpcXmlDocument = {
+  languageCode: GpcLanguageCode;
+  sourceDate: string;
+  sourceVersion: string;
+  rows: GpcImportRow[];
+};
 
 function decodeXmlText(value: string) {
   return value.replace(/&(#x[\da-f]+|#\d+|amp|lt|gt|quot|apos);/gi, (entity, token: string) => {
@@ -93,6 +100,38 @@ export function parseGpcImportXml(xml: string): GpcImportRow[] {
     throw new Error(`Malformed GPC XML: unclosed ${stack.at(-1)?.level.toLowerCase()} element.`);
   if (!rows.length) throw new Error("No GPC hierarchy nodes were found in the XML file.");
   return rows;
+}
+
+/** Read and validate GS1's root metadata as well as the nested hierarchy. */
+export function parseGpcImportXmlDocument(xml: string): GpcXmlDocument {
+  const root = /<schema\b([^>]*)>/i.exec(xml)?.[1];
+  if (!root) throw new Error("GPC XML must have a schema root element.");
+  const attribute = (name: string) => {
+    const match = new RegExp(`(?:^|\\s)${name}\\s*=\\s*(["'])(.*?)\\1`, "i").exec(root);
+    return match?.[2];
+  };
+  const languageCode = attribute("languageCode");
+  if (languageCode !== "EN" && languageCode !== "FR")
+    throw new Error("GS1 XML languageCode must be EN or FR.");
+  const sourceDate = attribute("dateUtc");
+  const dateMatch = sourceDate && /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(sourceDate);
+  if (!dateMatch) throw new Error("GS1 XML dateUtc must use day/month/year format.");
+  const month = Number(dateMatch[2]);
+  const day = Number(dateMatch[1]);
+  const year = Number(dateMatch[3]);
+  const parsedDate = new Date(Date.UTC(year, month - 1, day));
+  if (
+    parsedDate.getUTCFullYear() !== year ||
+    parsedDate.getUTCMonth() !== month - 1 ||
+    parsedDate.getUTCDate() !== day
+  )
+    throw new Error("GS1 XML dateUtc is not a valid calendar date.");
+  return {
+    languageCode,
+    sourceDate,
+    sourceVersion: `${year}-${String(month).padStart(2, "0")}`,
+    rows: parseGpcImportXml(xml),
+  };
 }
 
 const parentLevel: Record<CatalogTaxonomyLevel, CatalogTaxonomyLevel | null> = {
@@ -227,6 +266,10 @@ export type GpcImportSummary = {
   updated: number;
   unchanged: number;
   deprecated: number;
+  translationCreated: number;
+  translationUpdated: number;
+  translationUnchanged: number;
+  languages: GpcLanguageCode[];
   errors: GpcImportError[];
   counts: { segments: number; families: number; classes: number; bricks: number };
 };
@@ -234,8 +277,6 @@ export type GpcImportSummary = {
 export type ExistingGpcNode = {
   sourceCode: string;
   level: CatalogTaxonomyLevel;
-  name: string;
-  description: string | null;
   parentCode: string | null;
   status: string;
   deprecatedAt: Date | null;
@@ -244,6 +285,14 @@ export type ExistingGpcNode = {
 export type GpcTransactionRunner = <T>(
   operation: (tx: Prisma.TransactionClient) => Promise<T>,
 ) => Promise<T>;
+
+async function createInBatches<T>(
+  values: readonly T[],
+  createMany: (batch: T[]) => Promise<unknown>,
+) {
+  for (let offset = 0; offset < values.length; offset += 500)
+    await createMany(values.slice(offset, offset + 500));
+}
 
 /** Stable UUIDv5-shaped identifier for a source/version/code identity. */
 export function gpcNodeId(sourceVersion: string, sourceCode: string) {
@@ -268,8 +317,6 @@ export function planGpcImport(rows: readonly GpcImportRow[], existing: readonly 
     if (!previous) created.push(row.sourceCode);
     else if (
       previous.level === row.level &&
-      previous.name === row.name &&
-      previous.description === (row.description ?? null) &&
       previous.parentCode === (row.parentCode ?? null) &&
       previous.status === "ACTIVE" &&
       previous.deprecatedAt === null
@@ -283,13 +330,48 @@ export function planGpcImport(rows: readonly GpcImportRow[], existing: readonly 
   return { created, updated, unchanged, deprecated };
 }
 
-/** Idempotently install a fully validated, complete GS1 release. Never deletes nodes. */
-export async function importGpcRelease(
+/** Idempotently install bilingual GS1 data for one structural release. */
+export async function importGpcMultilingualRelease(
   sourceVersion: string,
-  rows: readonly GpcImportRow[],
+  languages: readonly { languageCode: GpcLanguageCode; rows: readonly GpcImportRow[] }[],
   transactionRunner?: GpcTransactionRunner,
 ): Promise<GpcImportSummary> {
-  const errors = validateGpcImportRows(rows);
+  const canonical = languages.find((language) => language.languageCode === "EN")?.rows ?? [];
+  const errors = languages.flatMap((language) => validateGpcImportRows(language.rows));
+  if (
+    languages.length !== 2 ||
+    new Set(languages.map((language) => language.languageCode)).size !== 2 ||
+    !languages.some((language) => language.languageCode === "EN") ||
+    !languages.some((language) => language.languageCode === "FR")
+  )
+    errors.push({
+      row: 0,
+      message: "A GS1 release import requires exactly one EN and one FR file.",
+    });
+  const canonicalByCode = new Map(canonical.map((row) => [row.sourceCode, row]));
+  for (const language of languages) {
+    if (language.languageCode === "EN") continue;
+    const translatedByCode = new Map(language.rows.map((row) => [row.sourceCode, row]));
+    if (translatedByCode.size !== canonicalByCode.size)
+      errors.push({
+        row: 0,
+        message: `${language.languageCode} hierarchy has a different code count from EN.`,
+      });
+    for (const [code, row] of canonicalByCode) {
+      const translated = translatedByCode.get(code);
+      if (
+        !translated ||
+        translated.level !== row.level ||
+        (translated.parentCode ?? null) !== (row.parentCode ?? null)
+      )
+        errors.push({
+          row: 0,
+          code,
+          message: `${language.languageCode} code, level, or parent does not match EN.`,
+        });
+    }
+  }
+  const rows = canonical;
   const counts = {
     segments: rows.filter((row) => row.level === "SEGMENT").length,
     families: rows.filter((row) => row.level === "FAMILY").length,
@@ -303,11 +385,15 @@ export async function importGpcRelease(
     updated: 0,
     unchanged: 0,
     deprecated: 0,
+    translationCreated: 0,
+    translationUpdated: 0,
+    translationUnchanged: 0,
+    languages: languages.map((language) => language.languageCode),
     errors,
     counts,
   };
   if (errors.length) return summary;
-  if (!/^\d{4}-\d{2}$/.test(sourceVersion))
+  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(sourceVersion))
     return {
       ...summary,
       errors: [{ row: 0, message: "Version must use YYYY-MM format, for example 2026-05." }],
@@ -316,7 +402,8 @@ export async function importGpcRelease(
   const prisma = getWossolExportPrisma();
   try {
     const runTransaction: GpcTransactionRunner =
-      transactionRunner ?? ((operation) => prisma.$transaction(operation));
+      transactionRunner ??
+      ((operation) => prisma.$transaction(operation, { maxWait: 10_000, timeout: 120_000 }));
     await runTransaction(async (tx) => {
       const existing = await tx.catalogTaxonomyNode.findMany({
         where: { source: "GS1_GPC", sourceVersion },
@@ -324,9 +411,8 @@ export async function importGpcRelease(
           id: true,
           sourceCode: true,
           level: true,
-          name: true,
-          description: true,
           parentId: true,
+          replacementId: true,
           parent: { select: { sourceCode: true } },
           status: true,
           deprecatedAt: true,
@@ -340,6 +426,35 @@ export async function importGpcRelease(
       summary.updated = plan.updated.length;
       summary.unchanged = plan.unchanged.length;
       summary.deprecated = plan.deprecated.length;
+      const existingTranslations = await tx.catalogTaxonomyTranslation.findMany({
+        where: { node: { source: "GS1_GPC", sourceVersion }, languageCode: { in: ["EN", "FR"] } },
+        select: {
+          id: true,
+          node: { select: { sourceCode: true } },
+          languageCode: true,
+          name: true,
+          description: true,
+          source: true,
+        },
+      });
+      const oldTranslations = new Map(
+        existingTranslations.map((translation) => [
+          `${translation.languageCode}\0${translation.node.sourceCode}`,
+          translation,
+        ]),
+      );
+      for (const language of languages)
+        for (const row of language.rows) {
+          const old = oldTranslations.get(`${language.languageCode}\0${row.sourceCode}`);
+          if (!old) summary.translationCreated++;
+          else if (
+            old.name === row.name &&
+            old.description === (row.description ?? null) &&
+            old.source === "GS1_GPC"
+          )
+            summary.translationUnchanged++;
+          else summary.translationUpdated++;
+        }
       const idsByCode = new Map(existing.map((node) => [node.sourceCode, node.id]));
       for (const row of rows)
         if (!idsByCode.has(row.sourceCode))
@@ -354,45 +469,92 @@ export async function importGpcRelease(
           ["SEGMENT", "FAMILY", "CLASS", "BRICK"].indexOf(left.level) -
           ["SEGMENT", "FAMILY", "CLASS", "BRICK"].indexOf(right.level),
       );
+      const oldNodesByCode = new Map(existing.map((node) => [node.sourceCode, node]));
+      const nodeCreates: Prisma.CatalogTaxonomyNodeCreateManyInput[] = [];
+      const nodeUpdates: Array<{
+        id: string;
+        data: Prisma.CatalogTaxonomyNodeUncheckedUpdateInput;
+      }> = [];
       for (const row of orderedRows) {
         const id = idsByCode.get(row.sourceCode);
         if (!id) throw new Error(`Importer failed to allocate an ID for ${row.sourceCode}.`);
         const parentId = row.parentCode ? idsByCode.get(row.parentCode) : null;
         if (row.parentCode && !parentId)
           throw new Error(`Validated parent ${row.parentCode} has no internal ID.`);
-        const values: Prisma.CatalogTaxonomyNodeUncheckedCreateInput = {
-          id,
-          source: "GS1_GPC",
-          sourceCode: row.sourceCode,
-          sourceVersion,
-          level: row.level,
-          name: row.name,
-          description: row.description ?? null,
-          parentId,
-          replacementId: null,
-          status: "ACTIVE",
-          deprecatedAt: null,
-        };
-        await tx.catalogTaxonomyNode.upsert({
-          where: {
-            source_sourceCode_sourceVersion: {
-              source: "GS1_GPC",
-              sourceCode: row.sourceCode,
-              sourceVersion,
-            },
-          },
-          create: values,
-          update: {
-            level: values.level,
-            name: values.name,
-            description: values.description,
-            parentId: values.parentId,
-            replacementId: values.replacementId,
+        const previous = oldNodesByCode.get(row.sourceCode);
+        if (!previous) {
+          nodeCreates.push({
+            id,
+            source: "GS1_GPC",
+            sourceCode: row.sourceCode,
+            sourceVersion,
+            level: row.level,
+            parentId,
+            replacementId: null,
             status: "ACTIVE",
             deprecatedAt: null,
-          },
-        });
+          });
+        } else if (
+          previous.level !== row.level ||
+          previous.parentId !== parentId ||
+          previous.replacementId !== null ||
+          previous.status !== "ACTIVE" ||
+          previous.deprecatedAt !== null
+        ) {
+          nodeUpdates.push({
+            id: previous.id,
+            data: {
+              level: row.level,
+              parentId,
+              replacementId: null,
+              status: "ACTIVE",
+              deprecatedAt: null,
+            },
+          });
+        }
       }
+      await createInBatches(nodeCreates, (batch) =>
+        tx.catalogTaxonomyNode.createMany({ data: batch }),
+      );
+      for (const update of nodeUpdates)
+        await tx.catalogTaxonomyNode.update({ where: { id: update.id }, data: update.data });
+
+      const translationCreates: Prisma.CatalogTaxonomyTranslationCreateManyInput[] = [];
+      const translationUpdates: Array<{
+        id: string;
+        data: Prisma.CatalogTaxonomyTranslationUpdateInput;
+      }> = [];
+      for (const language of languages) {
+        for (const row of language.rows) {
+          const nodeId = idsByCode.get(row.sourceCode);
+          if (!nodeId)
+            throw new Error(`Importer failed to resolve translation node ${row.sourceCode}.`);
+          const old = oldTranslations.get(`${language.languageCode}\0${row.sourceCode}`);
+          if (!old) {
+            translationCreates.push({
+              nodeId,
+              languageCode: language.languageCode,
+              source: "GS1_GPC",
+              name: row.name,
+              description: row.description ?? null,
+            });
+          } else if (
+            old.name !== row.name ||
+            old.description !== (row.description ?? null) ||
+            old.source !== "GS1_GPC"
+          ) {
+            translationUpdates.push({
+              id: old.id,
+              data: { source: "GS1_GPC", name: row.name, description: row.description ?? null },
+            });
+          }
+        }
+      }
+      await createInBatches(translationCreates, (batch) =>
+        tx.catalogTaxonomyTranslation.createMany({ data: batch }),
+      );
+      for (const update of translationUpdates)
+        await tx.catalogTaxonomyTranslation.update({ where: { id: update.id }, data: update.data });
       // Resolve replacement links only after every release row exists, as GS1
       // files do not promise that replacement targets occur earlier in a file.
       for (const row of rows) {
@@ -437,6 +599,9 @@ export async function importGpcRelease(
       updated: 0,
       unchanged: 0,
       deprecated: 0,
+      translationCreated: 0,
+      translationUpdated: 0,
+      translationUnchanged: 0,
       errors: [
         { row: 0, message: "The taxonomy transaction failed; no release changes were committed." },
       ],

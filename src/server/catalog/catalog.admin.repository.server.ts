@@ -242,40 +242,79 @@ function slugForName(name: string) {
 
 export async function searchAdminTaxonomyNodes(query: string) {
   const text = query.trim();
-  return getWossolExportPrisma().catalogTaxonomyNode.findMany({
-    where: {
-      ...activeProductBrickWhere(),
-      ...(text
-        ? {
-            AND: [
-              {
-                OR: [
-                  { name: { contains: text, mode: "insensitive" as const } },
-                  { sourceCode: { contains: text, mode: "insensitive" as const } },
-                ],
+  return getWossolExportPrisma()
+    .catalogTaxonomyNode.findMany({
+      where: {
+        ...activeProductBrickWhere(),
+        ...(text
+          ? {
+              AND: [
+                {
+                  OR: [
+                    {
+                      translations: {
+                        some: {
+                          languageCode: "EN",
+                          name: { contains: text, mode: "insensitive" as const },
+                        },
+                      },
+                    },
+                    { sourceCode: { contains: text, mode: "insensitive" as const } },
+                  ],
+                },
+              ],
+            }
+          : {}),
+      },
+      select: {
+        id: true,
+        source: true,
+        sourceCode: true,
+        sourceVersion: true,
+        translations: {
+          where: { languageCode: "EN" },
+          select: { name: true, description: true, languageCode: true, source: true },
+          take: 1,
+        },
+        parent: {
+          select: {
+            sourceCode: true,
+            translations: { where: { languageCode: "EN" }, select: { name: true }, take: 1 },
+            parent: {
+              select: {
+                sourceCode: true,
+                translations: { where: { languageCode: "EN" }, select: { name: true }, take: 1 },
               },
-            ],
-          }
-        : {}),
-    },
-    select: {
-      id: true,
-      name: true,
-      source: true,
-      sourceCode: true,
-      sourceVersion: true,
-      description: true,
-      parent: {
-        select: {
-          name: true,
-          sourceCode: true,
-          parent: { select: { name: true, sourceCode: true } },
+            },
+          },
         },
       },
-    },
-    take: 25,
-    orderBy: { name: "asc" },
-  });
+      take: 25,
+      orderBy: { sourceCode: "asc" },
+    })
+    .then((nodes) =>
+      nodes.map((node) => ({
+        id: node.id,
+        name: node.translations[0]?.name ?? node.sourceCode,
+        description: node.translations[0]?.description ?? null,
+        translationSource: node.translations[0]?.source ?? null,
+        source: node.source,
+        sourceCode: node.sourceCode,
+        sourceVersion: node.sourceVersion,
+        parent: node.parent
+          ? {
+              sourceCode: node.parent.sourceCode,
+              name: node.parent.translations[0]?.name ?? node.parent.sourceCode,
+              parent: node.parent.parent
+                ? {
+                    sourceCode: node.parent.parent.sourceCode,
+                    name: node.parent.parent.translations[0]?.name ?? node.parent.parent.sourceCode,
+                  }
+                : null,
+            }
+          : null,
+      })),
+    );
 }
 
 export async function getAdminTaxonomyStatus() {

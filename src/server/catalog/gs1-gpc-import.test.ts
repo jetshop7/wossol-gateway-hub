@@ -3,7 +3,8 @@ import test from "node:test";
 import {
   parseGpcImportJson,
   parseGpcImportXml,
-  importGpcRelease,
+  parseGpcImportXmlDocument,
+  importGpcMultilingualRelease,
   gpcNodeId,
   planGpcImport,
   validateGpcImportRows,
@@ -90,6 +91,37 @@ test("parses the official nested XML hierarchy and preserves entity-decoded desc
   );
 });
 
+test("reads GS1 language and publication date metadata without inventing missing translations", () => {
+  const english = parseGpcImportXmlDocument(
+    '<schema languageCode="EN" dateUtc="20/5/2026"><segment code="S" text="English" /></schema>',
+  );
+  const french = parseGpcImportXmlDocument(
+    '<schema languageCode="FR" dateUtc="20/5/2026"><segment code="S" text="Français" /></schema>',
+  );
+  assert.equal(english.sourceVersion, "2026-05");
+  assert.equal(english.languageCode, "EN");
+  assert.equal(french.languageCode, "FR");
+  assert.notEqual(english.rows[0]?.name, french.rows[0]?.name);
+  assert.throws(
+    () => parseGpcImportXmlDocument('<schema languageCode="AR" dateUtc="20/5/2026"/>'),
+    /languageCode must be EN or FR/,
+  );
+  assert.throws(
+    () => parseGpcImportXmlDocument('<schema languageCode="EN" dateUtc="31/2/2026"/>'),
+    /not a valid calendar date/,
+  );
+});
+
+test("rejects bilingual files whose codes or hierarchy differ", async () => {
+  const french = validRows.map((row) => ({ ...row, name: `FR ${row.name}` }));
+  french[3] = { ...french[3]!, parentCode: "TEST-SEG" };
+  const result = await importGpcMultilingualRelease("2026-05", [
+    { languageCode: "EN", rows: validRows },
+    { languageCode: "FR", rows: french },
+  ]);
+  assert.ok(result.errors.some((error) => error.message.includes("does not match EN")));
+});
+
 test("import planning is idempotent, version-scoped, and archives missing nodes without deleting", () => {
   const existing = validRows.map((row) => ({
     ...row,
@@ -158,11 +190,53 @@ test(
             parentCode: "TEST-CLS",
           },
         ];
-        const first = await importGpcRelease("2099-01", versionOne, runInsideTestTransaction);
+        const frenchOne = versionOne.map((row) => ({ ...row, name: `FR ${row.name}` }));
+        const bilingualOne = [
+          { languageCode: "EN" as const, rows: versionOne },
+          { languageCode: "FR" as const, rows: frenchOne },
+        ];
+        const first = await importGpcMultilingualRelease(
+          "2099-01",
+          bilingualOne,
+          runInsideTestTransaction,
+        );
         assert.deepEqual(first.counts, { segments: 1, families: 1, classes: 1, bricks: 2 });
         assert.equal(first.created, 5);
-        const repeated = await importGpcRelease("2099-01", versionOne, runInsideTestTransaction);
+        assert.equal(first.translationCreated, 10);
+        const localizedBrick = await tx.catalogTaxonomyNode.findUniqueOrThrow({
+          where: {
+            source_sourceCode_sourceVersion: {
+              source: "GS1_GPC",
+              sourceCode: "TEST-BRK",
+              sourceVersion: "2099-01",
+            },
+          },
+          select: {
+            id: true,
+            translations: {
+              orderBy: { languageCode: "asc" },
+              select: { languageCode: true, name: true, source: true },
+            },
+          },
+        });
+        assert.deepEqual(
+          localizedBrick.translations.map(({ languageCode, name, source }) => ({
+            languageCode,
+            name,
+            source,
+          })),
+          [
+            { languageCode: "EN", name: "Synthetic Brick", source: "GS1_GPC" },
+            { languageCode: "FR", name: "FR Synthetic Brick", source: "GS1_GPC" },
+          ],
+        );
+        const repeated = await importGpcMultilingualRelease(
+          "2099-01",
+          bilingualOne,
+          runInsideTestTransaction,
+        );
         assert.equal(repeated.unchanged, 5);
+        assert.equal(repeated.translationUnchanged, 10);
         assert.equal(repeated.created, 0);
 
         const company = await tx.company.create({
@@ -189,7 +263,15 @@ test(
         const versionTwo = versionOne.map((row) =>
           row.sourceCode === "TEST-BRK" ? { ...row, name: "Synthetic Brick v2" } : { ...row },
         );
-        const next = await importGpcRelease("2099-02", versionTwo, runInsideTestTransaction);
+        const frenchTwo = versionTwo.map((row) => ({ ...row, name: `FR ${row.name}` }));
+        const next = await importGpcMultilingualRelease(
+          "2099-02",
+          [
+            { languageCode: "EN", rows: versionTwo },
+            { languageCode: "FR", rows: frenchTwo },
+          ],
+          runInsideTestTransaction,
+        );
         assert.equal(next.created, 5);
         assert.equal(
           (await tx.product.findUniqueOrThrow({ where: { id: product.id } })).taxonomyNodeId,
@@ -201,9 +283,16 @@ test(
         );
 
         const versionOneWithoutBrick = versionOne.filter((row) => row.sourceCode !== "TEST-BRK");
-        const removedFromSource = await importGpcRelease(
+        const versionOneWithoutBrickFr = versionOneWithoutBrick.map((row) => ({
+          ...row,
+          name: `FR ${row.name}`,
+        }));
+        const removedFromSource = await importGpcMultilingualRelease(
           "2099-01",
-          versionOneWithoutBrick,
+          [
+            { languageCode: "EN", rows: versionOneWithoutBrick },
+            { languageCode: "FR", rows: versionOneWithoutBrickFr },
+          ],
           runInsideTestTransaction,
         );
         assert.equal(removedFromSource.deprecated, 1);

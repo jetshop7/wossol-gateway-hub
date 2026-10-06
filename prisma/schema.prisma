@@ -41,6 +41,11 @@ enum CatalogTaxonomyReleaseStatus {
   FAILED
 }
 
+enum CatalogTaxonomyTranslationSource {
+  GS1_GPC
+  WOSSOL_MANAGED
+}
+
 enum VariantPricingMethod {
   MARKUP_PERCENT
   FIXED_SELLING_PRICE
@@ -203,8 +208,6 @@ model CatalogTaxonomyNode {
   sourceCode    String                @map("source_code")
   sourceVersion String                @map("source_version")
   level         CatalogTaxonomyLevel
-  name          String
-  description   String?
   parentId      String?               @map("parent_id") @db.Uuid
   status        CatalogRecordStatus   @default(ACTIVE)
   deprecatedAt  DateTime?             @map("deprecated_at")
@@ -212,16 +215,36 @@ model CatalogTaxonomyNode {
   createdAt     DateTime              @default(now()) @map("created_at")
   updatedAt     DateTime              @updatedAt @map("updated_at")
 
-  parent        CatalogTaxonomyNode?   @relation("TaxonomyParent", fields: [parentId], references: [id], onDelete: Restrict)
-  children      CatalogTaxonomyNode[]  @relation("TaxonomyParent")
-  replacement   CatalogTaxonomyNode?   @relation("TaxonomyReplacement", fields: [replacementId], references: [id], onDelete: Restrict)
-  replacedNodes CatalogTaxonomyNode[]  @relation("TaxonomyReplacement")
-  release       CatalogTaxonomyRelease @relation(fields: [source, sourceVersion], references: [source, sourceVersion], onDelete: Restrict)
+  parent        CatalogTaxonomyNode?         @relation("TaxonomyParent", fields: [parentId], references: [id], onDelete: Restrict)
+  children      CatalogTaxonomyNode[]        @relation("TaxonomyParent")
+  replacement   CatalogTaxonomyNode?         @relation("TaxonomyReplacement", fields: [replacementId], references: [id], onDelete: Restrict)
+  replacedNodes CatalogTaxonomyNode[]        @relation("TaxonomyReplacement")
+  release       CatalogTaxonomyRelease       @relation(fields: [source, sourceVersion], references: [source, sourceVersion], onDelete: Restrict)
+  translations  CatalogTaxonomyTranslation[]
   products      Product[]
 
   @@unique([source, sourceCode, sourceVersion])
   @@index([parentId])
   @@map("catalog_taxonomy_nodes")
+}
+
+/// Localized labels belong to a logical taxonomy node; the source records
+/// whether the translation is official GS1 content or Wossol-managed content.
+model CatalogTaxonomyTranslation {
+  id           String                           @id @default(uuid()) @db.Uuid
+  nodeId       String                           @map("node_id") @db.Uuid
+  languageCode String                           @map("language_code") @db.VarChar(5)
+  source       CatalogTaxonomyTranslationSource
+  name         String
+  description  String?
+  createdAt    DateTime                         @default(now()) @map("created_at")
+  updatedAt    DateTime                         @updatedAt @map("updated_at")
+
+  node CatalogTaxonomyNode @relation(fields: [nodeId], references: [id], onDelete: Restrict)
+
+  @@unique([nodeId, languageCode])
+  @@index([languageCode, name])
+  @@map("catalog_taxonomy_translations")
 }
 
 /// Import/install history for an immutable source release. Products continue
