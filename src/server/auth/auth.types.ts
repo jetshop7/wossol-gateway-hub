@@ -10,6 +10,7 @@ export const AUTH_CAPABILITIES = [
   "catalog.import.approve",
   "catalog.publish",
   "catalog.client.manage",
+  "catalog.price_profile.manage",
   "catalog.audit.read",
 ] as const;
 

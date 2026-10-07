@@ -54,7 +54,7 @@ test("disabled internal users cannot authenticate and failures are generic", asy
   );
 });
 
-test("disabled client users and accounts cannot authenticate", async () => {
+test("disabled users and inactive or disabled client accounts cannot authenticate", async () => {
   const hash = await hashPassword("correct horse battery staple");
   const disabledUser = fakeRepository(null, {
     id: "client-1",
@@ -70,6 +70,13 @@ test("disabled client users and accounts cannot authenticate", async () => {
     status: "ACTIVE",
     clientAccount: { status: "DISABLED" },
   });
+  const inactiveAccount = fakeRepository(null, {
+    id: "client-1",
+    clientAccountId: "account-1",
+    passwordHash: hash,
+    status: "ACTIVE",
+    clientAccount: { status: "INACTIVE" },
+  });
   await assert.rejects(
     () =>
       authenticateClient("client@example.com", "correct horse battery staple", {
@@ -81,6 +88,13 @@ test("disabled client users and accounts cannot authenticate", async () => {
     () =>
       authenticateClient("client@example.com", "correct horse battery staple", {
         repository: disabledAccount,
+      }),
+    (error: Error) => error.message === GENERIC_LOGIN_FAILURE,
+  );
+  await assert.rejects(
+    () =>
+      authenticateClient("client@example.com", "correct horse battery staple", {
+        repository: inactiveAccount,
       }),
     (error: Error) => error.message === GENERIC_LOGIN_FAILURE,
   );
@@ -102,7 +116,10 @@ test("internal and client actors remain distinct and client actors cannot use in
     sessionId: "s-2",
   };
   assert.equal(can(internal, "catalog.product.manage"), true);
+  assert.equal(can(internal, "catalog.price_profile.manage"), false);
   assert.equal(can(client, "catalog.product.manage"), false);
+  assert.equal(capabilitiesForRole("CATALOG_ADMIN").includes("catalog.price_profile.manage"), true);
+  assert.equal(capabilitiesForRole("CATALOG_EDITOR").includes("catalog.client.manage"), false);
   assert.equal(
     "passwordHash" in
       toPublicActor({ ...client, passwordHash: "must-not-serialize" } as AuthenticatedActor & {

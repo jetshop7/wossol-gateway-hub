@@ -1,5 +1,14 @@
 import { Link } from "@tanstack/react-router";
-import { LogOut, Menu, Package, Settings, ShieldCheck, Users, X } from "lucide-react";
+import {
+  BadgeDollarSign,
+  LogOut,
+  Menu,
+  Package,
+  Settings,
+  ShieldCheck,
+  Users,
+  X,
+} from "lucide-react";
 import { useState } from "react";
 
 import { logout } from "@/lib/api/auth.functions";
@@ -76,6 +85,22 @@ export function AdminShell({
               label="Companies & brands"
               onClick={() => setOpen(false)}
             />
+            {actor.role === "CATALOG_ADMIN" && (
+              <>
+                <NavItem
+                  to="/admin/catalog/clients"
+                  icon={<Users className="h-4 w-4" />}
+                  label="Client accounts"
+                  onClick={() => setOpen(false)}
+                />
+                <NavItem
+                  to="/admin/catalog/price-profiles"
+                  icon={<BadgeDollarSign className="h-4 w-4" />}
+                  label="Price Profiles"
+                  onClick={() => setOpen(false)}
+                />
+              </>
+            )}
             <div className="mt-5 border-t border-slate-100 pt-4">
               <p className="px-3 pb-2 text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">
                 Coming later
@@ -104,7 +129,7 @@ function NavItem({
   label,
   onClick,
 }: {
-  to: "/admin/catalog/companies";
+  to: "/admin/catalog/companies" | "/admin/catalog/clients" | "/admin/catalog/price-profiles";
   icon: React.ReactNode;
   label: string;
   onClick: () => void;
