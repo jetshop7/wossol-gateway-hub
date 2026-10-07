@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
-import { Pencil, Plus } from "lucide-react";
+import { Pencil, Plus, Users } from "lucide-react";
 
 import {
   createAdminClientAccountFn,
@@ -10,6 +10,17 @@ import {
 } from "@/lib/api/commercial-admin.functions";
 import { readCsrfToken } from "@/lib/admin-csrf";
 import { ClientCatalogAccessEditor } from "@/components/ClientCatalogAccessEditor";
+import { ClientAccountUsersPanel } from "@/components/ClientAccountUsersPanel";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 export const Route = createFileRoute("/admin/catalog/clients")({
   loader: async () => {
@@ -49,6 +60,8 @@ function ClientAccountsPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [expandedAccessId, setExpandedAccessId] = useState<string | null>(null);
+  const [expandedUsersId, setExpandedUsersId] = useState<string | null>(null);
+  const [confirmModeChange, setConfirmModeChange] = useState(false);
   const beginCreate = () => {
     setEditingId(null);
     setForm({
@@ -77,16 +90,9 @@ function ClientAccountsPage() {
     setError("");
   };
 
-  const save = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
+  const performSave = async () => {
     const existingMode = clients.find((client) => client.id === editingId)?.catalogAccessMode;
-    if (existingMode && existingMode !== form.catalogAccessMode) {
-      const warning =
-        form.catalogAccessMode === "ALL_APPROVED"
-          ? "Entire catalog access includes all eligible published content. Existing Include rules will be removed; exclusions will remain. Continue?"
-          : "Switching to Selective catalog will stop default access. Only explicitly added Include rules will grant access. Continue?";
-      if (!window.confirm(warning)) return;
-    }
+    setConfirmModeChange(false);
     setBusy(true);
     setError("");
     try {
@@ -111,6 +117,16 @@ function ClientAccountsPage() {
     } finally {
       setBusy(false);
     }
+  };
+
+  const save = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const existingMode = clients.find((client) => client.id === editingId)?.catalogAccessMode;
+    if (existingMode && existingMode !== form.catalogAccessMode) {
+      setConfirmModeChange(true);
+      return;
+    }
+    await performSave();
   };
 
   return (
@@ -294,10 +310,26 @@ function ClientAccountsPage() {
               >
                 {expandedAccessId === client.id ? "Close access rules" : "Manage access rules"}
               </button>
+              <button
+                type="button"
+                onClick={() =>
+                  setExpandedUsersId((current) => (current === client.id ? null : client.id))
+                }
+                className="inline-flex items-center gap-1 rounded border px-3 py-2 text-sm font-medium"
+              >
+                <Users className="h-4 w-4" />
+                {expandedUsersId === client.id ? "Close users" : "Manage users"}
+              </button>
               {expandedAccessId === client.id && (
                 <ClientCatalogAccessEditor
                   clientAccountId={client.id}
                   catalogAccessMode={client.catalogAccessMode}
+                />
+              )}
+              {expandedUsersId === client.id && (
+                <ClientAccountUsersPanel
+                  clientAccountId={client.id}
+                  clientAccountName={client.name}
                 />
               )}
             </article>
@@ -306,6 +338,25 @@ function ClientAccountsPage() {
           <p className="p-6 text-sm text-slate-600">No Client Accounts are set up yet.</p>
         )}
       </section>
+
+      <AlertDialog open={confirmModeChange} onOpenChange={setConfirmModeChange}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm catalog access change</AlertDialogTitle>
+            <AlertDialogDescription>
+              {form.catalogAccessMode === "ALL_APPROVED"
+                ? "Entire catalog mode includes all eligible published content. Existing Include rules will be removed; exclusions remain in effect."
+                : "Selective catalog mode stops default access. Only explicitly added Include rules grant access, and exclusions continue to take precedence."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => void performSave()}>
+              Confirm access change
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

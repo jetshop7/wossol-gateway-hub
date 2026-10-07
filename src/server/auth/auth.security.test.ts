@@ -6,9 +6,20 @@ import {
   authenticateInternal,
   GENERIC_LOGIN_FAILURE,
 } from "./auth.service.server.ts";
-import { hashOpaqueToken, sessionIsUsable } from "./auth.security.server.ts";
-import { capabilitiesForRole, can, toPublicActor, type AuthenticatedActor } from "./auth.types.ts";
+import {
+  clientSessionHasValidIdentity,
+  hashOpaqueToken,
+  sessionIsUsable,
+} from "./auth.security.server.ts";
+import {
+  capabilitiesForRole,
+  can,
+  toClientAreaIdentity,
+  toPublicActor,
+  type AuthenticatedActor,
+} from "./auth.types.ts";
 import { hashPassword, verifyPassword } from "./password.server.ts";
+import type { AuthRepository } from "./auth.repository.server.ts";
 
 test("password hashes are salted, non-plaintext, and safely verifiable", async () => {
   const hash = await hashPassword("correct horse battery staple");
@@ -21,7 +32,7 @@ test("password hashes are salted, non-plaintext, and safely verifiable", async (
 function fakeRepository(
   user: Record<string, unknown> | null,
   clientUser: Record<string, unknown> | null = null,
-) {
+): AuthRepository & { sessions: unknown[] } {
   const sessions: unknown[] = [];
   return {
     findInternalUserByEmail: async () => user,
@@ -38,7 +49,7 @@ function fakeRepository(
     readRateLimit: async () => null,
     writeRateLimit: async () => undefined,
     sessions,
-  } as never;
+  } as unknown as AuthRepository & { sessions: unknown[] };
 }
 
 test("disabled internal users cannot authenticate and failures are generic", async () => {
@@ -100,6 +111,74 @@ test("disabled users and inactive or disabled client accounts cannot authenticat
   );
 });
 
+test("active Client User authenticates only to its Client Account and receives a scoped session", async () => {
+  const repository = fakeRepository(null, {
+    id: "client-user-1",
+    clientAccountId: "account-1",
+    email: "buyer@example.com",
+    passwordHash: await hashPassword("correct horse battery staple"),
+    status: "ACTIVE",
+    clientAccount: { status: "ACTIVE" },
+  });
+  const result = await authenticateClient(" Buyer@Example.com ", "correct horse battery staple", {
+    repository,
+  });
+  assert.equal(result.actor.actorType, "CLIENT");
+  assert.equal(result.actor.clientAccountId, "account-1");
+  assert.equal(result.actor.userId, "client-user-1");
+  assert.equal(repository.sessions.length, 1);
+  assert.equal(
+    (repository.sessions[0] as { clientAccountId: string }).clientAccountId,
+    "account-1",
+  );
+  assert.equal("passwordHash" in result.actor, false);
+});
+
+test("wrong Client User credentials fail with the same bounded error", async () => {
+  const repository = fakeRepository(null, {
+    id: "client-user-1",
+    clientAccountId: "account-1",
+    passwordHash: await hashPassword("correct horse battery staple"),
+    status: "ACTIVE",
+    clientAccount: { status: "ACTIVE" },
+  });
+  await assert.rejects(
+    () => authenticateClient("buyer@example.com", "wrong password", { repository }),
+    (error: Error) => error.message === GENERIC_LOGIN_FAILURE,
+  );
+});
+
+test("client session identity rejects mismatched account links and inactive records", () => {
+  const valid = {
+    clientUserId: "user-1",
+    clientAccountId: "account-1",
+    clientUser: {
+      status: "ACTIVE" as const,
+      clientAccountId: "account-1",
+      clientAccount: { id: "account-1", status: "ACTIVE" as const },
+    },
+  };
+  assert.equal(clientSessionHasValidIdentity(valid), true);
+  assert.equal(
+    clientSessionHasValidIdentity({ ...valid, clientAccountId: "other-account" }),
+    false,
+  );
+  assert.equal(
+    clientSessionHasValidIdentity({
+      ...valid,
+      clientUser: { ...valid.clientUser, status: "DISABLED" },
+    }),
+    false,
+  );
+  assert.equal(
+    clientSessionHasValidIdentity({
+      ...valid,
+      clientUser: { ...valid.clientUser, clientAccount: { id: "account-1", status: "INACTIVE" } },
+    }),
+    false,
+  );
+});
+
 test("internal and client actors remain distinct and client actors cannot use internal capabilities", () => {
   const internal: AuthenticatedActor = {
     actorType: "INTERNAL",
@@ -127,6 +206,24 @@ test("internal and client actors remain distinct and client actors cannot use in
       }),
     false,
   );
+});
+
+test("client area identity DTO allowlists only client-facing identity fields", () => {
+  const internalRecord = {
+    clientAccountId: "account-1",
+    clientAccountName: "Northwind",
+    userDisplayName: "Alex Buyer",
+    passwordHash: "never expose",
+    priceProfileId: "internal-profile",
+    pricesVisible: true,
+    internalMarkup: "25",
+  };
+  const identity = toClientAreaIdentity(internalRecord);
+  assert.deepEqual(identity, {
+    clientAccountId: "account-1",
+    clientAccountName: "Northwind",
+    userDisplayName: "Alex Buyer",
+  });
 });
 
 test("session tokens are opaque hashes and expiration/revocation are enforced", () => {

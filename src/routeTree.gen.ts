@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as AdminRouteImport } from './routes/admin'
+import { Route as ClientRouteImport } from './routes/client'
 import { Route as ContactRouteImport } from './routes/contact'
 import { Route as MarketsRouteImport } from './routes/markets'
 import { Route as OpportunitiesRouteImport } from './routes/opportunities'
@@ -22,6 +23,8 @@ import { Route as WhyChooseWossolExportRouteImport } from './routes/why-choose-w
 import { Route as AdminCatalogRouteImport } from './routes/admin/catalog'
 import { Route as AdminLoginRouteImport } from './routes/admin/login'
 import { Route as ApiCatalogImagesRouteImport } from './routes/api.catalog-images'
+import { Route as ClientIndexRouteImport } from './routes/client.index'
+import { Route as ClientLoginRouteImport } from './routes/client.login'
 import { Route as AdminCatalogClientsRouteImport } from './routes/admin/catalog/clients'
 import { Route as AdminCatalogCompaniesRouteImport } from './routes/admin/catalog/companies'
 import { Route as AdminCatalogPriceProfilesRouteImport } from './routes/admin/catalog/price-profiles'
@@ -40,6 +43,11 @@ const AboutRoute = AboutRouteImport.update({
 const AdminRoute = AdminRouteImport.update({
   id: '/admin',
   path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ClientRoute = ClientRouteImport.update({
+  id: '/client',
+  path: '/client',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ContactRoute = ContactRouteImport.update({
@@ -92,6 +100,16 @@ const ApiCatalogImagesRoute = ApiCatalogImagesRouteImport.update({
   path: '/api/catalog-images',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ClientIndexRoute = ClientIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => ClientRoute,
+} as any)
+const ClientLoginRoute = ClientLoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => ClientRoute,
+} as any)
 const AdminCatalogClientsRoute = AdminCatalogClientsRouteImport.update({
   id: '/clients',
   path: '/clients',
@@ -119,6 +137,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/admin': typeof AdminRouteWithChildren
+  '/client': typeof ClientRouteWithChildren
   '/contact': typeof ContactRoute
   '/markets': typeof MarketsRoute
   '/opportunities': typeof OpportunitiesRoute
@@ -129,6 +148,8 @@ export interface FileRoutesByFullPath {
   '/admin/catalog': typeof AdminCatalogRouteWithChildren
   '/admin/login': typeof AdminLoginRoute
   '/api/catalog-images': typeof ApiCatalogImagesRoute
+  '/client/login': typeof ClientLoginRoute
+  '/client/': typeof ClientIndexRoute
   '/admin/catalog/clients': typeof AdminCatalogClientsRoute
   '/admin/catalog/companies': typeof AdminCatalogCompaniesRouteWithChildren
   '/admin/catalog/price-profiles': typeof AdminCatalogPriceProfilesRoute
@@ -148,6 +169,8 @@ export interface FileRoutesByTo {
   '/admin/catalog': typeof AdminCatalogRouteWithChildren
   '/admin/login': typeof AdminLoginRoute
   '/api/catalog-images': typeof ApiCatalogImagesRoute
+  '/client/login': typeof ClientLoginRoute
+  '/client': typeof ClientIndexRoute
   '/admin/catalog/clients': typeof AdminCatalogClientsRoute
   '/admin/catalog/companies': typeof AdminCatalogCompaniesRouteWithChildren
   '/admin/catalog/price-profiles': typeof AdminCatalogPriceProfilesRoute
@@ -158,6 +181,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/admin': typeof AdminRouteWithChildren
+  '/client': typeof ClientRouteWithChildren
   '/contact': typeof ContactRoute
   '/markets': typeof MarketsRoute
   '/opportunities': typeof OpportunitiesRoute
@@ -168,6 +192,8 @@ export interface FileRoutesById {
   '/admin/catalog': typeof AdminCatalogRouteWithChildren
   '/admin/login': typeof AdminLoginRoute
   '/api/catalog-images': typeof ApiCatalogImagesRoute
+  '/client/login': typeof ClientLoginRoute
+  '/client/': typeof ClientIndexRoute
   '/admin/catalog/clients': typeof AdminCatalogClientsRoute
   '/admin/catalog/companies': typeof AdminCatalogCompaniesRouteWithChildren
   '/admin/catalog/price-profiles': typeof AdminCatalogPriceProfilesRoute
@@ -179,6 +205,7 @@ export interface FileRouteTypes {
     | '/'
     | '/about'
     | '/admin'
+    | '/client'
     | '/contact'
     | '/markets'
     | '/opportunities'
@@ -189,6 +216,8 @@ export interface FileRouteTypes {
     | '/admin/catalog'
     | '/admin/login'
     | '/api/catalog-images'
+    | '/client/login'
+    | '/client/'
     | '/admin/catalog/clients'
     | '/admin/catalog/companies'
     | '/admin/catalog/price-profiles'
@@ -208,6 +237,8 @@ export interface FileRouteTypes {
     | '/admin/catalog'
     | '/admin/login'
     | '/api/catalog-images'
+    | '/client/login'
+    | '/client'
     | '/admin/catalog/clients'
     | '/admin/catalog/companies'
     | '/admin/catalog/price-profiles'
@@ -217,6 +248,7 @@ export interface FileRouteTypes {
     | '/'
     | '/about'
     | '/admin'
+    | '/client'
     | '/contact'
     | '/markets'
     | '/opportunities'
@@ -227,6 +259,8 @@ export interface FileRouteTypes {
     | '/admin/catalog'
     | '/admin/login'
     | '/api/catalog-images'
+    | '/client/login'
+    | '/client/'
     | '/admin/catalog/clients'
     | '/admin/catalog/companies'
     | '/admin/catalog/price-profiles'
@@ -237,6 +271,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AboutRoute: typeof AboutRoute
   AdminRoute: typeof AdminRouteWithChildren
+  ClientRoute: typeof ClientRouteWithChildren
   ContactRoute: typeof ContactRoute
   MarketsRoute: typeof MarketsRoute
   OpportunitiesRoute: typeof OpportunitiesRoute
@@ -268,6 +303,13 @@ declare module '@tanstack/react-router' {
       path: '/admin'
       fullPath: '/admin'
       preLoaderRoute: typeof AdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/client': {
+      id: '/client'
+      path: '/client'
+      fullPath: '/client'
+      preLoaderRoute: typeof ClientRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/contact': {
@@ -339,6 +381,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/api/catalog-images'
       preLoaderRoute: typeof ApiCatalogImagesRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/client/': {
+      id: '/client/'
+      path: '/'
+      fullPath: '/client/'
+      preLoaderRoute: typeof ClientIndexRouteImport
+      parentRoute: typeof ClientRoute
+    }
+    '/client/login': {
+      id: '/client/login'
+      path: '/login'
+      fullPath: '/client/login'
+      preLoaderRoute: typeof ClientLoginRouteImport
+      parentRoute: typeof ClientRoute
     }
     '/admin/catalog/clients': {
       id: '/admin/catalog/clients'
@@ -412,10 +468,24 @@ const AdminRouteChildren: AdminRouteChildren = {
 
 const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
 
+interface ClientRouteChildren {
+  ClientLoginRoute: typeof ClientLoginRoute
+  ClientIndexRoute: typeof ClientIndexRoute
+}
+
+const ClientRouteChildren: ClientRouteChildren = {
+  ClientLoginRoute: ClientLoginRoute,
+  ClientIndexRoute: ClientIndexRoute,
+}
+
+const ClientRouteWithChildren =
+  ClientRoute._addFileChildren(ClientRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AboutRoute: AboutRoute,
   AdminRoute: AdminRouteWithChildren,
+  ClientRoute: ClientRouteWithChildren,
   ContactRoute: ContactRoute,
   MarketsRoute: MarketsRoute,
   OpportunitiesRoute: OpportunitiesRoute,

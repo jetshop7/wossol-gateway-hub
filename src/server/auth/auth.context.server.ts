@@ -14,6 +14,7 @@ import {
   CSRF_COOKIE_NAME,
   CSRF_HEADER_NAME,
   hashOpaqueToken,
+  clientSessionHasValidIdentity,
   sameOriginForMutation,
 } from "./auth.security.server.ts";
 import {
@@ -66,15 +67,7 @@ export async function resolveAuthenticatedActor(): Promise<AuthenticatedActor | 
     (!session.internalUserId || !session.internalUser || session.internalUser.status !== "ACTIVE")
   )
     return null;
-  if (
-    session.actorType === "CLIENT" &&
-    (!session.clientUserId ||
-      !session.clientAccountId ||
-      !session.clientUser ||
-      session.clientUser.status !== "ACTIVE" ||
-      session.clientUser.clientAccount.status !== "ACTIVE")
-  )
-    return null;
+  if (session.actorType === "CLIENT" && !clientSessionHasValidIdentity(session)) return null;
   await createAuthRepository().touchSession(session.id);
   if (session.actorType === "INTERNAL") {
     return {
@@ -133,6 +126,13 @@ export function requireMutationCsrf() {
     !sameOriginForMutation(origin ?? null, requestUrl)
   )
     throw new InvalidCsrfError("A valid same-origin CSRF token is required.");
+}
+
+export function requireSameOriginRequest() {
+  const origin = getRequestHeader("origin");
+  const requestUrl = getRequest().url;
+  if (!sameOriginForMutation(origin ?? null, requestUrl))
+    throw new InvalidCsrfError("A same-origin request is required.");
 }
 
 export function requestIp() {

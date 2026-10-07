@@ -28,3 +28,23 @@ export function sessionIsUsable(
 ): boolean {
   return session.revokedAt === null && session.expiresAt > now;
 }
+
+export function clientSessionHasValidIdentity(session: {
+  clientUserId: string | null;
+  clientAccountId: string | null;
+  clientUser: {
+    status: "ACTIVE" | "DISABLED";
+    clientAccountId: string;
+    clientAccount: { id: string; status: "ACTIVE" | "INACTIVE" | "DISABLED" };
+  } | null;
+}): boolean {
+  return Boolean(
+    session.clientUserId &&
+    session.clientAccountId &&
+    session.clientUser &&
+    session.clientUser.status === "ACTIVE" &&
+    session.clientUser.clientAccountId === session.clientAccountId &&
+    session.clientUser.clientAccount.id === session.clientAccountId &&
+    session.clientUser.clientAccount.status === "ACTIVE",
+  );
+}

@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { duplicateClientUserEmailMessage } from "../client-user-errors";
 
 const id = z.string().uuid();
 const profileInput = z.object({
@@ -15,6 +16,18 @@ const clientInput = z.object({
   pricesVisible: z.boolean(),
   catalogAccessStatus: z.enum(["ENABLED", "DISABLED"]),
   catalogAccessMode: z.enum(["ALL_APPROVED", "SELECTED"]),
+});
+const clientUserInput = z.object({
+  displayName: z.string().trim().min(1).max(120),
+  email: z.string().trim().email().max(320),
+  password: z.string().min(1).max(256),
+  status: z.enum(["ACTIVE", "DISABLED"]).optional(),
+});
+const clientUserUpdateInput = z.object({
+  displayName: z.string().trim().min(1).max(120),
+  email: z.string().trim().email().max(320),
+  password: z.string().max(256).optional(),
+  status: z.enum(["ACTIVE", "DISABLED"]),
 });
 
 async function guard(
@@ -126,6 +139,56 @@ export const updateAdminClientAccountFn = createServerFn({ method: "POST" })
         client: await updateAdminClientAccount(data.id, data.data, actor.userId),
       };
     } catch (error) {
+      return safeFailure(error);
+    }
+  });
+
+export const listAdminClientUsersFn = createServerFn({ method: "GET" })
+  .validator(z.object({ clientAccountId: id }))
+  .handler(async ({ data }) => {
+    await guard("catalog.client.manage");
+    const { listAdminClientUsers } =
+      await import("../../server/catalog/client-users.repository.server.ts");
+    return { ok: true as const, users: await listAdminClientUsers(data.clientAccountId) };
+  });
+
+export const createAdminClientUserFn = createServerFn({ method: "POST" })
+  .validator(z.object({ clientAccountId: id, data: clientUserInput }))
+  .handler(async ({ data }) => {
+    const actor = await guard("catalog.client.manage", true);
+    try {
+      const { createAdminClientUser } =
+        await import("../../server/catalog/client-users.repository.server.ts");
+      return {
+        ok: true as const,
+        user: await createAdminClientUser(data.clientAccountId, data.data, actor.userId),
+      };
+    } catch (error) {
+      const duplicateEmail = duplicateClientUserEmailMessage(error);
+      if (duplicateEmail) return { ok: false as const, error: duplicateEmail };
+      return safeFailure(error);
+    }
+  });
+
+export const updateAdminClientUserFn = createServerFn({ method: "POST" })
+  .validator(z.object({ clientAccountId: id, userId: id, data: clientUserUpdateInput }))
+  .handler(async ({ data }) => {
+    const actor = await guard("catalog.client.manage", true);
+    try {
+      const { updateAdminClientUser } =
+        await import("../../server/catalog/client-users.repository.server.ts");
+      return {
+        ok: true as const,
+        user: await updateAdminClientUser(
+          data.clientAccountId,
+          data.userId,
+          data.data,
+          actor.userId,
+        ),
+      };
+    } catch (error) {
+      const duplicateEmail = duplicateClientUserEmailMessage(error);
+      if (duplicateEmail) return { ok: false as const, error: duplicateEmail };
       return safeFailure(error);
     }
   });

@@ -280,6 +280,13 @@ async function saveClientAccount(input: unknown, actorId: string, id?: string) {
         ? await tx.clientAccount.update({ where: { id }, data: values, select: { id: true } })
         : await tx.clientAccount.create({ data: values, select: { id: true } });
 
+      if (id && data.status !== "ACTIVE") {
+        await tx.authSession.updateMany({
+          where: { clientAccountId: id, revokedAt: null },
+          data: { revokedAt: new Date() },
+        });
+      }
+
       const assignmentChanged = before?.priceProfileId !== data.priceProfileId;
       if (before && before.catalogAccessMode !== data.catalogAccessMode) {
         await audit(

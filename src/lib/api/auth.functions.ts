@@ -25,16 +25,40 @@ export const loginInternal = createServerFn({ method: "POST" })
 export const loginClient = createServerFn({ method: "POST" })
   .inputValidator(credentials)
   .handler(async ({ data }) => {
-    const [{ authenticateClient }, { establishSession, requestIp }, { toPublicActor }] =
-      await Promise.all([
-        import("../../server/auth/auth.service.server.ts"),
-        import("../../server/auth/auth.context.server.ts"),
-        import("../../server/auth/auth.types.ts"),
-      ]);
+    const [
+      { authenticateClient },
+      { establishSession, requestIp, requireSameOriginRequest },
+      { toPublicActor },
+    ] = await Promise.all([
+      import("../../server/auth/auth.service.server.ts"),
+      import("../../server/auth/auth.context.server.ts"),
+      import("../../server/auth/auth.types.ts"),
+    ]);
+    requireSameOriginRequest();
     const result = await authenticateClient(data.email, data.password, { ipAddress: requestIp() });
     await establishSession(result.token, result.expiresAt);
     return { actor: toPublicActor(result.actor) };
   });
+
+export const getClientAreaIdentity = createServerFn({ method: "GET" }).handler(async () => {
+  const [{ requireClientActor }, { createAuthRepository }, { toClientAreaIdentity }] =
+    await Promise.all([
+      import("../../server/auth/auth.context.server.ts"),
+      import("../../server/auth/auth.repository.server.ts"),
+      import("../../server/auth/auth.types.ts"),
+    ]);
+  const actor = await requireClientActor();
+  const identity = await createAuthRepository().findClientIdentity(
+    actor.userId,
+    actor.clientAccountId!,
+  );
+  if (!identity) throw new Error("Client identity is unavailable.");
+  return toClientAreaIdentity({
+    clientAccountId: actor.clientAccountId!,
+    clientAccountName: identity.clientAccount.name,
+    userDisplayName: identity.displayName,
+  });
+});
 
 export const getCurrentActor = createServerFn({ method: "GET" }).handler(async () => {
   const [{ resolveAuthenticatedActor }, { toPublicActor }] = await Promise.all([

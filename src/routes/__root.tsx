@@ -213,18 +213,19 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
-  const isAdminSurface = useLocation().pathname.startsWith("/admin");
+  const pathname = useLocation().pathname;
+  const isPrivateSurface = pathname.startsWith("/admin") || pathname.startsWith("/client");
 
   return (
     <QueryClientProvider client={queryClient}>
       <LanguageProvider>
         <div className="flex min-h-screen flex-col">
-          {!isAdminSurface && <Header />}
+          {!isPrivateSurface && <Header />}
           <main className="flex-1">
             {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
             <Outlet />
           </main>
-          {!isAdminSurface && <Footer />}
+          {!isPrivateSurface && <Footer />}
         </div>
       </LanguageProvider>
     </QueryClientProvider>

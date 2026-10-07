@@ -9,6 +9,14 @@ import {
   updateAdminPriceProfileFn,
 } from "@/lib/api/commercial-admin.functions";
 import { readCsrfToken } from "@/lib/admin-csrf";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 export const Route = createFileRoute("/admin/catalog/price-profiles")({
   loader: () => listAdminPriceProfilesFn(),
@@ -37,6 +45,9 @@ function PriceProfilesPage() {
   const [showForm, setShowForm] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [duplicateTarget, setDuplicateTarget] = useState<{ id: string; name: string } | null>(null);
+  const [duplicateName, setDuplicateName] = useState("");
+  const [duplicating, setDuplicating] = useState(false);
   const profiles = result.ok ? result.profiles : [];
 
   const save = async (event: FormEvent<HTMLFormElement>) => {
@@ -80,22 +91,27 @@ function PriceProfilesPage() {
     setError("");
   };
 
-  const duplicate = async (profileId: string, currentName: string) => {
-    const newName = window.prompt("Name for the independent duplicate", `${currentName} copy`);
-    if (!newName?.trim()) return;
+  const duplicate = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!duplicateTarget || !duplicateName.trim() || duplicating) return;
     setError("");
+    setDuplicating(true);
     try {
       const response = await duplicateAdminPriceProfileFn({
-        data: { id: profileId, newName },
+        data: { id: duplicateTarget.id, newName: duplicateName.trim() },
         headers: { "x-wossol-csrf": readCsrfToken() ?? "" },
       });
       if (!response.ok) {
         setError(response.error);
         return;
       }
+      setDuplicateTarget(null);
+      setDuplicateName("");
       await router.invalidate();
     } catch {
       setError("Price Profile could not be duplicated.");
+    } finally {
+      setDuplicating(false);
     }
   };
 
@@ -233,7 +249,10 @@ function PriceProfilesPage() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => void duplicate(profile.id, profile.name)}
+                  onClick={() => {
+                    setDuplicateTarget({ id: profile.id, name: profile.name });
+                    setDuplicateName(`${profile.name} copy`);
+                  }}
                   className="inline-flex items-center gap-1 rounded border px-3 py-1.5 text-xs font-medium"
                 >
                   <Copy className="h-3.5 w-3.5" /> Duplicate
@@ -247,6 +266,49 @@ function PriceProfilesPage() {
           </p>
         )}
       </section>
+      <Dialog
+        open={duplicateTarget !== null}
+        onOpenChange={(open) => !open && setDuplicateTarget(null)}
+      >
+        <DialogContent>
+          <form onSubmit={duplicate} className="space-y-5">
+            <DialogHeader>
+              <DialogTitle>Duplicate Price Profile</DialogTitle>
+              <DialogDescription>
+                Create an independent copy of {duplicateTarget?.name ?? "this profile"} and its
+                variant overrides.
+              </DialogDescription>
+            </DialogHeader>
+            <label className="grid gap-1.5 text-sm font-medium text-slate-700">
+              New profile name
+              <input
+                autoFocus
+                required
+                maxLength={120}
+                value={duplicateName}
+                onChange={(event) => setDuplicateName(event.target.value)}
+                className="rounded-md border px-3 py-2"
+              />
+            </label>
+            <DialogFooter>
+              <button
+                type="button"
+                onClick={() => setDuplicateTarget(null)}
+                className="rounded-md border px-4 py-2 text-sm"
+                disabled={duplicating}
+              >
+                Cancel
+              </button>
+              <button
+                disabled={duplicating || !duplicateName.trim()}
+                className="rounded-md bg-[#102c50] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+              >
+                {duplicating ? "Duplicating…" : "Create duplicate"}
+              </button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

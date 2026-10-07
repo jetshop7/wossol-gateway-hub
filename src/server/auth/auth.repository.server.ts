@@ -43,7 +43,26 @@ export function createAuthRepository(prisma: PrismaClient = getWossolExportPrism
           expiresAt: true,
           revokedAt: true,
           internalUser: { select: { role: true, status: true } },
-          clientUser: { select: { status: true, clientAccount: { select: { status: true } } } },
+          clientUser: {
+            select: {
+              status: true,
+              clientAccountId: true,
+              clientAccount: { select: { id: true, status: true } },
+            },
+          },
+        },
+      }),
+    findClientIdentity: (clientUserId: string, clientAccountId: string) =>
+      prisma.clientUser.findFirst({
+        where: {
+          id: clientUserId,
+          clientAccountId,
+          status: "ACTIVE",
+          clientAccount: { status: "ACTIVE" },
+        },
+        select: {
+          displayName: true,
+          clientAccount: { select: { name: true } },
         },
       }),
     touchSession: (id: string) =>
