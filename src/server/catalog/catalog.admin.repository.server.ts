@@ -9,7 +9,11 @@ import {
 import { normalizeCatalogSlug } from "./catalog.contracts.ts";
 import { resolveVariantPricing } from "./variant-pricing.ts";
 import { activeGs1TaxonomyNodeWhere, activeProductBrickWhere } from "./catalog.taxonomy.ts";
-import { configuredVisibilityCandidateFilter } from "./client-visibility.ts";
+import {
+  clientCatalogAccessModePolicy,
+  isVisibilityTargetCandidateEligible,
+  taxonomyExclusionOverlapsExisting,
+} from "./client-visibility.ts";
 import {
   toAdminBrandDto,
   toAdminCompanyDetailDto,
@@ -367,8 +371,125 @@ export async function browseAdminTaxonomyNodes(parentId: string | null, page: nu
   };
 }
 
-export function browseAdminVisibilityTaxonomyNodes(parentId: string | null, page: number) {
-  return browseAdminTaxonomyNodes(parentId, page);
+export async function browseAdminVisibilityTaxonomyNodes(
+  clientAccountId: string,
+  effect: "INCLUDE" | "EXCLUDE",
+  parentId: string | null,
+  page: number,
+) {
+  const prisma = getWossolExportPrisma();
+  const result = await browseAdminTaxonomyNodes(parentId, page);
+  if (effect === "INCLUDE") {
+    const account = await prisma.clientAccount.findUnique({
+      where: { id: clientAccountId },
+      select: { catalogAccessMode: true },
+    });
+    if (
+      !account ||
+      !clientCatalogAccessModePolicy(account.catalogAccessMode).individualIncludesAllowed
+    )
+      return {
+        ...result,
+        nodes: result.nodes.map((node) => ({ ...node, selectionDisabled: true })),
+      };
+  }
+  if (!result.nodes.length) return result;
+
+  const [configuredRules, candidates] = await Promise.all([
+    prisma.clientCatalogVisibilityRule.findMany({
+      where: { clientAccountId, targetType: "TAXONOMY" },
+      select: {
+        effect: true,
+        taxonomyNode: {
+          select: {
+            id: true,
+            parent: {
+              select: {
+                id: true,
+                parent: {
+                  select: { id: true, parent: { select: { id: true } } },
+                },
+              },
+            },
+          },
+        },
+      },
+    }),
+    prisma.catalogTaxonomyNode.findMany({
+      where: { id: { in: result.nodes.map((node) => node.id) } },
+      select: {
+        id: true,
+        parent: {
+          select: {
+            id: true,
+            parent: { select: { id: true, parent: { select: { id: true } } } },
+          },
+        },
+      },
+    }),
+  ]);
+  const asRules = configuredRules.flatMap((rule) =>
+    rule.taxonomyNode
+      ? [
+          {
+            effect: rule.effect,
+            targetType: "TAXONOMY" as const,
+            taxonomyNodeId: rule.taxonomyNode.id,
+            companyId: null,
+            productId: null,
+          },
+        ]
+      : [],
+  );
+  const candidateLineages = new Map(
+    candidates.map((node) => [
+      node.id,
+      [node.id, node.parent?.id, node.parent?.parent?.id, node.parent?.parent?.parent?.id].filter(
+        (id): id is string => Boolean(id),
+      ),
+    ]),
+  );
+  const configuredExclusions = configuredRules.flatMap((rule) => {
+    const node = rule.taxonomyNode;
+    if (!node || rule.effect !== "EXCLUDE") return [];
+    return [
+      {
+        id: node.id,
+        ancestorIds: [
+          node.id,
+          node.parent?.id,
+          node.parent?.parent?.id,
+          node.parent?.parent?.parent?.id,
+        ].filter((id): id is string => Boolean(id)),
+      },
+    ];
+  });
+  return {
+    ...result,
+    nodes: result.nodes.map((node) => {
+      const ancestorIds = candidateLineages.get(node.id) ?? [node.id];
+      const overlapsExistingTaxonomyExclusion =
+        effect === "EXCLUDE" &&
+        taxonomyExclusionOverlapsExisting({
+          candidateId: node.id,
+          candidateAncestorIds: ancestorIds,
+          configuredExclusions,
+        });
+      return {
+        ...node,
+        selectionDisabled: !isVisibilityTargetCandidateEligible({
+          candidate: {
+            effect,
+            targetType: "TAXONOMY",
+            targetId: node.id,
+            taxonomyAncestorIds: ancestorIds,
+            overlapsExistingTaxonomyExclusion,
+          },
+          rules: asRules,
+        }),
+      };
+    }),
+  };
 }
 
 export async function getAdminTaxonomyStatus() {

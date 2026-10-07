@@ -10,7 +10,12 @@ import { activeGs1TaxonomyNodeWhere } from "./catalog.taxonomy.ts";
 import {
   assertVisibilityTargetCanBeAdded,
   buildClientVisibilityRuleCreateData,
+  clientCatalogAccessModePolicy,
   configuredVisibilityCandidateFilter,
+  ClientVisibilityRuleValidationError,
+  isVisibilityTargetCandidateEligible,
+  shouldClearIndividualIncludesForModeChange,
+  taxonomyExclusionOverlapsExisting,
   type ClientVisibilityRule,
 } from "./client-visibility.ts";
 
@@ -228,11 +233,68 @@ async function saveClientAccount(input: unknown, actorId: string, id?: string) {
         catalogAccessStatus: data.catalogAccessStatus,
         catalogAccessMode: data.catalogAccessMode,
       };
+      let removedIncludeCount = 0;
+      if (
+        id &&
+        shouldClearIndividualIncludesForModeChange(
+          before?.catalogAccessMode ?? null,
+          data.catalogAccessMode,
+        )
+      ) {
+        const redundantIncludes = await tx.clientCatalogVisibilityRule.findMany({
+          where: { clientAccountId: id, effect: "INCLUDE" },
+          select: {
+            id: true,
+            targetType: true,
+            taxonomyNodeId: true,
+            companyId: true,
+            productId: true,
+          },
+        });
+        for (const rule of redundantIncludes) {
+          await audit(
+            tx,
+            actorId,
+            "CLIENT_CATALOG_INCLUDE_REMOVED",
+            "CLIENT_CATALOG_VISIBILITY_RULE",
+            rule.id,
+            {
+              clientAccountId: id,
+              reason:
+                data.catalogAccessMode === "ALL_APPROVED"
+                  ? "ENTIRE_CATALOG_MODE_ENABLED"
+                  : "SELECTIVE_MODE_REINITIALIZED",
+              targetType: rule.targetType,
+              targetId: rule.taxonomyNodeId ?? rule.companyId ?? rule.productId,
+            },
+          );
+        }
+        removedIncludeCount = redundantIncludes.length;
+        if (removedIncludeCount) {
+          await tx.clientCatalogVisibilityRule.deleteMany({
+            where: { clientAccountId: id, effect: "INCLUDE" },
+          });
+        }
+      }
       const account = id
         ? await tx.clientAccount.update({ where: { id }, data: values, select: { id: true } })
         : await tx.clientAccount.create({ data: values, select: { id: true } });
 
       const assignmentChanged = before?.priceProfileId !== data.priceProfileId;
+      if (before && before.catalogAccessMode !== data.catalogAccessMode) {
+        await audit(
+          tx,
+          actorId,
+          "CLIENT_CATALOG_ACCESS_MODE_CHANGED",
+          "CLIENT_ACCOUNT",
+          account.id,
+          {
+            previousMode: before.catalogAccessMode,
+            nextMode: data.catalogAccessMode,
+            removedIncludeCount,
+          },
+        );
+      }
       await audit(
         tx,
         actorId,
@@ -496,6 +558,57 @@ export async function listAdminClientVisibilityRules(clientAccountId: string) {
 
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
+const taxonomyLineageSelect = {
+  id: true,
+  parent: {
+    select: {
+      id: true,
+      parent: { select: { id: true, parent: { select: { id: true } } } },
+    },
+  },
+} as const;
+
+type TaxonomyLineageRecord = {
+  id: string;
+  parent: {
+    id: string;
+    parent: { id: string; parent: { id: string } | null } | null;
+  } | null;
+};
+
+function taxonomyLineageIds(node: TaxonomyLineageRecord): string[] {
+  return [
+    node.id,
+    node.parent?.id,
+    node.parent?.parent?.id,
+    node.parent?.parent?.parent?.id,
+  ].filter((id): id is string => Boolean(id));
+}
+
+async function listVisibilityTaxonomyRules(clientAccountId: string) {
+  const rows = await getWossolExportPrisma().clientCatalogVisibilityRule.findMany({
+    where: { clientAccountId, targetType: "TAXONOMY" },
+    select: {
+      effect: true,
+      taxonomyNode: { select: taxonomyLineageSelect },
+    },
+  });
+  return rows.flatMap((row) =>
+    row.taxonomyNode
+      ? [
+          {
+            effect: row.effect,
+            targetType: "TAXONOMY" as const,
+            taxonomyNodeId: row.taxonomyNode.id,
+            companyId: null,
+            productId: null,
+            ancestorIds: taxonomyLineageIds(row.taxonomyNode),
+          },
+        ]
+      : [],
+  );
+}
+
 function productTaxonomyAncestorFilters(nodeIds: string[]) {
   const atDepth = (depth: number): Prisma.CatalogTaxonomyNodeWhereInput =>
     depth === 0 ? { id: { in: nodeIds } } : { parent: { is: atDepth(depth - 1) } };
@@ -534,6 +647,16 @@ export async function searchAdminVisibilityCompanies(
   const text = query.trim();
   if (text.length < 2) return [];
   const prisma = getWossolExportPrisma();
+  const account = await prisma.clientAccount.findUnique({
+    where: { id: clientAccountId },
+    select: { catalogAccessMode: true },
+  });
+  if (
+    !account ||
+    (effect === "INCLUDE" &&
+      !clientCatalogAccessModePolicy(account.catalogAccessMode).individualIncludesAllowed)
+  )
+    return [];
   const taxonomyRules =
     effect === "INCLUDE"
       ? await prisma.clientCatalogVisibilityRule.findMany({
@@ -584,17 +707,38 @@ export async function searchAdminVisibilityProducts(
 ) {
   const text = query.trim();
   if (text.length < 2) return [];
+  const prisma = getWossolExportPrisma();
+  const account = await prisma.clientAccount.findUnique({
+    where: { id: clientAccountId },
+    select: { catalogAccessMode: true },
+  });
+  if (
+    !account ||
+    (effect === "INCLUDE" &&
+      !clientCatalogAccessModePolicy(account.catalogAccessMode).individualIncludesAllowed)
+  )
+    return [];
   const taxonomyRules =
     effect === "INCLUDE"
-      ? await getWossolExportPrisma().clientCatalogVisibilityRule.findMany({
+      ? await prisma.clientCatalogVisibilityRule.findMany({
           where: { clientAccountId, effect: "INCLUDE", targetType: "TAXONOMY" },
+          select: { taxonomyNodeId: true },
+        })
+      : [];
+  const excludedTaxonomyRules =
+    effect === "EXCLUDE"
+      ? await prisma.clientCatalogVisibilityRule.findMany({
+          where: { clientAccountId, effect: "EXCLUDE", targetType: "TAXONOMY" },
           select: { taxonomyNodeId: true },
         })
       : [];
   const taxonomyIds = taxonomyRules.flatMap((rule) =>
     rule.taxonomyNodeId ? [rule.taxonomyNodeId] : [],
   );
-  const rows = await getWossolExportPrisma().product.findMany({
+  const excludedTaxonomyIds = excludedTaxonomyRules.flatMap((rule) =>
+    rule.taxonomyNodeId ? [rule.taxonomyNodeId] : [],
+  );
+  const rows = await prisma.product.findMany({
     where: {
       ...(effect === "INCLUDE"
         ? {
@@ -607,11 +751,23 @@ export async function searchAdminVisibilityProducts(
             },
           }
         : {}),
+      ...(effect === "EXCLUDE"
+        ? {
+            company: {
+              clientVisibilityRules: {
+                none: { clientAccountId, effect: "EXCLUDE", targetType: "COMPANY" },
+              },
+            },
+          }
+        : {}),
       clientVisibilityRules: configuredVisibilityCandidateFilter({
         clientAccountId,
         targetType: "PRODUCT",
       }),
       ...(taxonomyIds.length ? { NOT: { OR: productTaxonomyAncestorFilters(taxonomyIds) } } : {}),
+      ...(excludedTaxonomyIds.length
+        ? { NOT: { OR: productTaxonomyAncestorFilters(excludedTaxonomyIds) } }
+        : {}),
       OR: [
         { name: { contains: text, mode: "insensitive" } },
         { slug: { contains: text, mode: "insensitive" } },
@@ -630,17 +786,35 @@ export async function searchAdminVisibilityProducts(
   }));
 }
 
-export async function searchAdminVisibilityTaxonomy(clientAccountId: string, query: string) {
+export async function searchAdminVisibilityTaxonomy(
+  clientAccountId: string,
+  effect: "INCLUDE" | "EXCLUDE",
+  query: string,
+) {
   const text = query.trim();
   if (text.length < 2) return [];
-  const nodes = await getWossolExportPrisma().catalogTaxonomyNode.findMany({
+  const prisma = getWossolExportPrisma();
+  const account = await prisma.clientAccount.findUnique({
+    where: { id: clientAccountId },
+    select: { catalogAccessMode: true },
+  });
+  if (
+    !account ||
+    (effect === "INCLUDE" &&
+      !clientCatalogAccessModePolicy(account.catalogAccessMode).individualIncludesAllowed)
+  )
+    return [];
+  const configuredRules = await listVisibilityTaxonomyRules(clientAccountId);
+  const rules: ClientVisibilityRule[] = configuredRules.map((rule) => ({
+    effect: rule.effect,
+    targetType: "TAXONOMY",
+    taxonomyNodeId: rule.taxonomyNodeId,
+    companyId: null,
+    productId: null,
+  }));
+  const nodes = await prisma.catalogTaxonomyNode.findMany({
     where: {
       ...activeGs1TaxonomyNodeWhere(),
-      clientVisibilityRules: configuredVisibilityCandidateFilter({
-        clientAccountId,
-        effect: "INCLUDE",
-        targetType: "TAXONOMY",
-      }),
       OR: [
         { sourceCode: { contains: text, mode: "insensitive" } },
         {
@@ -681,21 +855,46 @@ export async function searchAdminVisibilityTaxonomy(clientAccountId: string, que
       },
     },
     orderBy: { sourceCode: "asc" },
-    take: 25,
+    take: 100,
   });
-  return nodes.map((node) => {
-    const lineage = [node.parent?.parent?.parent, node.parent?.parent, node.parent, node].filter(
-      (item) => item !== null && item !== undefined,
-    );
-    const breadcrumb = lineage.map((item) => ({
-      id: item.id,
-      sourceCode: item.sourceCode,
-      level: item.level,
-      name: item.translations[0]?.name ?? item.sourceCode,
-    }));
-    const selected = breadcrumb.at(-1)!;
-    return { ...selected, breadcrumb };
-  });
+  return nodes
+    .flatMap((node) => {
+      const lineage = [node.parent?.parent?.parent, node.parent?.parent, node.parent, node].filter(
+        (item) => item !== null && item !== undefined,
+      );
+      const ancestorIds = lineage.map((item) => item.id);
+      const overlapsExistingTaxonomyExclusion =
+        effect === "EXCLUDE" &&
+        taxonomyExclusionOverlapsExisting({
+          candidateId: node.id,
+          candidateAncestorIds: ancestorIds,
+          configuredExclusions: configuredRules
+            .filter((rule) => rule.effect === "EXCLUDE")
+            .map((rule) => ({ id: rule.taxonomyNodeId, ancestorIds: rule.ancestorIds })),
+        });
+      if (
+        !isVisibilityTargetCandidateEligible({
+          candidate: {
+            effect,
+            targetType: "TAXONOMY",
+            targetId: node.id,
+            taxonomyAncestorIds: ancestorIds,
+            overlapsExistingTaxonomyExclusion,
+          },
+          rules,
+        })
+      )
+        return [];
+      const breadcrumb = lineage.map((item) => ({
+        id: item.id,
+        sourceCode: item.sourceCode,
+        level: item.level,
+        name: item.translations[0]?.name ?? item.sourceCode,
+      }));
+      const selected = breadcrumb.at(-1)!;
+      return [{ ...selected, breadcrumb }];
+    })
+    .slice(0, 25);
 }
 
 export async function addAdminClientVisibilityRule(input: {
@@ -709,10 +908,17 @@ export async function addAdminClientVisibilityRule(input: {
   const prisma = getWossolExportPrisma();
   const rule = await prisma.$transaction(
     async (tx) => {
-      await tx.clientAccount.findUniqueOrThrow({
+      const clientAccount = await tx.clientAccount.findUniqueOrThrow({
         where: { id: clientAccountId },
-        select: { id: true },
+        select: { id: true, catalogAccessMode: true },
       });
+      if (
+        effect === "INCLUDE" &&
+        !clientCatalogAccessModePolicy(clientAccount.catalogAccessMode).individualIncludesAllowed
+      )
+        throw new ClientVisibilityRuleValidationError(
+          "Individual Includes are unavailable while Entire catalog access is active.",
+        );
       const rules = await clientVisibilityRulesForValidation(tx, clientAccountId);
       const taxonomyIds = includedTaxonomyIds(rules);
       let candidate: Parameters<typeof assertVisibilityTargetCanBeAdded>[0]["candidate"] = {
@@ -745,10 +951,19 @@ export async function addAdminClientVisibilityRule(input: {
               ? { publicationStatus: "PUBLISHED" as const, company: { status: "ACTIVE" as const } }
               : {}),
           },
-          select: { id: true, companyId: true },
+          select: {
+            id: true,
+            companyId: true,
+            taxonomyNode: { select: taxonomyLineageSelect },
+          },
         });
         if (!product) throw new Error("The Product is not available for this visibility rule.");
         candidate = { ...candidate, companyId: product.companyId };
+        if (product.taxonomyNode)
+          candidate = {
+            ...candidate,
+            taxonomyAncestorIds: taxonomyLineageIds(product.taxonomyNode),
+          };
         if (effect === "INCLUDE" && taxonomyIds.length) {
           const taxonomyCovered = await tx.product.findFirst({
             where: {
@@ -762,9 +977,36 @@ export async function addAdminClientVisibilityRule(input: {
       } else {
         const node = await tx.catalogTaxonomyNode.findFirst({
           where: { ...activeGs1TaxonomyNodeWhere(targetId) },
-          select: { id: true },
+          select: taxonomyLineageSelect,
         });
         if (!node) throw new Error("Choose a node from the active GS1 GPC taxonomy.");
+        const ancestorIds = taxonomyLineageIds(node);
+        if (effect === "EXCLUDE") {
+          const excludedRules = rules
+            .filter((rule) => rule.effect === "EXCLUDE" && rule.targetType === "TAXONOMY")
+            .flatMap((rule) =>
+              rule.taxonomyNodeId ? [{ id: rule.taxonomyNodeId, ancestorIds: [] }] : [],
+            );
+          const configuredNodes = await tx.catalogTaxonomyNode.findMany({
+            where: { id: { in: excludedRules.map((rule) => rule.id) } },
+            select: { ...taxonomyLineageSelect, id: true },
+          });
+          const overlap = taxonomyExclusionOverlapsExisting({
+            candidateId: targetId,
+            candidateAncestorIds: ancestorIds,
+            configuredExclusions: configuredNodes.map((configured) => ({
+              id: configured.id,
+              ancestorIds: taxonomyLineageIds(configured),
+            })),
+          });
+          candidate = {
+            ...candidate,
+            taxonomyAncestorIds: ancestorIds,
+            overlapsExistingTaxonomyExclusion: overlap,
+          };
+        } else {
+          candidate = { ...candidate, taxonomyAncestorIds: ancestorIds };
+        }
       }
       assertVisibilityTargetCanBeAdded({ candidate, rules });
       const created = await tx.clientCatalogVisibilityRule.create({

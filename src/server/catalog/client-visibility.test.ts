@@ -5,9 +5,12 @@ import test from "node:test";
 import {
   assertVisibilityTargetCanBeAdded,
   buildClientVisibilityRuleCreateData,
+  clientCatalogAccessModePolicy,
   configuredVisibilityCandidateFilter,
   isVisibilityTargetCandidateEligible,
   isClientProductVisibleByRules,
+  shouldClearIndividualIncludesForModeChange,
+  taxonomyExclusionOverlapsExisting,
   type ClientVisibilityAccount,
   type ClientVisibilityProduct,
   type ClientVisibilityRule,
@@ -30,6 +33,13 @@ const product: ClientVisibilityProduct = {
 const visibilityMigration = readFileSync(
   new URL(
     "../../../prisma/migrations/20261007150000_client_catalog_visibility_rules_v2/migration.sql",
+    import.meta.url,
+  ),
+  "utf8",
+);
+const taxonomyExclusionMigration = readFileSync(
+  new URL(
+    "../../../prisma/migrations/20261007170000_client_catalog_taxonomy_exclusions/migration.sql",
     import.meta.url,
   ),
   "utf8",
@@ -68,7 +78,7 @@ test("taxonomy includes at Segment, Family, Class, or Brick cover descendant Pro
   }
 });
 
-test("one taxonomy selection creates one sparse rule and taxonomy exclusions are rejected", () => {
+test("taxonomy includes and exclusions each create one sparse rule", () => {
   assert.deepEqual(
     buildClientVisibilityRuleCreateData({
       clientAccountId: "client-1",
@@ -85,13 +95,21 @@ test("one taxonomy selection creates one sparse rule and taxonomy exclusions are
       productId: null,
     },
   );
-  assert.throws(() =>
+  assert.deepEqual(
     buildClientVisibilityRuleCreateData({
       clientAccountId: "client-1",
       effect: "EXCLUDE",
       targetType: "TAXONOMY",
       targetId: "family-1",
     }),
+    {
+      clientAccountId: "client-1",
+      effect: "EXCLUDE",
+      targetType: "TAXONOMY",
+      taxonomyNodeId: "family-1",
+      companyId: null,
+      productId: null,
+    },
   );
 });
 
@@ -243,6 +261,102 @@ test("server add-policy rejects redundant Company and Product Includes", () => {
   );
 });
 
+test("Entire catalog mode is account-level, clears selective Includes, and switching back is restrictive", () => {
+  assert.deepEqual(clientCatalogAccessModePolicy("ALL_APPROVED"), {
+    includesAllByDefault: true,
+    individualIncludesAllowed: false,
+    clearIndividualIncludes: true,
+  });
+  assert.deepEqual(clientCatalogAccessModePolicy("SELECTED"), {
+    includesAllByDefault: false,
+    individualIncludesAllowed: true,
+    clearIndividualIncludes: false,
+  });
+  assert.equal(shouldClearIndividualIncludesForModeChange("SELECTED", "ALL_APPROVED"), true);
+  assert.equal(shouldClearIndividualIncludesForModeChange("ALL_APPROVED", "SELECTED"), true);
+  assert.equal(shouldClearIndividualIncludesForModeChange("SELECTED", "SELECTED"), false);
+  assert.equal(
+    isClientProductVisibleByRules({
+      account: { ...account, catalogAccessMode: "SELECTED" },
+      product,
+      rules: [],
+    }),
+    false,
+    "switching back does not expose the catalog without explicit Includes",
+  );
+});
+
+test("Entire catalog includes eligible content by default but all exclusion types override it", () => {
+  const entire = { ...account, catalogAccessMode: "ALL_APPROVED" as const };
+  assert.equal(isClientProductVisibleByRules({ account: entire, product, rules: [] }), true);
+  for (const exclusion of [
+    rule("EXCLUDE", "PRODUCT", product.id),
+    rule("EXCLUDE", "COMPANY", product.companyId),
+    rule("EXCLUDE", "TAXONOMY", "family-1"),
+  ]) {
+    assert.equal(
+      isClientProductVisibleByRules({ account: entire, product, rules: [exclusion] }),
+      false,
+    );
+  }
+  assert.equal(
+    isClientProductVisibleByRules({
+      account: entire,
+      product: { ...product, publicationStatus: "DRAFT" },
+      rules: [],
+    }),
+    false,
+  );
+});
+
+test("nested taxonomy and inherited exclusion targets are redundant", () => {
+  const configuredExclusions = [{ id: "family-1", ancestorIds: ["family-1", "segment-1"] }];
+  assert.equal(
+    taxonomyExclusionOverlapsExisting({
+      candidateId: "class-1",
+      candidateAncestorIds: ["class-1", "family-1", "segment-1"],
+      configuredExclusions,
+    }),
+    true,
+  );
+  assert.equal(
+    taxonomyExclusionOverlapsExisting({
+      candidateId: "segment-1",
+      candidateAncestorIds: ["segment-1"],
+      configuredExclusions,
+    }),
+    true,
+    "a broader exclusion cannot make a narrower configured exclusion redundant",
+  );
+  assert.equal(
+    isVisibilityTargetCandidateEligible({
+      candidate: {
+        effect: "EXCLUDE",
+        targetType: "PRODUCT",
+        targetId: product.id,
+        companyId: product.companyId,
+        taxonomyAncestorIds: product.taxonomyAncestorIds,
+      },
+      rules: [rule("EXCLUDE", "COMPANY", product.companyId)],
+    }),
+    false,
+    "a Product under an excluded Company is not offered as a narrower redundant exclusion",
+  );
+  assert.equal(
+    isVisibilityTargetCandidateEligible({
+      candidate: {
+        effect: "EXCLUDE",
+        targetType: "PRODUCT",
+        targetId: product.id,
+        companyId: product.companyId,
+        taxonomyAncestorIds: product.taxonomyAncestorIds,
+      },
+      rules: [rule("EXCLUDE", "TAXONOMY", "family-1")],
+    }),
+    false,
+  );
+});
+
 test("forward migration preserves existing direct grants as Includes and adds target uniqueness", () => {
   assert.match(visibilityMigration, /ADD COLUMN "effect"[^;]+DEFAULT 'INCLUDE'/);
   assert.match(visibilityMigration, /WHEN "company_id" IS NOT NULL THEN 'COMPANY'/);
@@ -259,6 +373,18 @@ test("forward migration preserves existing direct grants as Includes and adds ta
     visibilityMigration,
     /DELETE\s+FROM\s+"export_client_catalog_visibility_rules"/i,
   );
+});
+
+test("forward migration permits taxonomy exclusions without changing other target shapes", () => {
+  assert.match(
+    taxonomyExclusionMigration,
+    /DROP CONSTRAINT "export_client_catalog_visibility_rules_exact_target_check"/,
+  );
+  assert.match(
+    taxonomyExclusionMigration,
+    /"target_type" = 'TAXONOMY' AND "taxonomy_node_id" IS NOT NULL AND "company_id" IS NULL AND "product_id" IS NULL\)/,
+  );
+  assert.doesNotMatch(taxonomyExclusionMigration, /"effect" = 'INCLUDE'/);
 });
 
 test("unrelated taxonomy does not grant access and multiple taxonomy includes are additive", () => {

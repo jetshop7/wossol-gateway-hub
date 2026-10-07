@@ -1,5 +1,21 @@
 export type ClientVisibilityEffect = "INCLUDE" | "EXCLUDE";
 export type ClientVisibilityTarget = "TAXONOMY" | "COMPANY" | "PRODUCT";
+export type ClientCatalogAccessMode = "ALL_APPROVED" | "SELECTED";
+
+export function clientCatalogAccessModePolicy(mode: ClientCatalogAccessMode) {
+  return {
+    includesAllByDefault: mode === "ALL_APPROVED",
+    individualIncludesAllowed: mode === "SELECTED",
+    clearIndividualIncludes: mode === "ALL_APPROVED",
+  } as const;
+}
+
+export function shouldClearIndividualIncludesForModeChange(
+  previousMode: ClientCatalogAccessMode | null,
+  nextMode: ClientCatalogAccessMode,
+): boolean {
+  return nextMode === "ALL_APPROVED" || previousMode === "ALL_APPROVED";
+}
 
 export type ClientVisibilityRule = {
   effect: ClientVisibilityEffect;
@@ -23,8 +39,6 @@ export function buildClientVisibilityRuleCreateData(input: {
   targetId: string;
 }) {
   const { clientAccountId, effect, targetType, targetId } = input;
-  if (targetType === "TAXONOMY" && effect !== "INCLUDE")
-    throw new Error("Taxonomy exclusions are not supported.");
   return {
     clientAccountId,
     effect,
@@ -58,7 +72,21 @@ export type VisibilityTargetCandidate = {
   taxonomyAncestorIds?: readonly string[];
   /** Ancestors belonging to published Products of a Company candidate. */
   companyTaxonomyAncestorIds?: readonly string[];
+  /** True when this Taxonomy overlaps an already configured exclusion in either direction. */
+  overlapsExistingTaxonomyExclusion?: boolean;
 };
+
+export function taxonomyExclusionOverlapsExisting(input: {
+  candidateId: string;
+  candidateAncestorIds: readonly string[];
+  configuredExclusions: readonly { id: string; ancestorIds: readonly string[] }[];
+}): boolean {
+  return input.configuredExclusions.some(
+    (configured) =>
+      input.candidateAncestorIds.includes(configured.id) ||
+      configured.ancestorIds.includes(input.candidateId),
+  );
+}
 
 /** Shared candidate and write policy: exact targets conflict; broader Includes only make Includes redundant. */
 export function isVisibilityTargetCandidateEligible(input: {
@@ -73,7 +101,17 @@ export function isVisibilityTargetCandidateEligible(input: {
     return rule.productId === candidate.targetId;
   });
   if (directRuleExists) return false;
-  if (candidate.effect === "EXCLUDE") return candidate.targetType !== "TAXONOMY";
+  if (candidate.effect === "EXCLUDE") {
+    if (candidate.targetType === "TAXONOMY") return !candidate.overlapsExistingTaxonomyExclusion;
+    if (candidate.targetType === "COMPANY") return true;
+    return !rules.some(
+      (rule) =>
+        rule.effect === "EXCLUDE" &&
+        ((rule.targetType === "COMPANY" && rule.companyId === candidate.companyId) ||
+          (rule.targetType === "TAXONOMY" &&
+            candidate.taxonomyAncestorIds?.includes(rule.taxonomyNodeId ?? ""))),
+    );
+  }
 
   if (candidate.targetType === "COMPANY") {
     return !rules.some(
@@ -92,7 +130,12 @@ export function isVisibilityTargetCandidateEligible(input: {
             candidate.taxonomyAncestorIds?.includes(rule.taxonomyNodeId ?? ""))),
     );
   }
-  return true;
+  return !rules.some(
+    (rule) =>
+      rule.targetType === "TAXONOMY" &&
+      (rule.effect === "EXCLUDE" || rule.effect === "INCLUDE") &&
+      candidate.taxonomyAncestorIds?.includes(rule.taxonomyNodeId ?? ""),
+  );
 }
 
 export function assertVisibilityTargetCanBeAdded(input: {
@@ -100,8 +143,6 @@ export function assertVisibilityTargetCanBeAdded(input: {
   rules: readonly ClientVisibilityRule[];
 }): void {
   const { candidate, rules } = input;
-  if (candidate.targetType === "TAXONOMY" && candidate.effect !== "INCLUDE")
-    throw new ClientVisibilityRuleValidationError("Taxonomy exclusions are not supported.");
   const matching = rules.some((rule) => {
     if (rule.targetType !== candidate.targetType) return false;
     if (candidate.targetType === "TAXONOMY") return rule.taxonomyNodeId === candidate.targetId;
@@ -114,16 +155,22 @@ export function assertVisibilityTargetCanBeAdded(input: {
     );
   if (!isVisibilityTargetCandidateEligible(input))
     throw new ClientVisibilityRuleValidationError(
-      candidate.targetType === "COMPANY"
-        ? "This Company is already covered by an included taxonomy."
-        : "This Product is already covered by an included Company or taxonomy.",
+      candidate.targetType === "TAXONOMY"
+        ? candidate.effect === "EXCLUDE"
+          ? "This taxonomy selection overlaps an existing exclusion. Remove or adjust the existing exclusion first."
+          : "This taxonomy selection is covered by an existing access rule."
+        : candidate.targetType === "COMPANY"
+          ? "This Company is already covered by an included taxonomy."
+          : candidate.effect === "EXCLUDE"
+            ? "This Product is already covered by an excluded Company or taxonomy."
+            : "This Product is already covered by an included Company or taxonomy.",
     );
 }
 
 export type ClientVisibilityAccount = {
   status: "ACTIVE" | "INACTIVE" | "DISABLED";
   catalogAccessStatus: "ENABLED" | "DISABLED";
-  catalogAccessMode: "ALL_APPROVED" | "SELECTED";
+  catalogAccessMode: ClientCatalogAccessMode;
 };
 
 export type ClientVisibilityProduct = {

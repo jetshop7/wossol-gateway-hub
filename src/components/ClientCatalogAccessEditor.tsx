@@ -31,7 +31,13 @@ type Rule = {
 type DirectTarget = { id: string; name: string; secondaryId: string; companyName?: string };
 type Action = `${Effect}_${TargetType}`;
 
-export function ClientCatalogAccessEditor({ clientAccountId }: { clientAccountId: string }) {
+export function ClientCatalogAccessEditor({
+  clientAccountId,
+  catalogAccessMode,
+}: {
+  clientAccountId: string;
+  catalogAccessMode: "ALL_APPROVED" | "SELECTED";
+}) {
   const router = useRouter();
   const [rules, setRules] = useState<Rule[]>([]);
   const [action, setAction] = useState<Action | null>(null);
@@ -50,8 +56,11 @@ export function ClientCatalogAccessEditor({ clientAccountId }: { clientAccountId
   const included = useMemo(() => rules.filter((rule) => rule.effect === "INCLUDE"), [rules]);
   const excluded = useMemo(() => rules.filter((rule) => rule.effect === "EXCLUDE"), [rules]);
   const configuredTaxonomyIds = useMemo(
-    () => included.filter((rule) => rule.targetType === "TAXONOMY").map((rule) => rule.target.id),
-    [included],
+    () =>
+      rules
+        .filter((rule) => rule.effect === effect && rule.targetType === "TAXONOMY")
+        .map((rule) => rule.target.id),
+    [effect, rules],
   );
 
   const loadRules = useCallback(async () => {
@@ -217,29 +226,45 @@ export function ClientCatalogAccessEditor({ clientAccountId }: { clientAccountId
       <div className="mt-4 grid gap-4 lg:grid-cols-2">
         <section className="rounded-md border bg-white p-3">
           <h4 className="font-semibold">Included catalog</h4>
-          {renderRules(included)}
-          <div className="mt-3 flex flex-wrap gap-2">
-            <ActionButton
-              label="Add Taxonomy"
-              active={action === "INCLUDE_TAXONOMY"}
-              onClick={() => begin("INCLUDE_TAXONOMY")}
-            />
-            <ActionButton
-              label="Add Company"
-              active={action === "INCLUDE_COMPANY"}
-              onClick={() => begin("INCLUDE_COMPANY")}
-            />
-            <ActionButton
-              label="Add Product"
-              active={action === "INCLUDE_PRODUCT"}
-              onClick={() => begin("INCLUDE_PRODUCT")}
-            />
-          </div>
+          {catalogAccessMode === "ALL_APPROVED" ? (
+            <div className="mt-2 rounded-md border border-emerald-200 bg-emerald-50 p-3">
+              <p className="font-semibold text-emerald-950">Entire catalog</p>
+              <p className="mt-1 text-sm text-emerald-900">
+                All eligible companies, products, and categories are included by default.
+              </p>
+            </div>
+          ) : (
+            <>
+              {renderRules(included)}
+              <div className="mt-3 flex flex-wrap gap-2">
+                <ActionButton
+                  label="Add Taxonomy"
+                  active={action === "INCLUDE_TAXONOMY"}
+                  onClick={() => begin("INCLUDE_TAXONOMY")}
+                />
+                <ActionButton
+                  label="Add Company"
+                  active={action === "INCLUDE_COMPANY"}
+                  onClick={() => begin("INCLUDE_COMPANY")}
+                />
+                <ActionButton
+                  label="Add Product"
+                  active={action === "INCLUDE_PRODUCT"}
+                  onClick={() => begin("INCLUDE_PRODUCT")}
+                />
+              </div>
+            </>
+          )}
         </section>
         <section className="rounded-md border bg-white p-3">
           <h4 className="font-semibold">Excluded catalog</h4>
           {renderRules(excluded)}
           <div className="mt-3 flex flex-wrap gap-2">
+            <ActionButton
+              label="Exclude Taxonomy"
+              active={action === "EXCLUDE_TAXONOMY"}
+              onClick={() => begin("EXCLUDE_TAXONOMY")}
+            />
             <ActionButton
               label="Exclude Company"
               active={action === "EXCLUDE_COMPANY"}
@@ -262,9 +287,11 @@ export function ClientCatalogAccessEditor({ clientAccountId }: { clientAccountId
             onClear={() => undefined}
             selectionMode="ANY_LEVEL"
             clientAccountId={clientAccountId}
+            visibilityEffect={effect}
             configuredSelectionIds={configuredTaxonomyIds}
-            title="Add taxonomy include"
-            helperText="Choose any Segment, Family, Class, or Brick. Descendants are included automatically."
+            configuredSelectionLabel={effect === "EXCLUDE" ? "Excluded" : "Included"}
+            title={effect === "EXCLUDE" ? "Exclude taxonomy" : "Add taxonomy include"}
+            helperText={`Choose any Segment, Family, Class, or Brick. Descendants are ${effect === "EXCLUDE" ? "excluded" : "included"} automatically.`}
             clearLabel=""
           />
         </div>

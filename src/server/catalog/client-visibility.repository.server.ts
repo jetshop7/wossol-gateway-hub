@@ -71,6 +71,15 @@ export async function findClientVisibleProductIds(
           AND (
             (exclude_rule.target_type = 'COMPANY' AND exclude_rule.company_id = p.company_id)
             OR (exclude_rule.target_type = 'PRODUCT' AND exclude_rule.product_id = p.id)
+            OR (
+              exclude_rule.target_type = 'TAXONOMY'
+              AND EXISTS (
+                SELECT 1
+                FROM product_taxonomy_ancestors AS excluded_ancestor
+                WHERE excluded_ancestor.product_id = p.id
+                  AND excluded_ancestor.node_id = exclude_rule.taxonomy_node_id
+              )
+            )
           )
       )
     ORDER BY p.name ASC, p.id ASC

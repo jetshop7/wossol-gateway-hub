@@ -30,20 +30,24 @@ export function TaxonomySelector({
   onClear,
   selectionMode = "BRICK",
   clientAccountId,
+  visibilityEffect = "INCLUDE",
   title = "Product classification",
   helperText = "Classification is optional.",
   clearLabel = "Clear classification",
   configuredSelectionIds = [],
+  configuredSelectionLabel,
 }: {
   selected: AdminTaxonomySelection | null;
   onSelect: (selection: AdminTaxonomySelection) => void;
   onClear: () => void;
   selectionMode?: "BRICK" | "ANY_LEVEL";
   clientAccountId?: string;
+  visibilityEffect?: "INCLUDE" | "EXCLUDE";
   title?: string;
   helperText?: string;
   clearLabel?: string;
   configuredSelectionIds?: readonly string[];
+  configuredSelectionLabel?: string;
 }) {
   const [mode, setMode] = useState<Mode>("search");
   const [query, setQuery] = useState("");
@@ -70,7 +74,7 @@ export function TaxonomySelector({
       const runSearch = async () => {
         if (selectionMode === "ANY_LEVEL" && clientAccountId) {
           const result = await searchAdminVisibilityTaxonomyFn({
-            data: { clientAccountId, query: searchText },
+            data: { clientAccountId, effect: visibilityEffect, query: searchText },
           });
           if (!cancelled && result.ok) setSearchResults(result.targets);
           return;
@@ -90,7 +94,7 @@ export function TaxonomySelector({
       cancelled = true;
       clearTimeout(timeout);
     };
-  }, [clientAccountId, mode, query, selectionMode]);
+  }, [clientAccountId, mode, query, selectionMode, visibilityEffect]);
 
   useEffect(() => {
     if (mode !== "browse") return;
@@ -100,7 +104,12 @@ export function TaxonomySelector({
     const browseRequest =
       selectionMode === "ANY_LEVEL" && clientAccountId
         ? browseAdminVisibilityTaxonomyNodesFn({
-            data: { clientAccountId, parentId: browseParentId, page: browsePage },
+            data: {
+              clientAccountId,
+              effect: visibilityEffect,
+              parentId: browseParentId,
+              page: browsePage,
+            },
           })
         : browseAdminTaxonomyNodesFn({ data: { parentId: browseParentId, page: browsePage } });
     void browseRequest
@@ -121,7 +130,7 @@ export function TaxonomySelector({
     return () => {
       cancelled = true;
     };
-  }, [browsePage, browseParentId, clientAccountId, mode, selectionMode]);
+  }, [browsePage, browseParentId, clientAccountId, mode, selectionMode, visibilityEffect]);
 
   const navigateBrowse = (crumbs: BrowseNode[]) => {
     setBrowseCrumbs(crumbs);
@@ -302,6 +311,9 @@ export function TaxonomySelector({
             ) : browseNodes.length ? (
               browseNodes.map((node) => {
                 const alreadyConfigured = configuredSelectionIds.includes(node.id);
+                const selectionDisabled =
+                  alreadyConfigured ||
+                  ("selectionDisabled" in node && Boolean(node.selectionDisabled));
                 return selectionMode === "ANY_LEVEL" ? (
                   <div
                     key={node.id}
@@ -313,9 +325,9 @@ export function TaxonomySelector({
                         {levelNames[node.level]} · GPC {node.sourceCode}
                       </span>
                     </span>
-                    {alreadyConfigured ? (
+                    {selectionDisabled ? (
                       <span className="shrink-0 text-xs font-semibold text-emerald-700">
-                        Included
+                        {alreadyConfigured ? (configuredSelectionLabel ?? "Included") : "Covered"}
                       </span>
                     ) : (
                       <button
@@ -374,7 +386,7 @@ export function TaxonomySelector({
           )}
           <p className="mt-1 text-xs text-slate-500">
             {selectionMode === "ANY_LEVEL"
-              ? "Select any level; its descendant categories are included automatically."
+              ? `Select any level; its descendant categories are ${visibilityEffect === "EXCLUDE" ? "excluded" : "included"} automatically.`
               : "Choose a Segment, then a Family, Class, and finally a Brick."}
           </p>
         </div>

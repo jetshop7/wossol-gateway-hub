@@ -39,10 +39,12 @@ Admin-created and edited accounts must be assigned an active profile. New
 accounts have price visibility off and catalog access disabled until an Admin
 opts in.
 
-Catalog access has a separate enabled/disabled status and an `ALL_APPROVED` or
-`SELECTED` mode. Visibility rules are sparse and typed as `INCLUDE` or
+Catalog access has a separate enabled/disabled status and an `ALL_APPROVED`
+(Admin label: Entire catalog) or `SELECTED` (Admin label: Selective catalog)
+mode. Entire catalog is the single account-level default-access state, never a
+set of generated Include rows. Visibility rules are sparse and typed as `INCLUDE` or
 `EXCLUDE`, with one target per rule: canonical GS1 GPC taxonomy node, Company,
-or Product. Taxonomy includes may target a Segment, Family, Class, or Brick;
+or Product. Taxonomy includes or exclusions may target a Segment, Family, Class, or Brick;
 the selected node is stored once and descendants are traversed dynamically
 from the canonical parent hierarchy. Descendant rows are never materialized.
 
@@ -51,10 +53,15 @@ unioned. A Company include covers its published Products, while Product and
 taxonomy includes are exact Product or descendant-branch matches. With no
 matching include, the Product is not visible. In `ALL_APPROVED` mode, approved
 published Products under active Companies are eligible without include rules.
-In both modes, Company and Product exclusions are applied afterward and always
+In both modes, Taxonomy, Company, and Product exclusions are applied afterward and always
 win. Products are not duplicated for Clients. Candidate searches omit targets
 already configured for the same effect/target context; database uniqueness
 constraints remain the final concurrency safeguard.
+
+Switching to Entire catalog transactionally removes selective Includes while
+retaining Excludes. Switching back to Selective catalog removes any dormant
+Includes and starts without default access; explicit Includes must be added
+afterward.
 
 The server-side visibility query checks that the Client Account is active,
 catalog access is enabled, the Product is published, and its Company is active.

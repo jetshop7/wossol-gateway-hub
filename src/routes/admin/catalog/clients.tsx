@@ -79,6 +79,14 @@ function ClientAccountsPage() {
 
   const save = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    const existingMode = clients.find((client) => client.id === editingId)?.catalogAccessMode;
+    if (existingMode && existingMode !== form.catalogAccessMode) {
+      const warning =
+        form.catalogAccessMode === "ALL_APPROVED"
+          ? "Entire catalog access includes all eligible published content. Existing Include rules will be removed; exclusions will remain. Continue?"
+          : "Switching to Selective catalog will stop default access. Only explicitly added Include rules will grant access. Continue?";
+      if (!window.confirm(warning)) return;
+    }
     setBusy(true);
     setError("");
     try {
@@ -195,7 +203,7 @@ function ClientAccountsPage() {
               <option value="ENABLED">Enabled</option>
             </select>
           </Field>
-          <Field label="Catalog visibility policy">
+          <Field label="Catalog access mode">
             <select
               value={form.catalogAccessMode}
               onChange={(event) =>
@@ -205,10 +213,15 @@ function ClientAccountsPage() {
                 })
               }
             >
-              <option value="SELECTED">Selected companies / products</option>
-              <option value="ALL_APPROVED">All approved catalog products</option>
+              <option value="SELECTED">Selective catalog</option>
+              <option value="ALL_APPROVED">Entire catalog</option>
             </select>
           </Field>
+          <p className="text-xs text-slate-500 sm:col-span-2">
+            {form.catalogAccessMode === "ALL_APPROVED"
+              ? "All eligible published catalog content is included by default. Exclusions can narrow access."
+              : "Only explicitly included taxonomy, companies, or products are available. Exclusions still take precedence."}
+          </p>
           <label className="flex items-center gap-2 self-end rounded-md border p-3 text-sm">
             <input
               type="checkbox"
@@ -261,7 +274,7 @@ function ClientAccountsPage() {
                   Prices {client.pricesVisible ? "visible" : "hidden"} · Catalog{" "}
                   {client.catalogAccessStatus.toLowerCase()} ·{" "}
                   {client.catalogAccessMode === "ALL_APPROVED"
-                    ? "all approved products"
+                    ? "entire catalog"
                     : `${client.visibilityRuleCount} selected visibility rule(s)`}
                 </p>
               </div>
@@ -282,7 +295,10 @@ function ClientAccountsPage() {
                 {expandedAccessId === client.id ? "Close access rules" : "Manage access rules"}
               </button>
               {expandedAccessId === client.id && (
-                <ClientCatalogAccessEditor clientAccountId={client.id} />
+                <ClientCatalogAccessEditor
+                  clientAccountId={client.id}
+                  catalogAccessMode={client.catalogAccessMode}
+                />
               )}
             </article>
           ))
