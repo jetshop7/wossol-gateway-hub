@@ -30,22 +30,30 @@ const userSelect = {
   clientAccountId: true,
   displayName: true,
   email: true,
+  designation: true,
   status: true,
   createdAt: true,
   updatedAt: true,
 } as const;
 
-export async function buildClientUserCreationData(clientAccountId: unknown, input: unknown) {
-  const accountId = accountIdSchema.parse(clientAccountId);
+export async function buildClientUserCredentialData(input: unknown) {
   const data = clientUserInput.parse(input);
   const passwordError = validatePassword(data.password);
   if (passwordError) throw new Error(passwordError);
   return {
-    clientAccountId: accountId,
     displayName: data.displayName,
     email: data.email,
     status: data.status,
     passwordHash: await hashPassword(data.password),
+  };
+}
+
+export async function buildClientUserCreationData(clientAccountId: unknown, input: unknown) {
+  const accountId = accountIdSchema.parse(clientAccountId);
+  return {
+    clientAccountId: accountId,
+    ...(await buildClientUserCredentialData(input)),
+    designation: "CLIENT_USER" as const,
   };
 }
 

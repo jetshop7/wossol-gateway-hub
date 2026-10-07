@@ -17,6 +17,11 @@ const clientInput = z.object({
   catalogAccessStatus: z.enum(["ENABLED", "DISABLED"]),
   catalogAccessMode: z.enum(["ALL_APPROVED", "SELECTED"]),
 });
+const primaryClientAdminInput = z.object({
+  displayName: z.string().trim().min(1).max(120),
+  email: z.string().trim().email().max(320),
+  password: z.string().min(12).max(256),
+});
 const clientUserInput = z.object({
   displayName: z.string().trim().min(1).max(120),
   email: z.string().trim().email().max(320),
@@ -115,7 +120,7 @@ export const listAdminClientAccountsFn = createServerFn({ method: "GET" }).handl
 });
 
 export const createAdminClientAccountFn = createServerFn({ method: "POST" })
-  .validator(clientInput)
+  .validator(clientInput.extend({ primaryAdmin: primaryClientAdminInput }))
   .handler(async ({ data }) => {
     const actor = await guard("catalog.client.manage", true);
     try {
@@ -123,6 +128,8 @@ export const createAdminClientAccountFn = createServerFn({ method: "POST" })
         await import("../../server/catalog/client-management.repository.server.ts");
       return { ok: true as const, client: await createAdminClientAccount(data, actor.userId) };
     } catch (error) {
+      const duplicateEmail = duplicateClientUserEmailMessage(error);
+      if (duplicateEmail) return { ok: false as const, error: duplicateEmail };
       return safeFailure(error);
     }
   });

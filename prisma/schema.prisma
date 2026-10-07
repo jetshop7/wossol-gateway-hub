@@ -110,6 +110,11 @@ enum ClientUserStatus {
   DISABLED
 }
 
+enum ClientUserDesignation {
+  PRIMARY_ADMIN
+  CLIENT_USER
+}
+
 enum AuthActorType {
   INTERNAL
   CLIENT
@@ -454,14 +459,15 @@ model ClientCatalogVisibilityRule {
 }
 
 model ClientUser {
-  id              String           @id @default(uuid()) @db.Uuid
-  clientAccountId String           @map("client_account_id") @db.Uuid
-  email           String           @unique
-  displayName     String           @map("display_name")
-  passwordHash    String           @map("password_hash")
-  status          ClientUserStatus @default(ACTIVE)
-  createdAt       DateTime         @default(now()) @map("created_at")
-  updatedAt       DateTime         @updatedAt @map("updated_at")
+  id              String                @id @default(uuid()) @db.Uuid
+  clientAccountId String                @map("client_account_id") @db.Uuid
+  email           String                @unique
+  displayName     String                @map("display_name")
+  passwordHash    String                @map("password_hash")
+  designation     ClientUserDesignation @default(CLIENT_USER)
+  status          ClientUserStatus      @default(ACTIVE)
+  createdAt       DateTime              @default(now()) @map("created_at")
+  updatedAt       DateTime              @updatedAt @map("updated_at")
 
   clientAccount ClientAccount    @relation(fields: [clientAccountId], references: [id], onDelete: Restrict)
   sessions      AuthSession[]

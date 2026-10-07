@@ -42,6 +42,14 @@ type ClientForm = {
   catalogAccessMode: "ALL_APPROVED" | "SELECTED";
 };
 
+type PrimaryAdminForm = {
+  displayName: string;
+  email: string;
+  password: string;
+};
+
+const emptyPrimaryAdmin = (): PrimaryAdminForm => ({ displayName: "", email: "", password: "" });
+
 function ClientAccountsPage() {
   const result = Route.useLoaderData();
   const router = useRouter();
@@ -56,6 +64,7 @@ function ClientAccountsPage() {
     catalogAccessMode: "SELECTED",
   });
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [primaryAdmin, setPrimaryAdmin] = useState<PrimaryAdminForm>(emptyPrimaryAdmin);
   const [showForm, setShowForm] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -64,6 +73,7 @@ function ClientAccountsPage() {
   const [confirmModeChange, setConfirmModeChange] = useState(false);
   const beginCreate = () => {
     setEditingId(null);
+    setPrimaryAdmin(emptyPrimaryAdmin());
     setForm({
       name: "",
       status: "ACTIVE",
@@ -78,6 +88,7 @@ function ClientAccountsPage() {
 
   const edit = (client: (typeof clients)[number]) => {
     setEditingId(client.id);
+    setPrimaryAdmin(emptyPrimaryAdmin());
     setForm({
       name: client.name,
       status: client.status === "ACTIVE" ? "ACTIVE" : "INACTIVE",
@@ -102,7 +113,7 @@ function ClientAccountsPage() {
             headers: { "x-wossol-csrf": readCsrfToken() ?? "" },
           })
         : await createAdminClientAccountFn({
-            data: form,
+            data: { ...form, primaryAdmin },
             headers: { "x-wossol-csrf": readCsrfToken() ?? "" },
           });
       if (!response.ok) {
@@ -111,6 +122,7 @@ function ClientAccountsPage() {
       }
       setShowForm(false);
       setEditingId(null);
+      setPrimaryAdmin(emptyPrimaryAdmin());
       await router.invalidate();
     } catch {
       setError("Client Account could not be saved.");
@@ -127,6 +139,12 @@ function ClientAccountsPage() {
       return;
     }
     await performSave();
+  };
+
+  const cancelForm = () => {
+    setShowForm(false);
+    setPrimaryAdmin(emptyPrimaryAdmin());
+    setError("");
   };
 
   return (
@@ -168,7 +186,7 @@ function ClientAccountsPage() {
       {showForm && (
         <form onSubmit={save} className="grid gap-4 rounded-xl border bg-white p-5 sm:grid-cols-2">
           <h2 className="text-lg font-semibold sm:col-span-2">
-            {editingId ? "Edit Client Account" : "Create Client Account"}
+            {editingId ? "Edit Client Account" : "Create Client Account & Primary Admin"}
           </h2>
           <Field label="Client / company name *">
             <input
@@ -178,6 +196,53 @@ function ClientAccountsPage() {
               onChange={(event) => setForm({ ...form, name: event.target.value })}
             />
           </Field>
+          {!editingId && (
+            <>
+              <div className="sm:col-span-2 border-t pt-4">
+                <h3 className="font-semibold text-slate-900">Primary Client Admin sign-in</h3>
+                <p className="mt-1 text-xs text-slate-500">
+                  This creates the account’s first Client login in the same save. No invitation
+                  email is sent; share the initial password through an approved secure channel.
+                </p>
+              </div>
+              <Field label="Primary Admin display name *">
+                <input
+                  required
+                  maxLength={120}
+                  autoComplete="name"
+                  value={primaryAdmin.displayName}
+                  onChange={(event) =>
+                    setPrimaryAdmin({ ...primaryAdmin, displayName: event.target.value })
+                  }
+                />
+              </Field>
+              <Field label="Primary Admin email *">
+                <input
+                  required
+                  type="email"
+                  maxLength={320}
+                  autoComplete="email"
+                  value={primaryAdmin.email}
+                  onChange={(event) =>
+                    setPrimaryAdmin({ ...primaryAdmin, email: event.target.value })
+                  }
+                />
+              </Field>
+              <Field label="Initial password *">
+                <input
+                  required
+                  type="password"
+                  minLength={12}
+                  maxLength={256}
+                  autoComplete="new-password"
+                  value={primaryAdmin.password}
+                  onChange={(event) =>
+                    setPrimaryAdmin({ ...primaryAdmin, password: event.target.value })
+                  }
+                />
+              </Field>
+            </>
+          )}
           <Field label="Price Profile *">
             <select
               required
@@ -247,8 +312,8 @@ function ClientAccountsPage() {
             Client may see prices
           </label>
           <p className="text-xs text-slate-500 sm:col-span-2">
-            New accounts default to hidden prices and disabled catalog access. Client sign-in
-            credentials remain managed through the existing Client User system.
+            New accounts default to hidden prices and disabled catalog access. Client credentials
+            are separate from Wossol Admin credentials and sign in at /client/login.
           </p>
           <div className="flex gap-2 sm:col-span-2">
             <button
@@ -257,11 +322,7 @@ function ClientAccountsPage() {
             >
               {busy ? "Saving…" : "Save Client"}
             </button>
-            <button
-              type="button"
-              onClick={() => setShowForm(false)}
-              className="rounded border px-4 py-2 text-sm"
-            >
+            <button type="button" onClick={cancelForm} className="rounded border px-4 py-2 text-sm">
               Cancel
             </button>
           </div>

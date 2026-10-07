@@ -12,6 +12,7 @@ type ClientUserRow = {
   id: string;
   displayName: string;
   email: string;
+  designation: "PRIMARY_ADMIN" | "CLIENT_USER";
   status: "ACTIVE" | "DISABLED";
 };
 type UserForm = {
@@ -233,6 +234,11 @@ export function ClientAccountUsersPanel({
               <div>
                 <p className="font-medium text-slate-900">{user.displayName}</p>
                 <p className="text-sm text-slate-600">{user.email}</p>
+                {user.designation === "PRIMARY_ADMIN" && (
+                  <span className="mt-1 inline-block rounded-full bg-blue-50 px-2 py-0.5 text-xs text-blue-800">
+                    Primary Client Admin
+                  </span>
+                )}
                 <span
                   className={`mt-1 inline-block rounded-full px-2 py-0.5 text-xs ${user.status === "ACTIVE" ? "bg-emerald-50 text-emerald-800" : "bg-slate-100 text-slate-600"}`}
                 >

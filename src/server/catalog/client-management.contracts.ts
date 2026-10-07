@@ -17,6 +17,21 @@ export const clientAccountInputSchema = z.object({
   catalogAccessMode: z.enum(["ALL_APPROVED", "SELECTED"]),
 });
 
+export const primaryClientAdminInputSchema = z.object({
+  displayName: z.string().trim().min(1).max(120),
+  email: z
+    .string()
+    .trim()
+    .email()
+    .max(320)
+    .transform((value) => value.toLowerCase()),
+  password: z.string().min(12).max(256),
+});
+
+export const clientAccountOnboardingInputSchema = clientAccountInputSchema.extend({
+  primaryAdmin: primaryClientAdminInputSchema,
+});
+
 export type PriceProfileDuplicateSource = {
   description: string | null;
   defaultAdjustment: Prisma.Decimal;

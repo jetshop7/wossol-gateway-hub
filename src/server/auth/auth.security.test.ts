@@ -134,6 +134,37 @@ test("active Client User authenticates only to its Client Account and receives a
   assert.equal("passwordHash" in result.actor, false);
 });
 
+test("Primary Client Admin credentials authenticate through Client login, never Admin login", async () => {
+  const credentials = {
+    email: "primary@example.com",
+    password: "a secure initial password",
+  };
+  const passwordHash = await hashPassword(credentials.password);
+  const clientRepository = fakeRepository(null, {
+    id: "primary-client-user",
+    clientAccountId: "account-1",
+    email: credentials.email,
+    passwordHash,
+    status: "ACTIVE",
+    clientAccount: { status: "ACTIVE" },
+  });
+  const clientResult = await authenticateClient(credentials.email, credentials.password, {
+    repository: clientRepository,
+  });
+  assert.equal(clientResult.actor.actorType, "CLIENT");
+  assert.equal(clientResult.actor.clientAccountId, "account-1");
+
+  const adminRepository = fakeRepository(null);
+  await assert.rejects(
+    () =>
+      authenticateInternal(credentials.email, credentials.password, {
+        repository: adminRepository,
+      }),
+    (error: Error) => error.message === GENERIC_LOGIN_FAILURE,
+  );
+  assert.equal(adminRepository.sessions.length, 0);
+});
+
 test("wrong Client User credentials fail with the same bounded error", async () => {
   const repository = fakeRepository(null, {
     id: "client-user-1",

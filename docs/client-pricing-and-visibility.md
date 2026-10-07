@@ -84,3 +84,35 @@ overrides is deliberately deferred to C-007A2; this milestone provides its
 audited server API and data model. No client-facing catalog or login UI is part
 of C-007A. Platform-wide EN/FR/AR localization remains separate and taxonomy
 translation behavior is unchanged.
+
+## Client account onboarding and future partner hierarchy
+
+The normal Admin **Add Client Account** operation creates the Client Account
+and its initial `PRIMARY_ADMIN` Client User together in one database
+transaction. The initial password is stored only as the existing one-way
+password hash. Client credentials authenticate through `/client/login` and are
+not accepted by Wossol Admin authentication. Existing users are retained and
+receive the safe `CLIENT_USER` designation when the designation field is
+introduced. Manage Users remains an internal Wossol support capability; it is
+not required to provision a new account's first login.
+
+Future partner model (documented, not implemented in this milestone):
+
+```text
+Wossol
+└── Client Account / Partner Company
+    └── Primary Client Admin
+        └── partner-managed Users / Sub-admins
+            └── partner-managed Downstream Clients
+```
+
+Future partner users may manage their own users and downstream clients, select
+downstream catalog visibility within the parent account's Wossol-authorized
+scope, and define separate derived downstream selling prices. Parent
+permissions are always an upper bound: a partner cannot grant products,
+companies, taxonomy, prices, or capabilities that Wossol did not grant to the
+parent account. Partners must never modify Wossol's original/internal price
+records. Any downstream pricing policy is a separate layer derived from the
+price available to the parent. Downstream accounts, delegated catalog
+administration, partner pricing, and full partner RBAC are future work and are
+not part of this implementation.

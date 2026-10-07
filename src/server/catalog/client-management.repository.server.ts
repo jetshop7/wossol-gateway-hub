@@ -6,6 +6,8 @@ import {
   clientAccountInputSchema,
   priceProfileInputSchema,
 } from "./client-management.contracts.ts";
+import { createClientAccountOnboardingWithPersistence } from "./client-onboarding.server.ts";
+import type { buildClientUserCredentialData } from "./client-users.repository.server.ts";
 import { activeGs1TaxonomyNodeWhere } from "./catalog.taxonomy.ts";
 import {
   assertVisibilityTargetCanBeAdded,
@@ -200,7 +202,12 @@ export async function listAdminClientAccounts() {
   return rows.map(clientDto);
 }
 
-async function saveClientAccount(input: unknown, actorId: string, id?: string) {
+async function saveClientAccount(
+  input: unknown,
+  actorId: string,
+  id?: string,
+  primaryAdminData?: Awaited<ReturnType<typeof buildClientUserCredentialData>>,
+) {
   const data = clientAccountInputSchema.parse(input);
   const prisma = getWossolExportPrisma();
   return prisma
@@ -280,6 +287,33 @@ async function saveClientAccount(input: unknown, actorId: string, id?: string) {
         ? await tx.clientAccount.update({ where: { id }, data: values, select: { id: true } })
         : await tx.clientAccount.create({ data: values, select: { id: true } });
 
+      if (primaryAdminData) {
+        const primaryAdmin = await tx.clientUser.create({
+          data: {
+            ...primaryAdminData,
+            clientAccountId: account.id,
+            designation: "PRIMARY_ADMIN",
+          },
+          select: { id: true, email: true, status: true },
+        });
+        await tx.authAuditEvent.create({
+          data: {
+            action: "CLIENT_USER_CREATED",
+            actorType: "INTERNAL",
+            internalUserId: actorId,
+            clientAccountId: account.id,
+            clientUserId: primaryAdmin.id,
+            entityType: "CLIENT_USER",
+            entityId: primaryAdmin.id,
+            metadata: {
+              email: primaryAdmin.email,
+              status: primaryAdmin.status,
+              designation: "PRIMARY_ADMIN",
+            },
+          },
+        });
+      }
+
       if (id && data.status !== "ACTIVE") {
         await tx.authSession.updateMany({
           where: { clientAccountId: id, revokedAt: null },
@@ -337,7 +371,12 @@ async function saveClientAccount(input: unknown, actorId: string, id?: string) {
 }
 
 export function createAdminClientAccount(input: unknown, actorId: string) {
-  return saveClientAccount(input, actorId);
+  return createClientAccountOnboardingWithPersistence(
+    input,
+    actorId,
+    (account, primaryAdmin, creatorId) =>
+      saveClientAccount(account, creatorId, undefined, primaryAdmin),
+  );
 }
 
 export function updateAdminClientAccount(id: string, input: unknown, actorId: string) {
