@@ -2,6 +2,7 @@ import { useState } from "react";
 import { ArrowLeft, Check, Copy, Heart, Image as ImageIcon, X } from "lucide-react";
 
 import type { ClientCatalogProductDto, ClientCatalogVariantDto } from "@/lib/client-catalog-types";
+import { clientCountryLabel } from "@/lib/countries";
 
 const fieldLabels: Record<string, string> = {
   netQuantity: "Net content",
@@ -223,7 +224,9 @@ export function ClientCatalogProductDetail({
         {product.countryOfOrigin && (
           <p className="mt-5 text-sm text-blue-100">
             Country of origin:{" "}
-            <span className="font-semibold text-white">{product.countryOfOrigin}</span>
+            <span className="font-semibold text-white">
+              {clientCountryLabel(product.countryOfOrigin)}
+            </span>
           </p>
         )}
       </section>

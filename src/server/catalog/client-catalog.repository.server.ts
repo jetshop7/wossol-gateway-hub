@@ -79,26 +79,38 @@ export async function getClientCatalog(
           source: true,
           sourceCode: true,
           level: true,
-          translations: { where: { languageCode: "en" }, select: { name: true }, take: 1 },
+          translations: {
+            where: { languageCode: { equals: "en", mode: "insensitive" } },
+            select: { name: true },
+            take: 1,
+          },
           parent: {
             select: {
               source: true,
               sourceCode: true,
               level: true,
-              translations: { where: { languageCode: "en" }, select: { name: true }, take: 1 },
+              translations: {
+                where: { languageCode: { equals: "en", mode: "insensitive" } },
+                select: { name: true },
+                take: 1,
+              },
               parent: {
                 select: {
                   source: true,
                   sourceCode: true,
                   level: true,
-                  translations: { where: { languageCode: "en" }, select: { name: true }, take: 1 },
+                  translations: {
+                    where: { languageCode: { equals: "en", mode: "insensitive" } },
+                    select: { name: true },
+                    take: 1,
+                  },
                   parent: {
                     select: {
                       source: true,
                       sourceCode: true,
                       level: true,
                       translations: {
-                        where: { languageCode: "en" },
+                        where: { languageCode: { equals: "en", mode: "insensitive" } },
                         select: { name: true },
                         take: 1,
                       },
@@ -326,32 +338,44 @@ export async function getClientTaxonomyCategories(
       sourceVersion: release.sourceVersion,
       status: "ACTIVE",
       parentId,
-      translations: { some: { languageCode: "en", name: { not: "" } } },
+      translations: {
+        some: {
+          languageCode: { equals: "en", mode: "insensitive" },
+          name: { not: "" },
+        },
+      },
     },
     select: {
       sourceCode: true,
       level: true,
-      translations: { where: { languageCode: "en" }, select: { name: true }, take: 1 },
+      translations: {
+        where: { languageCode: { equals: "en", mode: "insensitive" } },
+        select: { name: true },
+        take: 1,
+      },
     },
     orderBy: { sourceCode: "asc" },
-    take: 100,
   });
-  const visible = await Promise.all(
-    candidates.map(async (node) => ({
-      node,
-      hasProducts: Boolean(
-        (
-          await findClientVisibleProductIds(clientAccountId, {
-            taxonomyCode: node.sourceCode,
-            taxonomyLevel: node.level,
-            take: 1,
-          })
-        ).length,
-      ),
-    })),
-  );
-  return visible.flatMap(({ node, hasProducts }) => {
+  const visible: Array<(typeof candidates)[number]> = [];
+  for (let offset = 0; offset < candidates.length; offset += 20) {
+    const batch = await Promise.all(
+      candidates.slice(offset, offset + 20).map(async (node) => {
+        const hasProducts = Boolean(
+          (
+            await findClientVisibleProductIds(clientAccountId, {
+              taxonomyCode: node.sourceCode,
+              taxonomyLevel: node.level,
+              take: 1,
+            })
+          ).length,
+        );
+        return hasProducts ? node : null;
+      }),
+    );
+    visible.push(...batch.filter((node): node is (typeof candidates)[number] => node !== null));
+  }
+  return visible.flatMap((node) => {
     const name = node.translations[0]?.name;
-    return hasProducts && name ? [{ code: node.sourceCode, level: node.level, name }] : [];
+    return name ? [{ code: node.sourceCode, level: node.level, name }] : [];
   });
 }

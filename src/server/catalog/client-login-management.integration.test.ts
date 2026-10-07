@@ -16,40 +16,48 @@ test(
     const suffix = randomUUID();
     const internalEmail = `internal-${suffix}@example.test`;
     const clientEmail = `client-${suffix}@example.test`;
-    const internalUser = await prisma.internalUser.create({
-      data: {
-        email: internalEmail,
-        displayName: "C-008B integration Admin",
-        passwordHash: "not-used-by-this-test",
-      },
-      select: { id: true },
-    });
-    const account = await prisma.clientAccount.create({
-      data: { name: `C-008B login integration ${suffix}`, status: "ACTIVE" },
-      select: { id: true },
-    });
-    const clientUser = await prisma.clientUser.create({
-      data: {
-        clientAccountId: account.id,
-        email: clientEmail,
-        displayName: "Before update",
-        passwordHash: "old-password-hash",
-        designation: "PRIMARY_ADMIN",
-      },
-      select: { id: true },
-    });
-    const session = await prisma.authSession.create({
-      data: {
-        tokenHash: `c008b-${suffix}`,
-        actorType: "CLIENT",
-        clientUserId: clientUser.id,
-        clientAccountId: account.id,
-        expiresAt: new Date(Date.now() + 60 * 60 * 1000),
-      },
-      select: { id: true },
-    });
-
+    let internalUserId: string | undefined;
+    let accountId: string | undefined;
+    let clientUserId: string | undefined;
+    let sessionId: string | undefined;
     try {
+      const internalUser = await prisma.internalUser.create({
+        data: {
+          email: internalEmail,
+          displayName: "C-008B integration Admin",
+          passwordHash: "not-used-by-this-test",
+        },
+        select: { id: true },
+      });
+      internalUserId = internalUser.id;
+      const account = await prisma.clientAccount.create({
+        data: { name: `C-008B login integration ${suffix}`, status: "ACTIVE" },
+        select: { id: true },
+      });
+      accountId = account.id;
+      const clientUser = await prisma.clientUser.create({
+        data: {
+          clientAccountId: account.id,
+          email: clientEmail,
+          displayName: "Before update",
+          passwordHash: "old-password-hash",
+          designation: "PRIMARY_ADMIN",
+        },
+        select: { id: true },
+      });
+      clientUserId = clientUser.id;
+      const session = await prisma.authSession.create({
+        data: {
+          tokenHash: `c008b-${suffix}`,
+          actorType: "CLIENT",
+          clientUserId: clientUser.id,
+          clientAccountId: account.id,
+          expiresAt: new Date(Date.now() + 60 * 60 * 1000),
+        },
+        select: { id: true },
+      });
+      sessionId = session.id;
+
       const updated = await saveAdminPrimaryClientLogin(
         account.id,
         {
@@ -98,11 +106,21 @@ test(
           error instanceof Error && error.name === "ClientLoginEmailCollisionError",
       );
     } finally {
-      await prisma.authSession.deleteMany({ where: { id: session.id } });
-      await prisma.authAuditEvent.deleteMany({ where: { entityId: clientUser.id } });
-      await prisma.clientUser.deleteMany({ where: { id: clientUser.id } });
-      await prisma.clientAccount.deleteMany({ where: { id: account.id } });
-      await prisma.internalUser.deleteMany({ where: { id: internalUser.id } });
+      if (sessionId) await prisma.authSession.deleteMany({ where: { id: sessionId } });
+      if (clientUserId || accountId || internalUserId) {
+        await prisma.authAuditEvent.deleteMany({
+          where: {
+            OR: [
+              ...(clientUserId ? [{ entityId: clientUserId }, { clientUserId }] : []),
+              ...(accountId ? [{ clientAccountId: accountId }] : []),
+              ...(internalUserId ? [{ internalUserId }] : []),
+            ],
+          },
+        });
+      }
+      if (clientUserId) await prisma.clientUser.deleteMany({ where: { id: clientUserId } });
+      if (accountId) await prisma.clientAccount.deleteMany({ where: { id: accountId } });
+      if (internalUserId) await prisma.internalUser.deleteMany({ where: { id: internalUserId } });
     }
   },
 );

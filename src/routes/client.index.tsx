@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createFileRoute, redirect, useRouter } from "@tanstack/react-router";
 import { ChevronLeft, ChevronRight, LogOut, PackageSearch, Search } from "lucide-react";
 
@@ -45,6 +45,7 @@ function ClientArea() {
   const [favoriteBusy, setFavoriteBusy] = useState<string | null>(null);
   const selectedCategory = path.at(-1) ?? null;
 
+  const categoryRequest = useRef(0);
   const queryData = (skip: number) => ({
     ...(query.trim() ? { search: query.trim() } : {}),
     ...(selectedCategory
@@ -53,59 +54,49 @@ function ClientArea() {
     skip,
   });
 
-  const search = async (event?: FormEvent) => {
-    event?.preventDefault();
+  useEffect(() => {
+    let cancelled = false;
     setLoading(true);
-    try {
-      setCatalog(await getClientCatalogFn({ data: queryData(0) }));
-    } finally {
-      setLoading(false);
-    }
-  };
+    const timer = window.setTimeout(() => {
+      void getClientCatalogFn({
+        data: {
+          ...(query.trim() ? { search: query.trim() } : {}),
+          ...(selectedCategory
+            ? { taxonomyCode: selectedCategory.code, taxonomyLevel: selectedCategory.level }
+            : {}),
+          skip: 0,
+        },
+      })
+        .then((nextCatalog) => {
+          if (!cancelled) setCatalog(nextCatalog);
+        })
+        .catch(() => {
+          // Preserve the last authorized results if a transient search request fails.
+        })
+        .finally(() => {
+          if (!cancelled) setLoading(false);
+        });
+    }, 275);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [query, selectedCategory]);
 
   const browse = async (category: ClientTaxonomyCategory) => {
     const nextPath = [...path, category];
     setPath(nextPath);
-    setLoading(true);
-    try {
-      const [nextCatalog, children] = await Promise.all([
-        getClientCatalogFn({
-          data: {
-            ...(query.trim() ? { search: query.trim() } : {}),
-            taxonomyCode: category.code,
-            taxonomyLevel: category.level,
-            skip: 0,
-          },
-        }),
-        getClientTaxonomyCategoriesFn({ data: { parent: category } }),
-      ]);
-      setCatalog(nextCatalog);
-      setCategories(children.categories);
-    } finally {
-      setLoading(false);
-    }
+    const request = ++categoryRequest.current;
+    const children = await getClientTaxonomyCategoriesFn({ data: { parent: category } });
+    if (request === categoryRequest.current) setCategories(children.categories);
   };
 
   const navigateCategory = async (nextPath: ClientTaxonomyCategory[]) => {
     setPath(nextPath);
-    setLoading(true);
-    try {
-      const selected = nextPath.at(-1) ?? null;
-      const [nextCatalog, children] = await Promise.all([
-        getClientCatalogFn({
-          data: {
-            ...(query.trim() ? { search: query.trim() } : {}),
-            ...(selected ? { taxonomyCode: selected.code, taxonomyLevel: selected.level } : {}),
-            skip: 0,
-          },
-        }),
-        getClientTaxonomyCategoriesFn({ data: { parent: selected } }),
-      ]);
-      setCatalog(nextCatalog);
-      setCategories(children.categories);
-    } finally {
-      setLoading(false);
-    }
+    const request = ++categoryRequest.current;
+    const selected = nextPath.at(-1) ?? null;
+    const children = await getClientTaxonomyCategoriesFn({ data: { parent: selected } });
+    if (request === categoryRequest.current) setCategories(children.categories);
   };
 
   const toggleFavorite = async (product: ClientCatalogProductDto) => {
@@ -183,10 +174,7 @@ function ClientArea() {
             Explore approved products, compare available formats, and save products for later.
           </p>
           {catalog.accessEnabled && (
-            <form
-              onSubmit={(event) => void search(event)}
-              className="mt-7 flex max-w-3xl gap-2 rounded-xl bg-white p-2 shadow-xl"
-            >
+            <div className="mt-7 flex max-w-3xl gap-2 rounded-xl bg-white p-2 shadow-xl">
               <label className="flex min-w-0 flex-1 items-center gap-3 px-3 text-slate-400">
                 <Search className="h-5 w-5 shrink-0" />
                 <span className="sr-only">Search products</span>
@@ -197,10 +185,7 @@ function ClientArea() {
                   className="min-w-0 flex-1 border-0 bg-transparent py-2 text-sm text-slate-900 outline-none placeholder:text-slate-400"
                 />
               </label>
-              <button className="rounded-lg bg-[#102c50] px-5 py-2 text-sm font-semibold text-white hover:bg-[#183d67]">
-                Search
-              </button>
-            </form>
+            </div>
           )}
         </section>
 

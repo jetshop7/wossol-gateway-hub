@@ -33,7 +33,41 @@ export async function findClientVisibleProductIds(
     : Prisma.sql`WHERE p.taxonomy_node_id IS NOT NULL`;
   const search = options.search?.trim();
   const searchFilter = search
-    ? Prisma.sql`AND (p.name ILIKE ${`%${search}%`} OR COALESCE(p.short_description, '') ILIKE ${`%${search}%`} OR COALESCE(p.description, '') ILIKE ${`%${search}%`})`
+    ? Prisma.sql`AND (
+        p.name ILIKE ${`%${search}%`}
+        OR COALESCE(p.short_description, '') ILIKE ${`%${search}%`}
+        OR COALESCE(p.description, '') ILIKE ${`%${search}%`}
+        OR COALESCE(p.country_of_origin, '') ILIKE ${`%${search}%`}
+        OR EXISTS (
+          SELECT 1
+          FROM catalog_variants search_variant
+          WHERE search_variant.product_id = p.id
+            AND search_variant.status = 'ACTIVE'
+            AND search_variant.publication_status = 'PUBLISHED'
+            AND (
+              COALESCE(search_variant.name, '') ILIKE ${`%${search}%`}
+              OR COALESCE(search_variant.model, '') ILIKE ${`%${search}%`}
+              OR EXISTS (
+                SELECT 1
+                FROM jsonb_each_text(
+                  CASE
+                    WHEN jsonb_typeof(search_variant.packaging::jsonb) = 'object' THEN search_variant.packaging::jsonb
+                    ELSE '{}'::jsonb
+                  END
+                ) AS client_spec(key, value)
+                WHERE client_spec.key IN (
+                  'netQuantity', 'netQuantityUnit', 'packagingType', 'unitsPerCarton',
+                  'cartonNetWeight', 'cartonGrossWeight', 'cartonLength', 'cartonWidth',
+                  'cartonHeight', 'unitsPerPallet', 'cartonsPerPallet', 'moqQuantity',
+                  'moqUnit', 'productionCapacityQuantity', 'productionCapacityUnit',
+                  'productionCapacityPeriod', 'leadTimeMinimum', 'leadTimeMaximum',
+                  'leadTimeUnit', 'sampleAvailable'
+                )
+                  AND client_spec.value ILIKE ${`%${search}%`}
+              )
+            )
+        )
+      )`
     : Prisma.empty;
   const taxonomyFilter =
     options.taxonomyCode && options.taxonomyLevel
