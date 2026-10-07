@@ -9,6 +9,13 @@ export type ClientVisibilityRule = {
   productId: string | null;
 };
 
+export class ClientVisibilityRuleValidationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "ClientVisibilityRuleValidationError";
+  }
+}
+
 export function buildClientVisibilityRuleCreateData(input: {
   clientAccountId: string;
   effect: ClientVisibilityEffect;
@@ -31,16 +38,86 @@ export function buildClientVisibilityRuleCreateData(input: {
 /** Prisma relation filter prevents re-offering a target already configured in this rule context. */
 export function configuredVisibilityCandidateFilter(input: {
   clientAccountId: string;
-  effect: ClientVisibilityEffect;
+  effect?: ClientVisibilityEffect;
   targetType: ClientVisibilityTarget;
 }) {
   return {
     none: {
       clientAccountId: input.clientAccountId,
-      effect: input.effect,
+      ...(input.effect ? { effect: input.effect } : {}),
       targetType: input.targetType,
     },
   } as const;
+}
+
+export type VisibilityTargetCandidate = {
+  effect: ClientVisibilityEffect;
+  targetType: ClientVisibilityTarget;
+  targetId: string;
+  companyId?: string;
+  taxonomyAncestorIds?: readonly string[];
+  /** Ancestors belonging to published Products of a Company candidate. */
+  companyTaxonomyAncestorIds?: readonly string[];
+};
+
+/** Shared candidate and write policy: exact targets conflict; broader Includes only make Includes redundant. */
+export function isVisibilityTargetCandidateEligible(input: {
+  candidate: VisibilityTargetCandidate;
+  rules: readonly ClientVisibilityRule[];
+}): boolean {
+  const { candidate, rules } = input;
+  const directRuleExists = rules.some((rule) => {
+    if (rule.targetType !== candidate.targetType) return false;
+    if (candidate.targetType === "TAXONOMY") return rule.taxonomyNodeId === candidate.targetId;
+    if (candidate.targetType === "COMPANY") return rule.companyId === candidate.targetId;
+    return rule.productId === candidate.targetId;
+  });
+  if (directRuleExists) return false;
+  if (candidate.effect === "EXCLUDE") return candidate.targetType !== "TAXONOMY";
+
+  if (candidate.targetType === "COMPANY") {
+    return !rules.some(
+      (rule) =>
+        rule.effect === "INCLUDE" &&
+        rule.targetType === "TAXONOMY" &&
+        candidate.companyTaxonomyAncestorIds?.includes(rule.taxonomyNodeId ?? ""),
+    );
+  }
+  if (candidate.targetType === "PRODUCT") {
+    return !rules.some(
+      (rule) =>
+        rule.effect === "INCLUDE" &&
+        ((rule.targetType === "COMPANY" && rule.companyId === candidate.companyId) ||
+          (rule.targetType === "TAXONOMY" &&
+            candidate.taxonomyAncestorIds?.includes(rule.taxonomyNodeId ?? ""))),
+    );
+  }
+  return true;
+}
+
+export function assertVisibilityTargetCanBeAdded(input: {
+  candidate: VisibilityTargetCandidate;
+  rules: readonly ClientVisibilityRule[];
+}): void {
+  const { candidate, rules } = input;
+  if (candidate.targetType === "TAXONOMY" && candidate.effect !== "INCLUDE")
+    throw new ClientVisibilityRuleValidationError("Taxonomy exclusions are not supported.");
+  const matching = rules.some((rule) => {
+    if (rule.targetType !== candidate.targetType) return false;
+    if (candidate.targetType === "TAXONOMY") return rule.taxonomyNodeId === candidate.targetId;
+    if (candidate.targetType === "COMPANY") return rule.companyId === candidate.targetId;
+    return rule.productId === candidate.targetId;
+  });
+  if (matching)
+    throw new ClientVisibilityRuleValidationError(
+      "This exact target already has an access rule. Remove it before adding another.",
+    );
+  if (!isVisibilityTargetCandidateEligible(input))
+    throw new ClientVisibilityRuleValidationError(
+      candidate.targetType === "COMPANY"
+        ? "This Company is already covered by an included taxonomy."
+        : "This Product is already covered by an included Company or taxonomy.",
+    );
 }
 
 export type ClientVisibilityAccount = {

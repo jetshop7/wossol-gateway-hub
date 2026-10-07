@@ -30,6 +30,8 @@ async function guard(
 function safeFailure(error: unknown) {
   if (error instanceof z.ZodError)
     return { ok: false as const, error: "Please check the entered fields." };
+  if (error instanceof Error && error.name === "ClientVisibilityRuleValidationError")
+    return { ok: false as const, error: error.message };
   if (typeof error === "object" && error !== null && "code" in error) {
     if (error.code === "P2002")
       return { ok: false as const, error: "That account or override already exists." };

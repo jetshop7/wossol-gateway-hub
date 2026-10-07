@@ -3,8 +3,10 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 
 import {
+  assertVisibilityTargetCanBeAdded,
   buildClientVisibilityRuleCreateData,
   configuredVisibilityCandidateFilter,
+  isVisibilityTargetCandidateEligible,
   isClientProductVisibleByRules,
   type ClientVisibilityAccount,
   type ClientVisibilityProduct,
@@ -105,7 +107,6 @@ test("candidate searches omit rules already configured in the same effect and ta
   assert.notDeepEqual(
     configuredVisibilityCandidateFilter({
       clientAccountId: "client-1",
-      effect: "EXCLUDE",
       targetType: "COMPANY",
     }),
     configuredVisibilityCandidateFilter({
@@ -113,6 +114,132 @@ test("candidate searches omit rules already configured in the same effect and ta
       effect: "INCLUDE",
       targetType: "COMPANY",
     }),
+  );
+});
+
+test("candidate eligibility removes inherited Include redundancy but preserves useful exceptions", () => {
+  const taxonomyInclude = rule("INCLUDE", "TAXONOMY", "family-1");
+  const companyInclude = rule("INCLUDE", "COMPANY", "company-1");
+  const companyCandidate = {
+    targetId: "company-1",
+    targetType: "COMPANY" as const,
+    effect: "INCLUDE" as const,
+    companyTaxonomyAncestorIds: ["family-1"],
+  };
+  const productCandidate = {
+    targetId: "product-1",
+    targetType: "PRODUCT" as const,
+    effect: "INCLUDE" as const,
+    companyId: "company-1",
+    taxonomyAncestorIds: ["brick-1", "family-1"],
+  };
+  assert.equal(
+    isVisibilityTargetCandidateEligible({ candidate: companyCandidate, rules: [taxonomyInclude] }),
+    false,
+    "a Company with published Products in an included taxonomy is redundant",
+  );
+  assert.equal(
+    isVisibilityTargetCandidateEligible({ candidate: productCandidate, rules: [taxonomyInclude] }),
+    false,
+    "a Product under an included taxonomy is redundant",
+  );
+  assert.equal(
+    isVisibilityTargetCandidateEligible({ candidate: productCandidate, rules: [companyInclude] }),
+    false,
+    "a Product under an included Company is redundant",
+  );
+  assert.equal(
+    isVisibilityTargetCandidateEligible({
+      candidate: { ...companyCandidate, effect: "EXCLUDE" },
+      rules: [taxonomyInclude],
+    }),
+    true,
+    "a Company exclusion can carve an exception from taxonomy inclusion",
+  );
+  assert.equal(
+    isVisibilityTargetCandidateEligible({
+      candidate: { ...productCandidate, effect: "EXCLUDE" },
+      rules: [taxonomyInclude],
+    }),
+    true,
+    "a Product exclusion can carve an exception from taxonomy inclusion",
+  );
+  assert.equal(
+    isVisibilityTargetCandidateEligible({
+      candidate: { ...productCandidate, effect: "EXCLUDE" },
+      rules: [companyInclude],
+    }),
+    true,
+    "a Product exclusion can carve an exception from Company inclusion",
+  );
+});
+
+test("an exact Company or Product target cannot receive Include and Exclude rules", () => {
+  for (const target of [
+    { targetType: "COMPANY" as const, targetId: "company-1" },
+    { targetType: "PRODUCT" as const, targetId: "product-1" },
+  ]) {
+    for (const existingEffect of ["INCLUDE", "EXCLUDE"] as const) {
+      const targetRule = rule(existingEffect, target.targetType, target.targetId);
+      assert.equal(
+        isVisibilityTargetCandidateEligible({
+          candidate: { ...target, effect: existingEffect === "INCLUDE" ? "EXCLUDE" : "INCLUDE" },
+          rules: [targetRule],
+        }),
+        false,
+      );
+      assert.throws(
+        () =>
+          assertVisibilityTargetCanBeAdded({
+            candidate: { ...target, effect: existingEffect === "INCLUDE" ? "EXCLUDE" : "INCLUDE" },
+            rules: [targetRule],
+          }),
+        /already has an access rule/,
+      );
+    }
+  }
+});
+
+test("server add-policy rejects redundant Company and Product Includes", () => {
+  assert.throws(
+    () =>
+      assertVisibilityTargetCanBeAdded({
+        candidate: {
+          targetType: "COMPANY",
+          targetId: "company-1",
+          effect: "INCLUDE",
+          companyTaxonomyAncestorIds: ["family-1"],
+        },
+        rules: [rule("INCLUDE", "TAXONOMY", "family-1")],
+      }),
+    /already covered by an included taxonomy/,
+  );
+  assert.throws(
+    () =>
+      assertVisibilityTargetCanBeAdded({
+        candidate: {
+          targetType: "PRODUCT",
+          targetId: "product-1",
+          companyId: "company-1",
+          effect: "INCLUDE",
+        },
+        rules: [rule("INCLUDE", "COMPANY", "company-1")],
+      }),
+    /already covered by an included Company or taxonomy/,
+  );
+  assert.throws(
+    () =>
+      assertVisibilityTargetCanBeAdded({
+        candidate: {
+          targetType: "PRODUCT",
+          targetId: "product-1",
+          companyId: "company-1",
+          effect: "INCLUDE",
+          taxonomyAncestorIds: ["family-1"],
+        },
+        rules: [rule("INCLUDE", "TAXONOMY", "family-1")],
+      }),
+    /already covered by an included Company or taxonomy/,
   );
 });
 
