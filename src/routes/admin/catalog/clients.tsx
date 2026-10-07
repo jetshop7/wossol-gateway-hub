@@ -1,18 +1,15 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import { Pencil, Plus } from "lucide-react";
 
 import {
   createAdminClientAccountFn,
-  addAdminClientVisibilityRuleFn,
-  listAdminClientVisibilityRulesFn,
   listAdminClientAccountsFn,
   listAdminPriceProfilesFn,
-  removeAdminClientVisibilityRuleFn,
-  searchAdminCatalogVisibilityTargetsFn,
   updateAdminClientAccountFn,
 } from "@/lib/api/commercial-admin.functions";
 import { readCsrfToken } from "@/lib/admin-csrf";
+import { ClientCatalogAccessEditor } from "@/components/ClientCatalogAccessEditor";
 
 export const Route = createFileRoute("/admin/catalog/clients")({
   loader: async () => {
@@ -51,103 +48,7 @@ function ClientAccountsPage() {
   const [showForm, setShowForm] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [accessClientId, setAccessClientId] = useState<string | null>(null);
-  const [accessRules, setAccessRules] = useState<
-    Array<{
-      id: string;
-      companyId: string | null;
-      productId: string | null;
-      company: { displayName: string } | null;
-      product: { name: string; company: { displayName: string } } | null;
-    }>
-  >([]);
-  const [targetQuery, setTargetQuery] = useState("");
-  const [targets, setTargets] = useState<{
-    companies: Array<{ id: string; name: string }>;
-    products: Array<{ id: string; name: string; companyName: string }>;
-  }>({ companies: [], products: [] });
-  const [accessError, setAccessError] = useState("");
-
-  useEffect(() => {
-    const query = targetQuery.trim();
-    if (!accessClientId || query.length < 2) {
-      setTargets({ companies: [], products: [] });
-      return;
-    }
-    let cancelled = false;
-    const timer = setTimeout(() => {
-      void searchAdminCatalogVisibilityTargetsFn({ data: { query } })
-        .then((response) => {
-          if (!cancelled && response.ok)
-            setTargets({ companies: response.companies, products: response.products });
-        })
-        .catch(() => {
-          if (!cancelled) setAccessError("Catalog visibility targets could not be searched.");
-        });
-    }, 180);
-    return () => {
-      cancelled = true;
-      clearTimeout(timer);
-    };
-  }, [accessClientId, targetQuery]);
-
-  const loadAccessRules = async (clientId: string) => {
-    const response = await listAdminClientVisibilityRulesFn({
-      data: { clientAccountId: clientId },
-    });
-    if (response.ok) setAccessRules(response.rules);
-  };
-
-  const openAccessRules = async (clientId: string) => {
-    setAccessError("");
-    setTargetQuery("");
-    setAccessClientId((current) => (current === clientId ? null : clientId));
-    if (accessClientId !== clientId) {
-      try {
-        await loadAccessRules(clientId);
-      } catch {
-        setAccessError("Visibility rules could not be loaded.");
-      }
-    }
-  };
-
-  const addVisibilityRule = async (target: { companyId?: string; productId?: string }) => {
-    if (!accessClientId) return;
-    try {
-      const response = await addAdminClientVisibilityRuleFn({
-        data: { clientAccountId: accessClientId, ...target },
-        headers: { "x-wossol-csrf": readCsrfToken() ?? "" },
-      });
-      if (!response.ok) {
-        setAccessError(response.error);
-        return;
-      }
-      setTargetQuery("");
-      await loadAccessRules(accessClientId);
-      await router.invalidate();
-    } catch {
-      setAccessError("Visibility rule could not be added.");
-    }
-  };
-
-  const removeVisibilityRule = async (ruleId: string) => {
-    if (!accessClientId) return;
-    try {
-      const response = await removeAdminClientVisibilityRuleFn({
-        data: { clientAccountId: accessClientId, id: ruleId },
-        headers: { "x-wossol-csrf": readCsrfToken() ?? "" },
-      });
-      if (!response.ok) {
-        setAccessError(response.error);
-        return;
-      }
-      await loadAccessRules(accessClientId);
-      await router.invalidate();
-    } catch {
-      setAccessError("Visibility rule could not be removed.");
-    }
-  };
-
+  const [expandedAccessId, setExpandedAccessId] = useState<string | null>(null);
   const beginCreate = () => {
     setEditingId(null);
     setForm({
@@ -371,99 +272,17 @@ function ClientAccountsPage() {
               >
                 <Pencil className="h-4 w-4" /> Edit
               </button>
-              {client.catalogAccessMode === "SELECTED" && (
-                <button
-                  type="button"
-                  onClick={() => void openAccessRules(client.id)}
-                  className="rounded border px-3 py-2 text-sm font-medium"
-                >
-                  {accessClientId === client.id ? "Close access rules" : "Manage access rules"}
-                </button>
-              )}
-              {accessClientId === client.id && client.catalogAccessMode === "SELECTED" && (
-                <div className="w-full rounded-lg border bg-slate-50 p-4">
-                  <h3 className="font-semibold">Selected catalog visibility</h3>
-                  <p className="mt-1 text-xs text-slate-600">
-                    Grant a whole active Company or an individual published Product. A Company grant
-                    includes its approved products.
-                  </p>
-                  {accessError && (
-                    <p role="alert" className="mt-2 text-sm text-red-700">
-                      {accessError}
-                    </p>
-                  )}
-                  <label className="mt-3 block text-sm font-medium">
-                    Search companies or published products
-                    <input
-                      className="mt-1 w-full rounded border bg-white px-3 py-2"
-                      value={targetQuery}
-                      onChange={(event) => setTargetQuery(event.target.value)}
-                      placeholder="Type at least two characters"
-                    />
-                  </label>
-                  {(targets.companies.length > 0 || targets.products.length > 0) && (
-                    <div className="mt-2 grid gap-3 sm:grid-cols-2">
-                      <div>
-                        <p className="mb-1 text-xs font-semibold uppercase text-slate-500">
-                          Companies
-                        </p>
-                        {targets.companies.map((target) => (
-                          <button
-                            key={target.id}
-                            type="button"
-                            onClick={() => void addVisibilityRule({ companyId: target.id })}
-                            className="block w-full rounded border bg-white p-2 text-left text-sm hover:bg-amber-50"
-                          >
-                            + {target.name}
-                          </button>
-                        ))}
-                      </div>
-                      <div>
-                        <p className="mb-1 text-xs font-semibold uppercase text-slate-500">
-                          Products
-                        </p>
-                        {targets.products.map((target) => (
-                          <button
-                            key={target.id}
-                            type="button"
-                            onClick={() => void addVisibilityRule({ productId: target.id })}
-                            className="block w-full rounded border bg-white p-2 text-left text-sm hover:bg-amber-50"
-                          >
-                            + {target.name}{" "}
-                            <span className="text-xs text-slate-500">· {target.companyName}</span>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  <div className="mt-3 space-y-1">
-                    {accessRules.map((rule) => (
-                      <div
-                        key={rule.id}
-                        className="flex items-center justify-between gap-3 rounded border bg-white px-3 py-2 text-sm"
-                      >
-                        <span>
-                          {rule.company
-                            ? `Company · ${rule.company.displayName}`
-                            : `Product · ${rule.product?.name ?? "Product"} · ${rule.product?.company.displayName ?? ""}`}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => void removeVisibilityRule(rule.id)}
-                          className="text-xs font-medium text-red-700 underline"
-                        >
-                          Remove
-                        </button>
-                      </div>
-                    ))}
-                    {!accessRules.length && (
-                      <p className="text-sm text-slate-500">
-                        No selected visibility rules. This account currently has no selected catalog
-                        items.
-                      </p>
-                    )}
-                  </div>
-                </div>
+              <button
+                type="button"
+                onClick={() =>
+                  setExpandedAccessId((current) => (current === client.id ? null : client.id))
+                }
+                className="rounded border px-3 py-2 text-sm font-medium"
+              >
+                {expandedAccessId === client.id ? "Close access rules" : "Manage access rules"}
+              </button>
+              {expandedAccessId === client.id && (
+                <ClientCatalogAccessEditor clientAccountId={client.id} />
               )}
             </article>
           ))

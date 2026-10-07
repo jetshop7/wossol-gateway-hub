@@ -194,17 +194,81 @@ export const listAdminClientVisibilityRulesFn = createServerFn({ method: "GET" }
     };
   });
 
-export const searchAdminCatalogVisibilityTargetsFn = createServerFn({ method: "GET" })
-  .validator(z.object({ query: z.string().max(200).default("") }))
+export const searchAdminVisibilityCompaniesFn = createServerFn({ method: "GET" })
+  .validator(
+    z.object({
+      clientAccountId: id,
+      effect: z.enum(["INCLUDE", "EXCLUDE"]),
+      query: z.string().max(200).default(""),
+    }),
+  )
   .handler(async ({ data }) => {
     await guard("catalog.client.manage");
-    const { searchAdminCatalogVisibilityTargets } =
+    const { searchAdminVisibilityCompanies } =
       await import("../../server/catalog/client-management.repository.server.ts");
-    return { ok: true as const, ...(await searchAdminCatalogVisibilityTargets(data.query)) };
+    return {
+      ok: true as const,
+      targets: await searchAdminVisibilityCompanies(data.clientAccountId, data.effect, data.query),
+    };
+  });
+
+export const searchAdminVisibilityProductsFn = createServerFn({ method: "GET" })
+  .validator(
+    z.object({
+      clientAccountId: id,
+      effect: z.enum(["INCLUDE", "EXCLUDE"]),
+      query: z.string().max(200).default(""),
+    }),
+  )
+  .handler(async ({ data }) => {
+    await guard("catalog.client.manage");
+    const { searchAdminVisibilityProducts } =
+      await import("../../server/catalog/client-management.repository.server.ts");
+    return {
+      ok: true as const,
+      targets: await searchAdminVisibilityProducts(data.clientAccountId, data.effect, data.query),
+    };
+  });
+
+export const searchAdminVisibilityTaxonomyFn = createServerFn({ method: "GET" })
+  .validator(z.object({ clientAccountId: id, query: z.string().max(200).default("") }))
+  .handler(async ({ data }) => {
+    await guard("catalog.client.manage");
+    const { searchAdminVisibilityTaxonomy } =
+      await import("../../server/catalog/client-management.repository.server.ts");
+    return {
+      ok: true as const,
+      targets: await searchAdminVisibilityTaxonomy(data.clientAccountId, data.query),
+    };
+  });
+
+export const browseAdminVisibilityTaxonomyNodesFn = createServerFn({ method: "GET" })
+  .validator(
+    z.object({
+      clientAccountId: id,
+      parentId: id.nullable().default(null),
+      page: z.number().int().min(0).max(1000).default(0),
+    }),
+  )
+  .handler(async ({ data }) => {
+    await guard("catalog.client.manage");
+    const { browseAdminVisibilityTaxonomyNodes } =
+      await import("../../server/catalog/catalog.admin.repository.server.ts");
+    return {
+      ok: true as const,
+      ...(await browseAdminVisibilityTaxonomyNodes(data.parentId, data.page)),
+    };
   });
 
 export const addAdminClientVisibilityRuleFn = createServerFn({ method: "POST" })
-  .validator(z.object({ clientAccountId: id, companyId: id.optional(), productId: id.optional() }))
+  .validator(
+    z.object({
+      clientAccountId: id,
+      effect: z.enum(["INCLUDE", "EXCLUDE"]),
+      targetType: z.enum(["TAXONOMY", "COMPANY", "PRODUCT"]),
+      targetId: id,
+    }),
+  )
   .handler(async ({ data }) => {
     const actor = await guard("catalog.client.manage", true);
     try {
@@ -212,11 +276,7 @@ export const addAdminClientVisibilityRuleFn = createServerFn({ method: "POST" })
         await import("../../server/catalog/client-management.repository.server.ts");
       return {
         ok: true as const,
-        rule: await addAdminClientVisibilityRule(
-          data.clientAccountId,
-          { companyId: data.companyId, productId: data.productId },
-          actor.userId,
-        ),
+        rule: await addAdminClientVisibilityRule({ ...data, actorId: actor.userId }),
       };
     } catch (error) {
       return safeFailure(error);

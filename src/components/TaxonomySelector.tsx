@@ -4,6 +4,10 @@ import {
   browseAdminTaxonomyNodesFn,
   searchAdminTaxonomyNodesFn,
 } from "@/lib/api/catalog-admin.functions";
+import {
+  browseAdminVisibilityTaxonomyNodesFn,
+  searchAdminVisibilityTaxonomyFn,
+} from "@/lib/api/commercial-admin.functions";
 import type {
   AdminTaxonomyLabel,
   AdminTaxonomySelection,
@@ -24,10 +28,22 @@ export function TaxonomySelector({
   selected,
   onSelect,
   onClear,
+  selectionMode = "BRICK",
+  clientAccountId,
+  title = "Product classification",
+  helperText = "Classification is optional.",
+  clearLabel = "Clear classification",
+  configuredSelectionIds = [],
 }: {
   selected: AdminTaxonomySelection | null;
   onSelect: (selection: AdminTaxonomySelection) => void;
   onClear: () => void;
+  selectionMode?: "BRICK" | "ANY_LEVEL";
+  clientAccountId?: string;
+  title?: string;
+  helperText?: string;
+  clearLabel?: string;
+  configuredSelectionIds?: readonly string[];
 }) {
   const [mode, setMode] = useState<Mode>("search");
   const [query, setQuery] = useState("");
@@ -42,8 +58,8 @@ export function TaxonomySelector({
   const [error, setError] = useState("");
 
   useEffect(() => {
-    const search = query.trim();
-    if (mode !== "search" || !search) {
+    const searchText = query.trim();
+    if (mode !== "search" || !searchText) {
       setSearchResults([]);
       setSearchLoading(false);
       return;
@@ -51,10 +67,18 @@ export function TaxonomySelector({
     let cancelled = false;
     const timeout = setTimeout(() => {
       setSearchLoading(true);
-      void searchAdminTaxonomyNodesFn({ data: { query: search } })
-        .then((result) => {
-          if (!cancelled && result.ok) setSearchResults(result.nodes);
-        })
+      const runSearch = async () => {
+        if (selectionMode === "ANY_LEVEL" && clientAccountId) {
+          const result = await searchAdminVisibilityTaxonomyFn({
+            data: { clientAccountId, query: searchText },
+          });
+          if (!cancelled && result.ok) setSearchResults(result.targets);
+          return;
+        }
+        const result = await searchAdminTaxonomyNodesFn({ data: { query: searchText } });
+        if (!cancelled && result.ok) setSearchResults(result.nodes);
+      };
+      void runSearch()
         .catch(() => {
           if (!cancelled) setError("Taxonomy search could not be loaded.");
         })
@@ -66,14 +90,20 @@ export function TaxonomySelector({
       cancelled = true;
       clearTimeout(timeout);
     };
-  }, [mode, query]);
+  }, [clientAccountId, mode, query, selectionMode]);
 
   useEffect(() => {
     if (mode !== "browse") return;
     let cancelled = false;
     setBrowseLoading(true);
     setError("");
-    void browseAdminTaxonomyNodesFn({ data: { parentId: browseParentId, page: browsePage } })
+    const browseRequest =
+      selectionMode === "ANY_LEVEL" && clientAccountId
+        ? browseAdminVisibilityTaxonomyNodesFn({
+            data: { clientAccountId, parentId: browseParentId, page: browsePage },
+          })
+        : browseAdminTaxonomyNodesFn({ data: { parentId: browseParentId, page: browsePage } });
+    void browseRequest
       .then((result) => {
         if (!cancelled && result.ok) {
           setBrowseNodes((current) =>
@@ -91,7 +121,7 @@ export function TaxonomySelector({
     return () => {
       cancelled = true;
     };
-  }, [browsePage, browseParentId, mode]);
+  }, [browsePage, browseParentId, clientAccountId, mode, selectionMode]);
 
   const navigateBrowse = (crumbs: BrowseNode[]) => {
     setBrowseCrumbs(crumbs);
@@ -109,11 +139,15 @@ export function TaxonomySelector({
     navigateBrowse(breadcrumb);
   };
 
+  const selectBrowseNode = (node: BrowseNode) => {
+    onSelect({ ...node, breadcrumb: [...browseCrumbs, node] });
+  };
+
   return (
     <section className="rounded-lg border bg-white p-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h3 className="font-semibold">Product classification</h3>
+          <h3 className="font-semibold">{title}</h3>
           {selected ? (
             <div className="mt-2 text-sm" aria-live="polite">
               <p className="font-medium">
@@ -125,7 +159,7 @@ export function TaxonomySelector({
               </p>
             </div>
           ) : (
-            <p className="mt-1 text-sm text-slate-500">Classification is optional.</p>
+            <p className="mt-1 text-sm text-slate-500">{helperText}</p>
           )}
         </div>
         {selected && (
@@ -134,7 +168,7 @@ export function TaxonomySelector({
             onClick={onClear}
             className="text-sm font-medium text-slate-700 underline"
           >
-            Clear classification
+            {clearLabel}
           </button>
         )}
       </div>
@@ -199,10 +233,16 @@ export function TaxonomySelector({
                     </button>
                   ))
                 ) : (
-                  <p className="p-3 text-sm text-slate-500">No matching active GPC Bricks found.</p>
+                  <p className="p-3 text-sm text-slate-500">
+                    {selectionMode === "ANY_LEVEL"
+                      ? "No matching active GPC categories found."
+                      : "No matching active GPC Bricks found."}
+                  </p>
                 )}
               </div>
-              <p className="mt-1 text-xs text-slate-500">Showing up to 25 matching Bricks.</p>
+              <p className="mt-1 text-xs text-slate-500">
+                Showing up to 25 matching {selectionMode === "ANY_LEVEL" ? "categories" : "Bricks"}.
+              </p>
             </>
           )}
         </div>
@@ -260,26 +300,64 @@ export function TaxonomySelector({
                 …
               </p>
             ) : browseNodes.length ? (
-              browseNodes.map((node) => (
-                <button
-                  key={node.id}
-                  type="button"
-                  onClick={() => chooseBrowseNode(node)}
-                  className="flex w-full items-center justify-between gap-3 border-b p-3 text-left text-sm last:border-b-0 hover:bg-slate-50"
-                >
-                  <span>
-                    <span className="block font-medium">{node.name}</span>
-                    <span className="text-xs text-slate-500">
-                      {levelNames[node.level]} · GPC {node.sourceCode}
+              browseNodes.map((node) => {
+                const alreadyConfigured = configuredSelectionIds.includes(node.id);
+                return selectionMode === "ANY_LEVEL" ? (
+                  <div
+                    key={node.id}
+                    className="flex items-center gap-2 border-b p-2 last:border-b-0"
+                  >
+                    <span className="min-w-0 flex-1 p-1 text-sm">
+                      <span className="block font-medium">{node.name}</span>
+                      <span className="text-xs text-slate-500">
+                        {levelNames[node.level]} · GPC {node.sourceCode}
+                      </span>
                     </span>
-                  </span>
-                  {node.level === "BRICK" ? (
-                    <span className="shrink-0 text-xs font-semibold text-amber-800">Select</span>
-                  ) : (
-                    <ChevronRight size={17} className="shrink-0 text-slate-400" />
-                  )}
-                </button>
-              ))
+                    {alreadyConfigured ? (
+                      <span className="shrink-0 text-xs font-semibold text-emerald-700">
+                        Included
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => selectBrowseNode(node)}
+                        className="shrink-0 rounded border px-2 py-1 text-xs font-semibold text-amber-900"
+                      >
+                        Select
+                      </button>
+                    )}
+                    {node.level !== "BRICK" && (
+                      <button
+                        type="button"
+                        aria-label={`Browse children of ${node.name}`}
+                        onClick={() => navigateBrowse([...browseCrumbs, node])}
+                        className="shrink-0 rounded p-1 text-slate-500 hover:bg-slate-100"
+                      >
+                        <ChevronRight size={17} />
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  <button
+                    key={node.id}
+                    type="button"
+                    onClick={() => chooseBrowseNode(node)}
+                    className="flex w-full items-center justify-between gap-3 border-b p-3 text-left text-sm last:border-b-0 hover:bg-slate-50"
+                  >
+                    <span>
+                      <span className="block font-medium">{node.name}</span>
+                      <span className="text-xs text-slate-500">
+                        {levelNames[node.level]} · GPC {node.sourceCode}
+                      </span>
+                    </span>
+                    {node.level === "BRICK" ? (
+                      <span className="shrink-0 text-xs font-semibold text-amber-800">Select</span>
+                    ) : (
+                      <ChevronRight size={17} className="shrink-0 text-slate-400" />
+                    )}
+                  </button>
+                );
+              })
             ) : browseLoading ? null : (
               <p className="p-3 text-sm text-slate-500">No categories at this level.</p>
             )}
@@ -295,7 +373,9 @@ export function TaxonomySelector({
             </button>
           )}
           <p className="mt-1 text-xs text-slate-500">
-            Choose a Segment, then a Family, Class, and finally a Brick.
+            {selectionMode === "ANY_LEVEL"
+              ? "Select any level; its descendant categories are included automatically."
+              : "Choose a Segment, then a Family, Class, and finally a Brick."}
           </p>
         </div>
       )}

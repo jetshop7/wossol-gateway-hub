@@ -40,21 +40,39 @@ accounts have price visibility off and catalog access disabled until an Admin
 opts in.
 
 Catalog access has a separate enabled/disabled status and an `ALL_APPROVED` or
-`SELECTED` mode. Selected visibility uses sparse foreign-key-backed rules for
-canonical Companies or Products; Company grants cover that Company's approved
-products. This does not duplicate Product records. A future collection target
-can be added as another explicit target type when collection semantics are
-defined; no collection model is invented here.
+`SELECTED` mode. Visibility rules are sparse and typed as `INCLUDE` or
+`EXCLUDE`, with one target per rule: canonical GS1 GPC taxonomy node, Company,
+or Product. Taxonomy includes may target a Segment, Family, Class, or Brick;
+the selected node is stored once and descendants are traversed dynamically
+from the canonical parent hierarchy. Descendant rows are never materialized.
+
+In `SELECTED` mode, all matching taxonomy, Company, and Product includes are
+unioned. A Company include covers its published Products, while Product and
+taxonomy includes are exact Product or descendant-branch matches. With no
+matching include, the Product is not visible. In `ALL_APPROVED` mode, approved
+published Products under active Companies are eligible without include rules.
+In both modes, Company and Product exclusions are applied afterward and always
+win. Products are not duplicated for Clients. Candidate searches omit targets
+already configured for the same effect/target context; database uniqueness
+constraints remain the final concurrency safeguard.
+
+The server-side visibility query checks that the Client Account is active,
+catalog access is enabled, the Product is published, and its Company is active.
+It returns only visible Product IDs for a future client-safe projection; the
+future catalog must use this query policy rather than reimplementing rule logic.
+Existing C-007A Company/Product rows are migrated as `INCLUDE` rules without
+changing their IDs or targets.
 
 ## Audit and deferred UI
 
 Profile creation/update/default changes, duplication, Client Account changes
-and profile assignments, visibility-rule grants/revocations, and Variant/Profile
-override changes are appended to the existing `AuthAuditEvent` store. Removing
-an override first records its prior values in that audit trail.
+and profile assignments, visibility include/exclusion additions/removals, and
+Variant/Profile override changes are appended to the existing `AuthAuditEvent`
+store. Removing an override first records its prior values in that audit trail.
 
 The Admin area manages Client Accounts, access mode/rules, Price Profiles, and
-profile duplication/default adjustments. A per-Variant editor for sparse
+profile duplication/default adjustments, taxonomy/Company/Product includes,
+and Company/Product exclusions. A per-Variant editor for sparse
 overrides is deliberately deferred to C-007A2; this milestone provides its
 audited server API and data model. No client-facing catalog or login UI is part
 of C-007A. Platform-wide EN/FR/AR localization remains separate and taxonomy

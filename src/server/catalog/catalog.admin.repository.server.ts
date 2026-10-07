@@ -9,6 +9,7 @@ import {
 import { normalizeCatalogSlug } from "./catalog.contracts.ts";
 import { resolveVariantPricing } from "./variant-pricing.ts";
 import { activeGs1TaxonomyNodeWhere, activeProductBrickWhere } from "./catalog.taxonomy.ts";
+import { configuredVisibilityCandidateFilter } from "./client-visibility.ts";
 import {
   toAdminBrandDto,
   toAdminCompanyDetailDto,
@@ -364,6 +365,10 @@ export async function browseAdminTaxonomyNodes(parentId: string | null, page: nu
     })),
     hasMore,
   };
+}
+
+export function browseAdminVisibilityTaxonomyNodes(parentId: string | null, page: number) {
+  return browseAdminTaxonomyNodes(parentId, page);
 }
 
 export async function getAdminTaxonomyStatus() {

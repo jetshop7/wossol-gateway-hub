@@ -6,6 +6,11 @@ import {
   clientAccountInputSchema,
   priceProfileInputSchema,
 } from "./client-management.contracts.ts";
+import { activeGs1TaxonomyNodeWhere } from "./catalog.taxonomy.ts";
+import {
+  buildClientVisibilityRuleCreateData,
+  configuredVisibilityCandidateFilter,
+} from "./client-visibility.ts";
 
 const profileSelect = {
   id: true,
@@ -376,115 +381,304 @@ export async function removeAdminVariantPriceOverride(id: string, actorId: strin
 }
 
 export async function listAdminClientVisibilityRules(clientAccountId: string) {
-  return getWossolExportPrisma().clientCatalogVisibilityRule.findMany({
+  const rows = await getWossolExportPrisma().clientCatalogVisibilityRule.findMany({
     where: { clientAccountId },
     select: {
       id: true,
       clientAccountId: true,
+      effect: true,
+      targetType: true,
+      taxonomyNodeId: true,
       companyId: true,
       productId: true,
       createdAt: true,
-      company: { select: { displayName: true } },
-      product: { select: { name: true, company: { select: { displayName: true } } } },
+      company: { select: { id: true, displayName: true, slug: true } },
+      product: {
+        select: { id: true, name: true, slug: true, company: { select: { displayName: true } } },
+      },
+      taxonomyNode: {
+        select: {
+          id: true,
+          sourceCode: true,
+          level: true,
+          translations: { where: { languageCode: "EN" }, select: { name: true }, take: 1 },
+          parent: {
+            select: {
+              id: true,
+              sourceCode: true,
+              level: true,
+              translations: { where: { languageCode: "EN" }, select: { name: true }, take: 1 },
+              parent: {
+                select: {
+                  id: true,
+                  sourceCode: true,
+                  level: true,
+                  translations: { where: { languageCode: "EN" }, select: { name: true }, take: 1 },
+                  parent: {
+                    select: {
+                      id: true,
+                      sourceCode: true,
+                      level: true,
+                      translations: {
+                        where: { languageCode: "EN" },
+                        select: { name: true },
+                        take: 1,
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
     },
     orderBy: { createdAt: "desc" },
   });
+  return rows.map((row) => {
+    if (row.targetType === "TAXONOMY" && row.taxonomyNode) {
+      const lineage = [
+        row.taxonomyNode.parent?.parent?.parent,
+        row.taxonomyNode.parent?.parent,
+        row.taxonomyNode.parent,
+        row.taxonomyNode,
+      ].filter((node) => node !== null && node !== undefined);
+      const breadcrumb = lineage.map((node) => ({
+        id: node.id,
+        name: node.translations[0]?.name ?? node.sourceCode,
+        sourceCode: node.sourceCode,
+        level: node.level,
+      }));
+      return {
+        id: row.id,
+        effect: row.effect,
+        targetType: row.targetType,
+        target: {
+          id: row.taxonomyNode.id,
+          name: row.taxonomyNode.translations[0]?.name ?? row.taxonomyNode.sourceCode,
+          sourceCode: row.taxonomyNode.sourceCode,
+          level: row.taxonomyNode.level,
+          breadcrumb,
+        },
+        createdAt: row.createdAt,
+      };
+    }
+    if (row.targetType === "COMPANY" && row.company)
+      return {
+        id: row.id,
+        effect: row.effect,
+        targetType: row.targetType,
+        target: {
+          id: row.company.id,
+          name: row.company.displayName,
+          secondaryId: row.company.slug,
+        },
+        createdAt: row.createdAt,
+      };
+    return {
+      id: row.id,
+      effect: row.effect,
+      targetType: row.targetType,
+      target: row.product
+        ? {
+            id: row.product.id,
+            name: row.product.name,
+            secondaryId: row.product.slug,
+            companyName: row.product.company.displayName,
+          }
+        : { id: row.productId ?? "", name: "Unavailable catalog target" },
+      createdAt: row.createdAt,
+    };
+  });
 }
 
-export async function searchAdminCatalogVisibilityTargets(query: string) {
-  const text = query.trim();
-  if (text.length < 2) return { companies: [], products: [] };
-  const prisma = getWossolExportPrisma();
-  const [companies, products] = await Promise.all([
-    prisma.company.findMany({
-      where: {
-        status: "ACTIVE",
-        OR: [
-          { displayName: { contains: text, mode: "insensitive" } },
-          { legalName: { contains: text, mode: "insensitive" } },
-        ],
-      },
-      select: { id: true, displayName: true },
-      orderBy: { displayName: "asc" },
-      take: 15,
-    }),
-    prisma.product.findMany({
-      where: {
-        publicationStatus: "PUBLISHED",
-        company: { status: "ACTIVE" },
-        name: { contains: text, mode: "insensitive" },
-      },
-      select: { id: true, name: true, company: { select: { displayName: true } } },
-      orderBy: { name: "asc" },
-      take: 15,
-    }),
-  ]);
-  return {
-    companies: companies.map(({ id, displayName }) => ({ id, name: displayName })),
-    products: products.map(({ id, name, company }) => ({
-      id,
-      name,
-      companyName: company.displayName,
-    })),
-  };
-}
+const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-export async function addAdminClientVisibilityRule(
+export async function searchAdminVisibilityCompanies(
   clientAccountId: string,
-  target: { companyId?: string; productId?: string },
-  actorId: string,
+  effect: "INCLUDE" | "EXCLUDE",
+  query: string,
 ) {
-  const hasCompany = Boolean(target.companyId);
-  const hasProduct = Boolean(target.productId);
-  if (hasCompany === hasProduct) throw new Error("Choose exactly one Company or Product target.");
+  const text = query.trim();
+  if (text.length < 2) return [];
+  const rows = await getWossolExportPrisma().company.findMany({
+    where: {
+      ...(effect === "INCLUDE" ? { status: "ACTIVE" as const } : {}),
+      clientVisibilityRules: configuredVisibilityCandidateFilter({
+        clientAccountId,
+        effect,
+        targetType: "COMPANY",
+      }),
+      OR: [
+        { displayName: { contains: text, mode: "insensitive" } },
+        { legalName: { contains: text, mode: "insensitive" } },
+        { slug: { contains: text, mode: "insensitive" } },
+        ...(uuidPattern.test(text) ? [{ id: text }] : []),
+      ],
+    },
+    select: { id: true, displayName: true, slug: true },
+    orderBy: { displayName: "asc" },
+    take: 15,
+  });
+  return rows.map((row) => ({ id: row.id, name: row.displayName, secondaryId: row.slug }));
+}
+
+export async function searchAdminVisibilityProducts(
+  clientAccountId: string,
+  effect: "INCLUDE" | "EXCLUDE",
+  query: string,
+) {
+  const text = query.trim();
+  if (text.length < 2) return [];
+  const rows = await getWossolExportPrisma().product.findMany({
+    where: {
+      ...(effect === "INCLUDE"
+        ? { publicationStatus: "PUBLISHED" as const, company: { status: "ACTIVE" as const } }
+        : {}),
+      clientVisibilityRules: configuredVisibilityCandidateFilter({
+        clientAccountId,
+        effect,
+        targetType: "PRODUCT",
+      }),
+      OR: [
+        { name: { contains: text, mode: "insensitive" } },
+        { slug: { contains: text, mode: "insensitive" } },
+        ...(uuidPattern.test(text) ? [{ id: text }] : []),
+      ],
+    },
+    select: { id: true, name: true, slug: true, company: { select: { displayName: true } } },
+    orderBy: { name: "asc" },
+    take: 15,
+  });
+  return rows.map((row) => ({
+    id: row.id,
+    name: row.name,
+    secondaryId: row.slug,
+    companyName: row.company.displayName,
+  }));
+}
+
+export async function searchAdminVisibilityTaxonomy(clientAccountId: string, query: string) {
+  const text = query.trim();
+  if (text.length < 2) return [];
+  const nodes = await getWossolExportPrisma().catalogTaxonomyNode.findMany({
+    where: {
+      ...activeGs1TaxonomyNodeWhere(),
+      clientVisibilityRules: configuredVisibilityCandidateFilter({
+        clientAccountId,
+        effect: "INCLUDE",
+        targetType: "TAXONOMY",
+      }),
+      OR: [
+        { sourceCode: { contains: text, mode: "insensitive" } },
+        {
+          translations: {
+            some: { languageCode: "EN", name: { contains: text, mode: "insensitive" } },
+          },
+        },
+      ],
+    },
+    select: {
+      id: true,
+      sourceCode: true,
+      level: true,
+      translations: { where: { languageCode: "EN" }, select: { name: true }, take: 1 },
+      parent: {
+        select: {
+          id: true,
+          sourceCode: true,
+          level: true,
+          translations: { where: { languageCode: "EN" }, select: { name: true }, take: 1 },
+          parent: {
+            select: {
+              id: true,
+              sourceCode: true,
+              level: true,
+              translations: { where: { languageCode: "EN" }, select: { name: true }, take: 1 },
+              parent: {
+                select: {
+                  id: true,
+                  sourceCode: true,
+                  level: true,
+                  translations: { where: { languageCode: "EN" }, select: { name: true }, take: 1 },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    orderBy: { sourceCode: "asc" },
+    take: 25,
+  });
+  return nodes.map((node) => {
+    const lineage = [node.parent?.parent?.parent, node.parent?.parent, node.parent, node].filter(
+      (item) => item !== null && item !== undefined,
+    );
+    const breadcrumb = lineage.map((item) => ({
+      id: item.id,
+      sourceCode: item.sourceCode,
+      level: item.level,
+      name: item.translations[0]?.name ?? item.sourceCode,
+    }));
+    const selected = breadcrumb.at(-1)!;
+    return { ...selected, breadcrumb };
+  });
+}
+
+export async function addAdminClientVisibilityRule(input: {
+  clientAccountId: string;
+  effect: "INCLUDE" | "EXCLUDE";
+  targetType: "TAXONOMY" | "COMPANY" | "PRODUCT";
+  targetId: string;
+  actorId: string;
+}) {
+  const { clientAccountId, effect, targetType, targetId, actorId } = input;
   const prisma = getWossolExportPrisma();
-  const created = await prisma.$transaction(async (tx) => {
+  const rule = await prisma.$transaction(async (tx) => {
     await tx.clientAccount.findUniqueOrThrow({
       where: { id: clientAccountId },
       select: { id: true },
     });
-    if (target.companyId)
-      await tx.company.findUniqueOrThrow({ where: { id: target.companyId }, select: { id: true } });
-    if (target.productId) {
+    if (targetType === "COMPANY") {
+      const company = await tx.company.findFirst({
+        where: { id: targetId, ...(effect === "INCLUDE" ? { status: "ACTIVE" as const } : {}) },
+        select: { id: true },
+      });
+      if (!company) throw new Error("The Company is not available for this visibility rule.");
+    } else if (targetType === "PRODUCT") {
       const product = await tx.product.findFirst({
         where: {
-          id: target.productId,
-          publicationStatus: "PUBLISHED",
-          company: { status: "ACTIVE" },
+          id: targetId,
+          ...(effect === "INCLUDE"
+            ? { publicationStatus: "PUBLISHED" as const, company: { status: "ACTIVE" as const } }
+            : {}),
         },
         select: { id: true },
       });
-      if (!product)
-        throw new Error("Only a published Product from an active Company can be granted.");
+      if (!product) throw new Error("The Product is not available for this visibility rule.");
+    } else {
+      const node = await tx.catalogTaxonomyNode.findFirst({
+        where: { ...activeGs1TaxonomyNodeWhere(targetId) },
+        select: { id: true },
+      });
+      if (!node) throw new Error("Choose a node from the active GS1 GPC taxonomy.");
     }
-    const rule = await tx.clientCatalogVisibilityRule.create({
-      data: { clientAccountId, companyId: target.companyId, productId: target.productId },
+    const created = await tx.clientCatalogVisibilityRule.create({
+      data: buildClientVisibilityRuleCreateData({ clientAccountId, effect, targetType, targetId }),
       select: { id: true },
     });
     await audit(
       tx,
       actorId,
-      "CLIENT_CATALOG_VISIBILITY_GRANTED",
-      "CLIENT_ACCOUNT",
-      clientAccountId,
-      {
-        ruleId: rule.id,
-        companyId: target.companyId ?? null,
-        productId: target.productId ?? null,
-      },
+      effect === "INCLUDE" ? "CLIENT_CATALOG_INCLUDE_ADDED" : "CLIENT_CATALOG_EXCLUSION_ADDED",
+      "CLIENT_CATALOG_VISIBILITY_RULE",
+      created.id,
+      { clientAccountId, effect, targetType, targetId },
     );
-    return rule;
+    return created;
   });
-  return await prisma.clientCatalogVisibilityRule.findUniqueOrThrow({
-    where: { id: created.id },
-    select: {
-      id: true,
-      clientAccountId: true,
-      companyId: true,
-      productId: true,
-      createdAt: true,
-    },
-  });
+  return (await listAdminClientVisibilityRules(clientAccountId)).find((row) => row.id === rule.id);
 }
 
 export async function removeAdminClientVisibilityRule(
@@ -500,13 +694,19 @@ export async function removeAdminClientVisibilityRule(
     await audit(
       tx,
       actorId,
-      "CLIENT_CATALOG_VISIBILITY_REVOKED",
-      "CLIENT_ACCOUNT",
-      clientAccountId,
+      rule.effect === "INCLUDE"
+        ? "CLIENT_CATALOG_INCLUDE_REMOVED"
+        : "CLIENT_CATALOG_EXCLUSION_REMOVED",
+      "CLIENT_CATALOG_VISIBILITY_RULE",
+      id,
       {
-        ruleId: id,
+        clientAccountId,
+        effect: rule.effect,
+        targetType: rule.targetType,
+        targetId: rule.taxonomyNodeId ?? rule.companyId ?? rule.productId,
         companyId: rule.companyId,
         productId: rule.productId,
+        taxonomyNodeId: rule.taxonomyNodeId,
       },
     );
     await tx.clientCatalogVisibilityRule.delete({ where: { id } });

@@ -94,6 +94,17 @@ enum ClientCatalogAccessMode {
   SELECTED
 }
 
+enum ClientCatalogVisibilityEffect {
+  INCLUDE
+  EXCLUDE
+}
+
+enum ClientCatalogVisibilityTarget {
+  TAXONOMY
+  COMPANY
+  PRODUCT
+}
+
 enum ClientUserStatus {
   ACTIVE
   DISABLED
@@ -239,13 +250,14 @@ model CatalogTaxonomyNode {
   createdAt     DateTime              @default(now()) @map("created_at")
   updatedAt     DateTime              @updatedAt @map("updated_at")
 
-  parent        CatalogTaxonomyNode?         @relation("TaxonomyParent", fields: [parentId], references: [id], onDelete: Restrict)
-  children      CatalogTaxonomyNode[]        @relation("TaxonomyParent")
-  replacement   CatalogTaxonomyNode?         @relation("TaxonomyReplacement", fields: [replacementId], references: [id], onDelete: Restrict)
-  replacedNodes CatalogTaxonomyNode[]        @relation("TaxonomyReplacement")
-  release       CatalogTaxonomyRelease       @relation(fields: [source, sourceVersion], references: [source, sourceVersion], onDelete: Restrict)
-  translations  CatalogTaxonomyTranslation[]
-  products      Product[]
+  parent                CatalogTaxonomyNode?          @relation("TaxonomyParent", fields: [parentId], references: [id], onDelete: Restrict)
+  children              CatalogTaxonomyNode[]         @relation("TaxonomyParent")
+  replacement           CatalogTaxonomyNode?          @relation("TaxonomyReplacement", fields: [replacementId], references: [id], onDelete: Restrict)
+  replacedNodes         CatalogTaxonomyNode[]         @relation("TaxonomyReplacement")
+  release               CatalogTaxonomyRelease        @relation(fields: [source, sourceVersion], references: [source, sourceVersion], onDelete: Restrict)
+  translations          CatalogTaxonomyTranslation[]
+  products              Product[]
+  clientVisibilityRules ClientCatalogVisibilityRule[]
 
   @@unique([source, sourceCode, sourceVersion])
   @@index([parentId])
@@ -417,18 +429,25 @@ model ClientAccount {
 /// records. ALL_APPROVED is represented by ClientAccount.catalogAccessMode,
 /// not by one grant row per Product.
 model ClientCatalogVisibilityRule {
-  id              String   @id @default(uuid()) @db.Uuid
-  clientAccountId String   @map("client_account_id") @db.Uuid
-  companyId       String?  @map("company_id") @db.Uuid
-  productId       String?  @map("product_id") @db.Uuid
-  createdAt       DateTime @default(now()) @map("created_at")
+  id              String                        @id @default(uuid()) @db.Uuid
+  clientAccountId String                        @map("client_account_id") @db.Uuid
+  effect          ClientCatalogVisibilityEffect @default(INCLUDE)
+  targetType      ClientCatalogVisibilityTarget @map("target_type")
+  taxonomyNodeId  String?                       @map("taxonomy_node_id") @db.Uuid
+  companyId       String?                       @map("company_id") @db.Uuid
+  productId       String?                       @map("product_id") @db.Uuid
+  createdAt       DateTime                      @default(now()) @map("created_at")
 
-  clientAccount ClientAccount @relation(fields: [clientAccountId], references: [id], onDelete: Restrict)
-  company       Company?      @relation(fields: [companyId], references: [id], onDelete: Restrict)
-  product       Product?      @relation(fields: [productId], references: [id], onDelete: Restrict)
+  clientAccount ClientAccount        @relation(fields: [clientAccountId], references: [id], onDelete: Restrict)
+  taxonomyNode  CatalogTaxonomyNode? @relation(fields: [taxonomyNodeId], references: [id], onDelete: Restrict)
+  company       Company?             @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  product       Product?             @relation(fields: [productId], references: [id], onDelete: Restrict)
 
-  @@unique([clientAccountId, companyId])
-  @@unique([clientAccountId, productId])
+  @@unique([clientAccountId, effect, taxonomyNodeId], map: "export_client_visibility_rule_client_effect_taxonomy_key")
+  @@unique([clientAccountId, effect, companyId], map: "export_client_visibility_rule_client_effect_company_key")
+  @@unique([clientAccountId, effect, productId], map: "export_client_visibility_rule_client_effect_product_key")
+  @@index([clientAccountId, effect, targetType], map: "export_client_visibility_rule_client_effect_target_idx")
+  @@index([taxonomyNodeId, effect], map: "export_client_visibility_rule_taxonomy_effect_idx")
   @@index([companyId])
   @@index([productId])
   @@map("export_client_catalog_visibility_rules")
