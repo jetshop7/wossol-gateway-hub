@@ -15,6 +15,7 @@ export async function getClientCatalog(
     taxonomyLevel?: "SEGMENT" | "FAMILY" | "CLASS" | "BRICK";
     skip?: number;
     productId?: string;
+    productIds?: string[];
   } = {},
 ) {
   const prisma = getWossolExportPrisma();
@@ -41,6 +42,7 @@ export async function getClientCatalog(
 
   const ids = await findClientVisibleProductIds(clientAccountId, {
     productId: input.productId,
+    productIds: input.productIds,
     take: input.productId ? 1 : 101,
     skip: input.productId ? 0 : input.skip,
     search: input.search,
@@ -57,17 +59,21 @@ export async function getClientCatalog(
 
   const pageIds = input.productId ? ids : ids.slice(0, 100);
   const hasMore = !input.productId && ids.length > 100;
+  const favoriteRows = await prisma.clientCatalogFavorite.findMany({
+    where: { clientAccountId, productId: { in: pageIds } },
+    select: { productId: true },
+  });
+  const favoriteProductIds = new Set(favoriteRows.map((favorite) => favorite.productId));
 
   const rows = await prisma.product.findMany({
     where: { id: { in: pageIds }, publicationStatus: "PUBLISHED", company: { status: "ACTIVE" } },
     select: {
       id: true,
+      publicReference: true,
       name: true,
       countryOfOrigin: true,
       shortDescription: true,
       description: true,
-      company: { select: { displayName: true } },
-      brand: { select: { name: true, status: true } },
       taxonomyNode: {
         select: {
           source: true,
@@ -158,7 +164,7 @@ export async function getClientCatalog(
       .map((node) => ({
         code: node.sourceCode,
         level: node.level,
-        name: node.translations[0]?.name ?? node.sourceCode,
+        name: node.translations[0]?.name ?? "Product category",
       }));
     const eligibleVariants = clientEligibleVariants(row.variants);
     if (!eligibleVariants.length) return [];
@@ -191,14 +197,14 @@ export async function getClientCatalog(
     });
     return [
       toClientCatalogProduct({
-        id: row.id,
+        publicReference: row.publicReference,
         name: row.name,
-        companyName: row.company.displayName,
-        brandName: row.brand?.status === "ACTIVE" ? row.brand.name : null,
         countryOfOrigin: row.countryOfOrigin,
         shortDescription: row.shortDescription,
         description: row.description,
+        pricesVisible: account.pricesVisible,
         taxonomy,
+        isFavorite: favoriteProductIds.has(row.id),
         variants,
       }),
     ];
@@ -206,9 +212,146 @@ export async function getClientCatalog(
   return { accessEnabled: true as const, pricesVisible: account.pricesVisible, hasMore, products };
 }
 
-export async function getClientCatalogProduct(clientAccountId: string, productId: string) {
-  const result = await getClientCatalog(clientAccountId, { productId });
-  return result.accessEnabled
-    ? (result.products.find((product) => product.id === productId) ?? null)
+export async function getClientCatalogProduct(clientAccountId: string, productReference: string) {
+  const prisma = getWossolExportPrisma();
+  const exactProduct = await prisma.product.findUnique({
+    where: { publicReference: productReference },
+    select: { id: true },
+  });
+  const legacyReference = productReference.toUpperCase().startsWith("WOS-")
+    ? productReference.slice(4)
     : null;
+  const product =
+    exactProduct ??
+    (legacyReference
+      ? await prisma.product.findFirst({
+          where: { publicReference: { equals: legacyReference, mode: "insensitive" } },
+          select: { id: true },
+        })
+      : null);
+  if (!product) return null;
+  const result = await getClientCatalog(clientAccountId, { productId: product.id });
+  return result.accessEnabled ? (result.products[0] ?? null) : null;
+}
+
+export async function getClientCatalogFavorites(clientAccountId: string, skip = 0) {
+  const prisma = getWossolExportPrisma();
+  const favorites = await prisma.clientCatalogFavorite.findMany({
+    where: { clientAccountId },
+    select: { productId: true },
+    orderBy: { createdAt: "desc" },
+  });
+  if (!favorites.length) {
+    const catalog = await getClientCatalog(clientAccountId, { productIds: [] });
+    return { ...catalog, hasMore: false };
+  }
+  const visibleIds = await findClientVisibleProductIds(clientAccountId, {
+    productIds: favorites.map((favorite) => favorite.productId),
+    take: 101,
+    skip,
+  });
+  const catalog = await getClientCatalog(clientAccountId, { productIds: visibleIds.slice(0, 100) });
+  return { ...catalog, hasMore: visibleIds.length > 100 };
+}
+
+export async function setClientCatalogFavorite(
+  clientAccountId: string,
+  productReference: string,
+  isFavorite: boolean,
+) {
+  const prisma = getWossolExportPrisma();
+  const exactProduct = await prisma.product.findUnique({
+    where: { publicReference: productReference },
+    select: { id: true },
+  });
+  const legacyReference = productReference.toUpperCase().startsWith("WOS-")
+    ? productReference.slice(4)
+    : null;
+  const product =
+    exactProduct ??
+    (legacyReference
+      ? await prisma.product.findFirst({
+          where: { publicReference: { equals: legacyReference, mode: "insensitive" } },
+          select: { id: true },
+        })
+      : null);
+  if (
+    !product ||
+    !(await findClientVisibleProductIds(clientAccountId, { productId: product.id, take: 1 })).length
+  )
+    throw new Error("This product is not available in your catalog.");
+
+  if (isFavorite) {
+    await prisma.clientCatalogFavorite.upsert({
+      where: { clientAccountId_productId: { clientAccountId, productId: product.id } },
+      create: { clientAccountId, productId: product.id },
+      update: {},
+    });
+  } else {
+    await prisma.clientCatalogFavorite.deleteMany({
+      where: { clientAccountId, productId: product.id },
+    });
+  }
+  return { isFavorite };
+}
+
+export async function getClientTaxonomyCategories(
+  clientAccountId: string,
+  parent: { code: string; level: "SEGMENT" | "FAMILY" | "CLASS" | "BRICK" } | null,
+) {
+  const prisma = getWossolExportPrisma();
+  const release = await prisma.catalogTaxonomyRelease.findFirst({
+    where: { source: "GS1_GPC", status: "ACTIVE", isActive: true },
+    select: { sourceVersion: true },
+  });
+  if (!release) return [];
+  let parentId: string | null = null;
+  if (parent) {
+    const record = await prisma.catalogTaxonomyNode.findFirst({
+      where: {
+        source: "GS1_GPC",
+        sourceVersion: release.sourceVersion,
+        sourceCode: parent.code,
+        level: parent.level,
+        status: "ACTIVE",
+      },
+      select: { id: true },
+    });
+    if (!record) return [];
+    parentId = record.id;
+  }
+  const candidates = await prisma.catalogTaxonomyNode.findMany({
+    where: {
+      source: "GS1_GPC",
+      sourceVersion: release.sourceVersion,
+      status: "ACTIVE",
+      parentId,
+      translations: { some: { languageCode: "en", name: { not: "" } } },
+    },
+    select: {
+      sourceCode: true,
+      level: true,
+      translations: { where: { languageCode: "en" }, select: { name: true }, take: 1 },
+    },
+    orderBy: { sourceCode: "asc" },
+    take: 100,
+  });
+  const visible = await Promise.all(
+    candidates.map(async (node) => ({
+      node,
+      hasProducts: Boolean(
+        (
+          await findClientVisibleProductIds(clientAccountId, {
+            taxonomyCode: node.sourceCode,
+            taxonomyLevel: node.level,
+            take: 1,
+          })
+        ).length,
+      ),
+    })),
+  );
+  return visible.flatMap(({ node, hasProducts }) => {
+    const name = node.translations[0]?.name;
+    return hasProducts && name ? [{ code: node.sourceCode, level: node.level, name }] : [];
+  });
 }

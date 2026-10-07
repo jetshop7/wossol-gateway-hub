@@ -34,6 +34,14 @@ const clientUserUpdateInput = z.object({
   password: z.string().max(256).optional(),
   status: z.enum(["ACTIVE", "DISABLED"]),
 });
+const primaryClientLoginInput = z.object({
+  clientAccountId: id,
+  data: z.object({
+    displayName: z.string().trim().min(1).max(120),
+    email: z.string().trim().email().max(320),
+    password: z.string().max(256).optional(),
+  }),
+});
 
 async function guard(
   capability: "catalog.client.manage" | "catalog.price_profile.manage",
@@ -50,6 +58,8 @@ function safeFailure(error: unknown) {
     return { ok: false as const, error: "Please check the entered fields." };
   if (error instanceof Error && error.name === "ClientVisibilityRuleValidationError")
     return { ok: false as const, error: error.message };
+  if (error instanceof Error && error.name === "ClientLoginEmailCollisionError")
+    return { ok: false as const, error: "This login email is unavailable. Choose another email." };
   if (typeof error === "object" && error !== null && "code" in error) {
     if (error.code === "P2002")
       return { ok: false as const, error: "That account or override already exists." };
@@ -130,6 +140,11 @@ export const createAdminClientAccountFn = createServerFn({ method: "POST" })
     } catch (error) {
       const duplicateEmail = duplicateClientUserEmailMessage(error);
       if (duplicateEmail) return { ok: false as const, error: duplicateEmail };
+      if (error instanceof Error && error.name === "ClientLoginEmailCollisionError")
+        return {
+          ok: false as const,
+          error: "This login email is unavailable. Choose another email.",
+        };
       return safeFailure(error);
     }
   });
@@ -157,6 +172,36 @@ export const listAdminClientUsersFn = createServerFn({ method: "GET" })
     const { listAdminClientUsers } =
       await import("../../server/catalog/client-users.repository.server.ts");
     return { ok: true as const, users: await listAdminClientUsers(data.clientAccountId) };
+  });
+
+export const getAdminPrimaryClientLoginFn = createServerFn({ method: "GET" })
+  .validator(z.object({ clientAccountId: id }))
+  .handler(async ({ data }) => {
+    await guard("catalog.client.manage");
+    const { getAdminPrimaryClientLogin } =
+      await import("../../server/catalog/client-users.repository.server.ts");
+    return { ok: true as const, login: await getAdminPrimaryClientLogin(data.clientAccountId) };
+  });
+
+export const saveAdminPrimaryClientLoginFn = createServerFn({ method: "POST" })
+  .validator(primaryClientLoginInput)
+  .handler(async ({ data }) => {
+    const actor = await guard("catalog.client.manage", true);
+    try {
+      const { saveAdminPrimaryClientLogin } =
+        await import("../../server/catalog/client-users.repository.server.ts");
+      return {
+        ok: true as const,
+        login: await saveAdminPrimaryClientLogin(data.clientAccountId, data.data, actor.userId),
+      };
+    } catch (error) {
+      if (error instanceof Error && error.name === "ClientLoginEmailCollisionError")
+        return {
+          ok: false as const,
+          error: "This login email is unavailable. Choose another email.",
+        };
+      return safeFailure(error);
+    }
   });
 
 export const createAdminClientUserFn = createServerFn({ method: "POST" })

@@ -8,18 +8,28 @@ import {
 } from "./client-catalog.dto.ts";
 
 test("client catalog projection allowlists product, variant, packaging and price fields", () => {
-  const dto = toClientCatalogProduct({
+  const record = {
     id: "product-id",
+    publicReference: "c_public_reference",
     name: "Olive oil",
     companyName: "Approved supplier",
+    companyLegalName: "Secret Supplier LLC",
+    companyEmail: "supplier@example.com",
+    companyPhone: "+213000000",
+    companyWebsite: "https://supplier.example",
+    companyAddress: "Supplier address",
+    companyInternalNotes: "private",
+    companyId: "internal-company-id",
     brandName: "Wossol Select",
     countryOfOrigin: "DZ",
     shortDescription: "Extra virgin",
     description: "Client-facing description",
-    taxonomy: [{ code: "10000000", level: "SEGMENT", name: "Food" }],
+    taxonomy: [{ code: "10000000", level: "SEGMENT" as const, name: "Food" }],
     variants: [
       {
         id: "variant-id",
+        sku: "internal-sku",
+        supplierSku: "supplier-reference",
         name: "1 L",
         model: null,
         mainImageUrl: "/api/catalog-images?imageId=2ae17603-2f98-4301-a40e-36760285d59a",
@@ -34,25 +44,26 @@ test("client catalog projection allowlists product, variant, packaging and price
           unitsPerCarton: 6,
           availableStock: 999,
           supplierContact: "private",
+          supplierName: "private supplier",
           internalNote: "private",
         },
       },
     ],
-  });
+  };
+  const dto = toClientCatalogProduct(record);
 
   assert.deepEqual(Object.keys(dto).sort(), [
-    "brandName",
-    "companyName",
     "countryOfOrigin",
     "description",
-    "id",
+    "isFavorite",
     "name",
+    "pricesVisible",
+    "reference",
     "shortDescription",
     "taxonomy",
     "variants",
   ]);
   assert.deepEqual(dto.variants[0], {
-    id: "variant-id",
     name: "1 L",
     model: null,
     mainImageUrl: "/api/catalog-images?imageId=2ae17603-2f98-4301-a40e-36760285d59a",
@@ -62,6 +73,20 @@ test("client catalog projection allowlists product, variant, packaging and price
   const serialized = JSON.stringify(dto);
   for (const forbidden of [
     "supplierSku",
+    "supplierName",
+    "brandName",
+    "companyName",
+    "companyLegalName",
+    "companyEmail",
+    "companyPhone",
+    "companyWebsite",
+    "companyAddress",
+    "companyInternalNotes",
+    "companyId",
+    "supplier-reference",
+    "internal-company-id",
+    "Approved supplier",
+    "Wossol Select",
     "sellingPrice",
     "factoryPrice",
     "markupPercent",
@@ -74,19 +99,34 @@ test("client catalog projection allowlists product, variant, packaging and price
   }
 });
 
+test("client reference is opaque and no supplier or company identity is serialized", () => {
+  const dto = toClientCatalogProduct({
+    publicReference: "WOS-A1B2C3D4",
+    name: "Clean olive oil",
+    countryOfOrigin: "DZ",
+    shortDescription: null,
+    description: null,
+    taxonomy: [{ level: "BRICK", name: "Olive oil" }],
+    variants: [
+      { name: "1 L", model: null, mainImageUrl: null, additionalImageUrls: [], packaging: {} },
+    ],
+  });
+  assert.equal(dto.reference, "WOS-A1B2C3D4");
+  const serialized = JSON.stringify(dto);
+  for (const forbidden of ["company", "brand", "supplier", "companyId", "supplierSku", "internal"])
+    assert.equal(serialized.toLowerCase().includes(forbidden.toLowerCase()), false);
+});
+
 test("hidden prices are absent, not null or serialized as internal pricing data", () => {
   const dto = toClientCatalogProduct({
-    id: "product-id",
+    publicReference: "WOS-REFERENCE",
     name: "Product",
-    companyName: "Company",
-    brandName: null,
     countryOfOrigin: null,
     shortDescription: null,
     description: null,
     taxonomy: [],
     variants: [
       {
-        id: "variant-id",
         name: null,
         model: null,
         mainImageUrl: null,
@@ -96,7 +136,7 @@ test("hidden prices are absent, not null or serialized as internal pricing data"
     ],
   });
   assert.equal("price" in dto.variants[0], false);
-  assert.equal(JSON.stringify(dto).includes("price"), false);
+  assert.equal(JSON.stringify(dto.variants).includes('"price"'), false);
 });
 
 test("visible client price contains only the final DZD selling amount", () => {
@@ -113,10 +153,8 @@ test("visible client price contains only the final DZD selling amount", () => {
     pricingMethod: "MARKUP_PERCENT",
   };
   const dto = toClientCatalogProduct({
-    id: "product-id",
+    publicReference: "WOS-REFERENCE",
     name: "Product",
-    companyName: "Company",
-    brandName: null,
     countryOfOrigin: null,
     shortDescription: null,
     description: null,

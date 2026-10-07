@@ -1,26 +1,12 @@
-export type ClientCatalogPriceDto = { price: string; currency: "DZD" };
+import type {
+  ClientCatalogPriceDto,
+  ClientCatalogProductDto,
+} from "../../lib/client-catalog-types.ts";
 
-export type ClientCatalogVariantDto = {
-  id: string;
-  name: string | null;
-  model: string | null;
-  mainImageUrl: string | null;
-  additionalImageUrls: string[];
-  packaging: Record<string, string | number | boolean>;
-  price?: ClientCatalogPriceDto;
-};
-
-export type ClientCatalogProductDto = {
-  id: string;
-  name: string;
-  companyName: string;
-  brandName: string | null;
-  countryOfOrigin: string | null;
-  shortDescription: string | null;
-  description: string | null;
-  taxonomy: Array<{ code: string; level: "SEGMENT" | "FAMILY" | "CLASS" | "BRICK"; name: string }>;
-  variants: ClientCatalogVariantDto[];
-};
+export type {
+  ClientCatalogProductDto,
+  ClientCatalogVariantDto,
+} from "../../lib/client-catalog-types.ts";
 
 export function clientEligibleVariants<T extends { status: string; publicationStatus: string }>(
   variants: readonly T[],
@@ -75,16 +61,15 @@ export function toClientPackaging(value: unknown): Record<string, string | numbe
 }
 
 export function toClientCatalogProduct(input: {
-  id: string;
+  publicReference: string;
   name: string;
-  companyName: string;
-  brandName: string | null;
   countryOfOrigin: string | null;
   shortDescription: string | null;
   description: string | null;
+  pricesVisible?: boolean;
   taxonomy: ClientCatalogProductDto["taxonomy"];
+  isFavorite?: boolean;
   variants: Array<{
-    id: string;
     name: string | null;
     model: string | null;
     mainImageUrl: string | null;
@@ -94,16 +79,15 @@ export function toClientCatalogProduct(input: {
   }>;
 }): ClientCatalogProductDto {
   return {
-    id: input.id,
+    reference: formatWossolProductReference(input.publicReference),
     name: input.name,
-    companyName: input.companyName,
-    brandName: input.brandName,
     countryOfOrigin: input.countryOfOrigin,
     shortDescription: input.shortDescription,
     description: input.description,
-    taxonomy: input.taxonomy.map(({ code, level, name }) => ({ code, level, name })),
+    pricesVisible: input.pricesVisible ?? false,
+    taxonomy: input.taxonomy.map(({ level, name }) => ({ level, name })),
+    isFavorite: input.isFavorite ?? false,
     variants: input.variants.map((variant) => ({
-      id: variant.id,
       name: variant.name,
       model: variant.model,
       mainImageUrl: clientCatalogImageReference(variant.mainImageUrl),
@@ -116,4 +100,10 @@ export function toClientCatalogProduct(input: {
       ...(variant.price ? { price: { price: variant.price.price, currency: "DZD" as const } } : {}),
     })),
   };
+}
+
+export function formatWossolProductReference(publicReference: string) {
+  return publicReference.toUpperCase().startsWith("WOS-")
+    ? publicReference.toUpperCase()
+    : `WOS-${publicReference.toUpperCase()}`;
 }

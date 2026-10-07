@@ -24,6 +24,11 @@ const clientUserUpdateInput = z.object({
   password: z.string().max(256).optional().default(""),
   status: z.enum(["ACTIVE", "DISABLED"]),
 });
+const primaryClientLoginInput = z.object({
+  displayName: displayNameSchema,
+  email: emailSchema,
+  password: z.string().max(256).optional().default(""),
+});
 
 const userSelect = {
   id: true,
@@ -35,6 +40,17 @@ const userSelect = {
   createdAt: true,
   updatedAt: true,
 } as const;
+
+export async function assertClientLoginEmailAvailable(
+  email: string,
+  findInternalUser: (normalizedEmail: string) => Promise<unknown>,
+) {
+  if (await findInternalUser(email)) {
+    const error = new Error("This login email is unavailable. Choose another email.");
+    error.name = "ClientLoginEmailCollisionError";
+    throw error;
+  }
+}
 
 export async function buildClientUserCredentialData(input: unknown) {
   const data = clientUserInput.parse(input);
@@ -97,6 +113,105 @@ export async function listAdminClientUsers(clientAccountId: string) {
   });
 }
 
+export async function getAdminPrimaryClientLogin(clientAccountId: string) {
+  const accountId = accountIdSchema.parse(clientAccountId);
+  const prisma = getWossolExportPrisma();
+  const primary = await prisma.clientUser.findFirst({
+    where: { clientAccountId: accountId, designation: "PRIMARY_ADMIN" },
+    select: userSelect,
+  });
+  if (primary) return primary;
+  return prisma.clientUser.findFirst({
+    where: { clientAccountId: accountId },
+    select: userSelect,
+    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+  });
+}
+
+export async function saveAdminPrimaryClientLogin(
+  clientAccountId: string,
+  input: unknown,
+  actorId: string,
+) {
+  const accountId = accountIdSchema.parse(clientAccountId);
+  const data = primaryClientLoginInput.parse(input);
+  const password = data.password.trim();
+  const passwordError = password ? validatePassword(password) : null;
+  if (passwordError) throw new Error(passwordError);
+  const passwordHash = password ? await hashPassword(password) : undefined;
+  return getWossolExportPrisma().$transaction(async (tx) => {
+    await tx.clientAccount.findUniqueOrThrow({ where: { id: accountId }, select: { id: true } });
+    const primary = await tx.clientUser.findFirst({
+      where: { clientAccountId: accountId, designation: "PRIMARY_ADMIN" },
+      select: { id: true, email: true, displayName: true, status: true },
+    });
+    const user =
+      primary ??
+      (await tx.clientUser.findFirst({
+        where: { clientAccountId: accountId },
+        select: { id: true, email: true, displayName: true, status: true },
+        orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+      }));
+    await assertClientLoginEmailAvailable(data.email, (email) =>
+      tx.internalUser.findFirst({
+        where: { email: { equals: email, mode: "insensitive" } },
+        select: { id: true },
+      }),
+    );
+    if (!user && !passwordHash) throw new Error("Set an initial password for the primary login.");
+
+    const saved = user
+      ? await tx.clientUser.update({
+          where: { id: user.id },
+          data: {
+            displayName: data.displayName,
+            email: data.email,
+            designation: "PRIMARY_ADMIN",
+            ...(passwordHash ? { passwordHash } : {}),
+          },
+          select: userSelect,
+        })
+      : await tx.clientUser.create({
+          data: {
+            clientAccountId: accountId,
+            displayName: data.displayName,
+            email: data.email,
+            passwordHash: passwordHash!,
+            designation: "PRIMARY_ADMIN",
+            status: "ACTIVE",
+          },
+          select: userSelect,
+        });
+
+    await tx.clientUser.updateMany({
+      where: { clientAccountId: accountId, designation: "PRIMARY_ADMIN", id: { not: saved.id } },
+      data: { designation: "CLIENT_USER" },
+    });
+    if (passwordHash || user?.email !== saved.email) {
+      await tx.authSession.updateMany({
+        where: { clientUserId: saved.id, revokedAt: null },
+        data: { revokedAt: new Date() },
+      });
+    }
+    await tx.authAuditEvent.create({
+      data: auditData(
+        actorId,
+        accountId,
+        saved.id,
+        user ? "CLIENT_PRIMARY_LOGIN_UPDATED" : "CLIENT_PRIMARY_LOGIN_CREATED",
+        {
+          emailBefore: user?.email ?? null,
+          emailAfter: saved.email,
+          displayNameChanged: user?.displayName !== saved.displayName,
+          passwordReset: Boolean(passwordHash),
+          sessionsInvalidated: Boolean(passwordHash || user?.email !== saved.email),
+        },
+      ),
+    });
+    return saved;
+  });
+}
+
 export async function createAdminClientUser(
   clientAccountId: string,
   input: unknown,
@@ -106,6 +221,12 @@ export async function createAdminClientUser(
     const accountId = userData.clientAccountId;
     return getWossolExportPrisma().$transaction(async (tx) => {
       await tx.clientAccount.findUniqueOrThrow({ where: { id: accountId }, select: { id: true } });
+      await assertClientLoginEmailAvailable(userData.email, (email) =>
+        tx.internalUser.findFirst({
+          where: { email: { equals: email, mode: "insensitive" } },
+          select: { id: true },
+        }),
+      );
       const user = await tx.clientUser.create({ data: userData, select: userSelect });
       await tx.authAuditEvent.create({
         data: auditData(creatorId, accountId, user.id, "CLIENT_USER_CREATED", {
@@ -136,6 +257,12 @@ export async function updateAdminClientUser(
       where: { id, clientAccountId: accountId },
       select: { email: true, displayName: true, status: true },
     });
+    await assertClientLoginEmailAvailable(data.email, (email) =>
+      tx.internalUser.findFirst({
+        where: { email: { equals: email, mode: "insensitive" } },
+        select: { id: true },
+      }),
+    );
     const user = await tx.clientUser.update({
       where: { id },
       data: {

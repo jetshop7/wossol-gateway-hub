@@ -181,6 +181,7 @@ model ProductFamily {
 
 model Product {
   id                String                   @id @default(uuid()) @db.Uuid
+  publicReference   String                   @unique @default(cuid()) @map("public_reference")
   /// Retained only for deterministic migration history; new products do not use
   /// ProductFamily as an identity or workflow boundary.
   productFamilyId   String?                  @map("product_family_id") @db.Uuid
@@ -203,6 +204,7 @@ model Product {
   taxonomyNode          CatalogTaxonomyNode?          @relation(fields: [taxonomyNodeId], references: [id], onDelete: Restrict)
   variants              Variant[]
   clientVisibilityRules ClientCatalogVisibilityRule[]
+  clientFavorites       ClientCatalogFavorite[]
 
   @@index([companyId, publicationStatus])
   @@index([brandId])
@@ -425,6 +427,7 @@ model ClientAccount {
   auditEvents     AuthAuditEvent[]
   priceProfile    PriceProfile?                 @relation(fields: [priceProfileId], references: [id], onDelete: Restrict)
   visibilityRules ClientCatalogVisibilityRule[]
+  favorites       ClientCatalogFavorite[]
 
   @@index([priceProfileId, status])
   @@map("export_client_accounts")
@@ -474,6 +477,19 @@ model ClientUser {
   auditEvents   AuthAuditEvent[]
 
   @@map("export_client_users")
+}
+
+model ClientCatalogFavorite {
+  clientAccountId String   @map("client_account_id") @db.Uuid
+  productId       String   @map("product_id") @db.Uuid
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  clientAccount ClientAccount @relation(fields: [clientAccountId], references: [id], onDelete: Cascade)
+  product       Product       @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@id([clientAccountId, productId])
+  @@index([productId])
+  @@map("export_client_catalog_favorites")
 }
 
 model AuthSession {

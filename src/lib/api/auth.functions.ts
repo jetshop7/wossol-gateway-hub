@@ -68,14 +68,63 @@ export const getClientCatalogFn = createServerFn({ method: "GET" })
   });
 
 export const getClientCatalogProductFn = createServerFn({ method: "GET" })
-  .validator(z.object({ productId: z.string().uuid() }))
+  .validator(z.object({ productReference: z.string().trim().min(4).max(80) }))
   .handler(async ({ data }) => {
     const [{ requireClientActor }, { getClientCatalogProduct }] = await Promise.all([
       import("../../server/auth/auth.context.server.ts"),
       import("../../server/catalog/client-catalog.repository.server.ts"),
     ]);
     const actor = await requireClientActor();
-    return { product: await getClientCatalogProduct(actor.clientAccountId!, data.productId) };
+    return {
+      product: await getClientCatalogProduct(actor.clientAccountId!, data.productReference),
+    };
+  });
+
+export const getClientCatalogFavoritesFn = createServerFn({ method: "GET" })
+  .validator(z.object({ skip: z.number().int().min(0).max(100_000).default(0) }))
+  .handler(async ({ data }) => {
+    const [{ requireClientActor }, { getClientCatalogFavorites }] = await Promise.all([
+      import("../../server/auth/auth.context.server.ts"),
+      import("../../server/catalog/client-catalog.repository.server.ts"),
+    ]);
+    const actor = await requireClientActor();
+    return getClientCatalogFavorites(actor.clientAccountId!, data.skip);
+  });
+
+export const setClientCatalogFavoriteFn = createServerFn({ method: "POST" })
+  .validator(
+    z.object({ productReference: z.string().trim().min(4).max(80), isFavorite: z.boolean() }),
+  )
+  .handler(async ({ data }) => {
+    const [{ requireClientActor, requireMutationCsrf }, { setClientCatalogFavorite }] =
+      await Promise.all([
+        import("../../server/auth/auth.context.server.ts"),
+        import("../../server/catalog/client-catalog.repository.server.ts"),
+      ]);
+    requireMutationCsrf();
+    const actor = await requireClientActor();
+    return setClientCatalogFavorite(actor.clientAccountId!, data.productReference, data.isFavorite);
+  });
+
+export const getClientTaxonomyCategoriesFn = createServerFn({ method: "GET" })
+  .validator(
+    z.object({
+      parent: z
+        .object({
+          code: z.string().max(40),
+          level: z.enum(["SEGMENT", "FAMILY", "CLASS", "BRICK"]),
+        })
+        .nullable()
+        .default(null),
+    }),
+  )
+  .handler(async ({ data }) => {
+    const [{ requireClientActor }, { getClientTaxonomyCategories }] = await Promise.all([
+      import("../../server/auth/auth.context.server.ts"),
+      import("../../server/catalog/client-catalog.repository.server.ts"),
+    ]);
+    const actor = await requireClientActor();
+    return { categories: await getClientTaxonomyCategories(actor.clientAccountId!, data.parent) };
   });
 
 export const getCurrentActor = createServerFn({ method: "GET" }).handler(async () => {

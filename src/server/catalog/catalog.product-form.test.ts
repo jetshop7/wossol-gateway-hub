@@ -40,7 +40,7 @@ test("rejects invalid structured packaging units", () => {
 
 test("client product DTO excludes internal product and commercial fields", () => {
   const record = {
-    id: "product",
+    publicReference: "WOS-PUBLIC-REFERENCE",
     name: "Safe",
     companyName: "Company",
     brandName: null,
@@ -69,4 +69,7 @@ test("client product DTO excludes internal product and commercial fields", () =>
   assert.equal("markupPercent" in dto.variants[0]!, false);
   assert.equal("sellingPrice" in dto.variants[0]!, false);
   assert.equal("supplierSku" in dto.variants[0]!, false);
+  const serialized = JSON.stringify(dto);
+  for (const field of ["Company", "brandName", "SUPPLIER-SECRET", "supplierSku"])
+    assert.equal(serialized.includes(field), false);
 });

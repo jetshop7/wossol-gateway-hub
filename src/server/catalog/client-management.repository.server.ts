@@ -7,7 +7,10 @@ import {
   priceProfileInputSchema,
 } from "./client-management.contracts.ts";
 import { createClientAccountOnboardingWithPersistence } from "./client-onboarding.server.ts";
-import type { buildClientUserCredentialData } from "./client-users.repository.server.ts";
+import {
+  assertClientLoginEmailAvailable,
+  type buildClientUserCredentialData,
+} from "./client-users.repository.server.ts";
 import { activeGs1TaxonomyNodeWhere } from "./catalog.taxonomy.ts";
 import {
   assertVisibilityTargetCanBeAdded,
@@ -288,6 +291,12 @@ async function saveClientAccount(
         : await tx.clientAccount.create({ data: values, select: { id: true } });
 
       if (primaryAdminData) {
+        await assertClientLoginEmailAvailable(primaryAdminData.email, (email) =>
+          tx.internalUser.findFirst({
+            where: { email: { equals: email, mode: "insensitive" } },
+            select: { id: true },
+          }),
+        );
         const primaryAdmin = await tx.clientUser.create({
           data: {
             ...primaryAdminData,

@@ -25,10 +25,12 @@ import { Route as AdminCatalogRouteImport } from './routes/admin/catalog'
 import { Route as AdminLoginRouteImport } from './routes/admin/login'
 import { Route as ApiCatalogImagesRouteImport } from './routes/api.catalog-images'
 import { Route as ClientIndexRouteImport } from './routes/client.index'
+import { Route as ClientFavoritesRouteImport } from './routes/client.favorites'
 import { Route as ClientLoginRouteImport } from './routes/client.login'
 import { Route as AdminCatalogClientsRouteImport } from './routes/admin/catalog/clients'
 import { Route as AdminCatalogCompaniesRouteImport } from './routes/admin/catalog/companies'
 import { Route as AdminCatalogPriceProfilesRouteImport } from './routes/admin/catalog/price-profiles'
+import { Route as ClientProductsProductReferenceRouteImport } from './routes/client.products.$productReference'
 import { Route as AdminCatalogCompaniesCompanyIdRouteImport } from './routes/admin/catalog/companies/$companyId'
 
 const IndexRoute = IndexRouteImport.update({
@@ -111,6 +113,11 @@ const ClientIndexRoute = ClientIndexRouteImport.update({
   path: '/',
   getParentRoute: () => ClientRoute,
 } as any)
+const ClientFavoritesRoute = ClientFavoritesRouteImport.update({
+  id: '/favorites',
+  path: '/favorites',
+  getParentRoute: () => ClientRoute,
+} as any)
 const ClientLoginRoute = ClientLoginRouteImport.update({
   id: '/login',
   path: '/login',
@@ -131,6 +138,12 @@ const AdminCatalogPriceProfilesRoute =
     id: '/price-profiles',
     path: '/price-profiles',
     getParentRoute: () => AdminCatalogRoute,
+  } as any)
+const ClientProductsProductReferenceRoute =
+  ClientProductsProductReferenceRouteImport.update({
+    id: '/products/$productReference',
+    path: '/products/$productReference',
+    getParentRoute: () => ClientRoute,
   } as any)
 const AdminCatalogCompaniesCompanyIdRoute =
   AdminCatalogCompaniesCompanyIdRouteImport.update({
@@ -155,11 +168,13 @@ export interface FileRoutesByFullPath {
   '/admin/catalog': typeof AdminCatalogRouteWithChildren
   '/admin/login': typeof AdminLoginRoute
   '/api/catalog-images': typeof ApiCatalogImagesRoute
+  '/client/favorites': typeof ClientFavoritesRoute
   '/client/login': typeof ClientLoginRoute
   '/client/': typeof ClientIndexRoute
   '/admin/catalog/clients': typeof AdminCatalogClientsRoute
   '/admin/catalog/companies': typeof AdminCatalogCompaniesRouteWithChildren
   '/admin/catalog/price-profiles': typeof AdminCatalogPriceProfilesRoute
+  '/client/products/$productReference': typeof ClientProductsProductReferenceRoute
   '/admin/catalog/companies/$companyId': typeof AdminCatalogCompaniesCompanyIdRoute
 }
 export interface FileRoutesByTo {
@@ -177,11 +192,13 @@ export interface FileRoutesByTo {
   '/admin/catalog': typeof AdminCatalogRouteWithChildren
   '/admin/login': typeof AdminLoginRoute
   '/api/catalog-images': typeof ApiCatalogImagesRoute
+  '/client/favorites': typeof ClientFavoritesRoute
   '/client/login': typeof ClientLoginRoute
   '/client': typeof ClientIndexRoute
   '/admin/catalog/clients': typeof AdminCatalogClientsRoute
   '/admin/catalog/companies': typeof AdminCatalogCompaniesRouteWithChildren
   '/admin/catalog/price-profiles': typeof AdminCatalogPriceProfilesRoute
+  '/client/products/$productReference': typeof ClientProductsProductReferenceRoute
   '/admin/catalog/companies/$companyId': typeof AdminCatalogCompaniesCompanyIdRoute
 }
 export interface FileRoutesById {
@@ -201,11 +218,13 @@ export interface FileRoutesById {
   '/admin/catalog': typeof AdminCatalogRouteWithChildren
   '/admin/login': typeof AdminLoginRoute
   '/api/catalog-images': typeof ApiCatalogImagesRoute
+  '/client/favorites': typeof ClientFavoritesRoute
   '/client/login': typeof ClientLoginRoute
   '/client/': typeof ClientIndexRoute
   '/admin/catalog/clients': typeof AdminCatalogClientsRoute
   '/admin/catalog/companies': typeof AdminCatalogCompaniesRouteWithChildren
   '/admin/catalog/price-profiles': typeof AdminCatalogPriceProfilesRoute
+  '/client/products/$productReference': typeof ClientProductsProductReferenceRoute
   '/admin/catalog/companies/$companyId': typeof AdminCatalogCompaniesCompanyIdRoute
 }
 export interface FileRouteTypes {
@@ -226,11 +245,13 @@ export interface FileRouteTypes {
     | '/admin/catalog'
     | '/admin/login'
     | '/api/catalog-images'
+    | '/client/favorites'
     | '/client/login'
     | '/client/'
     | '/admin/catalog/clients'
     | '/admin/catalog/companies'
     | '/admin/catalog/price-profiles'
+    | '/client/products/$productReference'
     | '/admin/catalog/companies/$companyId'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -248,11 +269,13 @@ export interface FileRouteTypes {
     | '/admin/catalog'
     | '/admin/login'
     | '/api/catalog-images'
+    | '/client/favorites'
     | '/client/login'
     | '/client'
     | '/admin/catalog/clients'
     | '/admin/catalog/companies'
     | '/admin/catalog/price-profiles'
+    | '/client/products/$productReference'
     | '/admin/catalog/companies/$companyId'
   id:
     | '__root__'
@@ -271,11 +294,13 @@ export interface FileRouteTypes {
     | '/admin/catalog'
     | '/admin/login'
     | '/api/catalog-images'
+    | '/client/favorites'
     | '/client/login'
     | '/client/'
     | '/admin/catalog/clients'
     | '/admin/catalog/companies'
     | '/admin/catalog/price-profiles'
+    | '/client/products/$productReference'
     | '/admin/catalog/companies/$companyId'
   fileRoutesById: FileRoutesById
 }
@@ -409,6 +434,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ClientIndexRouteImport
       parentRoute: typeof ClientRoute
     }
+    '/client/favorites': {
+      id: '/client/favorites'
+      path: '/favorites'
+      fullPath: '/client/favorites'
+      preLoaderRoute: typeof ClientFavoritesRouteImport
+      parentRoute: typeof ClientRoute
+    }
     '/client/login': {
       id: '/client/login'
       path: '/login'
@@ -436,6 +468,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/admin/catalog/price-profiles'
       preLoaderRoute: typeof AdminCatalogPriceProfilesRouteImport
       parentRoute: typeof AdminCatalogRoute
+    }
+    '/client/products/$productReference': {
+      id: '/client/products/$productReference'
+      path: '/products/$productReference'
+      fullPath: '/client/products/$productReference'
+      preLoaderRoute: typeof ClientProductsProductReferenceRouteImport
+      parentRoute: typeof ClientRoute
     }
     '/admin/catalog/companies/$companyId': {
       id: '/admin/catalog/companies/$companyId'
@@ -489,13 +528,17 @@ const AdminRouteChildren: AdminRouteChildren = {
 const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
 
 interface ClientRouteChildren {
+  ClientFavoritesRoute: typeof ClientFavoritesRoute
   ClientLoginRoute: typeof ClientLoginRoute
   ClientIndexRoute: typeof ClientIndexRoute
+  ClientProductsProductReferenceRoute: typeof ClientProductsProductReferenceRoute
 }
 
 const ClientRouteChildren: ClientRouteChildren = {
+  ClientFavoritesRoute: ClientFavoritesRoute,
   ClientLoginRoute: ClientLoginRoute,
   ClientIndexRoute: ClientIndexRoute,
+  ClientProductsProductReferenceRoute: ClientProductsProductReferenceRoute,
 }
 
 const ClientRouteWithChildren =

@@ -4,11 +4,31 @@ import test from "node:test";
 import { verifyPassword } from "../auth/password.server.ts";
 import { duplicateClientUserEmailMessage } from "../../lib/client-user-errors.ts";
 import {
+  assertClientLoginEmailAvailable,
   buildClientUserCreationData,
   createClientUserWithPersistence,
 } from "./client-users.repository.server.ts";
 
 const accountId = "550e8400-e29b-41d4-a716-446655440000";
+
+test("client primary login email cannot collide with a normalized Wossol InternalUser email", async () => {
+  let queriedEmail = "";
+  await assert.rejects(
+    () =>
+      assertClientLoginEmailAvailable("buyer@example.com", async (email) => {
+        queriedEmail = email;
+        return { id: "internal-user-id" };
+      }),
+    (error: unknown) =>
+      error instanceof Error &&
+      error.name === "ClientLoginEmailCollisionError" &&
+      error.message === "This login email is unavailable. Choose another email.",
+  );
+  assert.equal(queriedEmail, "buyer@example.com");
+  await assert.doesNotReject(() =>
+    assertClientLoginEmailAvailable("client@example.com", async () => null),
+  );
+});
 
 test("Client User creation normalizes email and scopes the persisted user to the selected account", async () => {
   const data = await buildClientUserCreationData(accountId, {

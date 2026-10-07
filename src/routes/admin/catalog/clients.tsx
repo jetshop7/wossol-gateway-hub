@@ -10,6 +10,7 @@ import {
 } from "@/lib/api/commercial-admin.functions";
 import { readCsrfToken } from "@/lib/admin-csrf";
 import { ClientCatalogAccessEditor } from "@/components/ClientCatalogAccessEditor";
+import { ClientAccountUsersPanel } from "@/components/ClientAccountUsersPanel";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -68,6 +69,7 @@ function ClientAccountsPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [expandedAccessId, setExpandedAccessId] = useState<string | null>(null);
+  const [expandedCredentialsId, setExpandedCredentialsId] = useState<string | null>(null);
   const [confirmModeChange, setConfirmModeChange] = useState(false);
   const beginCreate = () => {
     setEditingId(null);
@@ -86,6 +88,7 @@ function ClientAccountsPage() {
 
   const edit = (client: (typeof clients)[number]) => {
     setEditingId(client.id);
+    setExpandedCredentialsId(client.id);
     setPrimaryAdmin(emptyPrimaryAdmin());
     setForm({
       name: client.name,
@@ -100,7 +103,6 @@ function ClientAccountsPage() {
   };
 
   const performSave = async () => {
-    const existingMode = clients.find((client) => client.id === editingId)?.catalogAccessMode;
     setConfirmModeChange(false);
     setBusy(true);
     setError("");
@@ -362,12 +364,28 @@ function ClientAccountsPage() {
               <button
                 type="button"
                 onClick={() =>
+                  setExpandedCredentialsId((current) => (current === client.id ? null : client.id))
+                }
+                className="rounded border px-3 py-2 text-sm font-medium"
+              >
+                {expandedCredentialsId === client.id ? "Close account access" : "Account access"}
+              </button>
+              <button
+                type="button"
+                onClick={() =>
                   setExpandedAccessId((current) => (current === client.id ? null : client.id))
                 }
                 className="rounded border px-3 py-2 text-sm font-medium"
               >
                 {expandedAccessId === client.id ? "Close access rules" : "Manage access rules"}
               </button>
+              {expandedCredentialsId === client.id && (
+                <ClientAccountUsersPanel
+                  clientAccountId={client.id}
+                  clientAccountName={client.name}
+                  accountStatus={client.status}
+                />
+              )}
               {expandedAccessId === client.id && (
                 <ClientCatalogAccessEditor
                   clientAccountId={client.id}

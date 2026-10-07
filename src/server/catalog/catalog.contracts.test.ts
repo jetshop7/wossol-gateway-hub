@@ -16,6 +16,7 @@ test("normalizes catalog slugs without changing the canonical identity input", (
 test("client product projection allowlists public fields", () => {
   const record = {
     id: "product-1",
+    publicReference: "WOS-PUBLIC-1",
     name: "Visible product",
     companyName: "Approved company",
     brandName: null,
@@ -42,17 +43,16 @@ test("client product projection allowlists public fields", () => {
   const result = toClientCatalogProduct(record);
 
   assert.deepEqual(result, {
-    id: "product-1",
+    reference: "WOS-PUBLIC-1",
     name: "Visible product",
-    companyName: "Approved company",
-    brandName: null,
     countryOfOrigin: "DZ",
     shortDescription: "Safe summary",
     description: "Safe description",
-    taxonomy: [{ code: "10000000", level: "SEGMENT", name: "Food" }],
+    taxonomy: [{ level: "SEGMENT", name: "Food" }],
+    pricesVisible: false,
+    isFavorite: false,
     variants: [
       {
-        id: "variant-1",
         name: "Visible variant",
         model: "MODEL-1",
         mainImageUrl: null,

@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { getWossolExportPrisma } from "./prisma.server.ts";
 import {
   catalogBrandInputSchema,
@@ -574,6 +575,7 @@ export async function createAdminProduct(companyId: string, input: unknown) {
         const createdProduct = await tx.product.create({
           data: {
             ...product,
+            publicReference: `WOS-${randomUUID().replaceAll("-", "").toUpperCase()}`,
             companyId,
             brandId: data.brandId ?? null,
             taxonomyNodeId: data.taxonomyNodeId ?? null,

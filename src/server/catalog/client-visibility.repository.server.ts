@@ -11,6 +11,7 @@ export async function findClientVisibleProductIds(
   clientAccountId: string,
   options: {
     productId?: string;
+    productIds?: string[];
     take?: number;
     skip?: number;
     search?: string;
@@ -23,12 +24,16 @@ export async function findClientVisibleProductIds(
   const productFilter = options.productId
     ? Prisma.sql`AND p.id = ${options.productId}::uuid`
     : Prisma.empty;
+  if (options.productIds && options.productIds.length === 0) return [];
+  const productIdsFilter = options.productIds
+    ? Prisma.sql`AND p.id IN (${Prisma.join(options.productIds.map((id) => Prisma.sql`${id}::uuid`))})`
+    : Prisma.empty;
   const taxonomyProductFilter = options.productId
     ? Prisma.sql`WHERE p.id = ${options.productId}::uuid AND p.taxonomy_node_id IS NOT NULL`
     : Prisma.sql`WHERE p.taxonomy_node_id IS NOT NULL`;
   const search = options.search?.trim();
   const searchFilter = search
-    ? Prisma.sql`AND (p.name ILIKE ${`%${search}%`} OR COALESCE(p.short_description, '') ILIKE ${`%${search}%`} OR COALESCE(p.description, '') ILIKE ${`%${search}%`} OR company.display_name ILIKE ${`%${search}%`} OR EXISTS (SELECT 1 FROM catalog_brands search_brand WHERE search_brand.id = p.brand_id AND search_brand.name ILIKE ${`%${search}%`}))`
+    ? Prisma.sql`AND (p.name ILIKE ${`%${search}%`} OR COALESCE(p.short_description, '') ILIKE ${`%${search}%`} OR COALESCE(p.description, '') ILIKE ${`%${search}%`})`
     : Prisma.empty;
   const taxonomyFilter =
     options.taxonomyCode && options.taxonomyLevel
@@ -56,6 +61,7 @@ export async function findClientVisibleProductIds(
       AND account.status = 'ACTIVE'
       AND account.catalog_access_status = 'ENABLED'
       ${productFilter}
+      ${productIdsFilter}
       ${searchFilter}
       ${taxonomyFilter}
       AND EXISTS (SELECT 1 FROM catalog_variants eligible_variant WHERE eligible_variant.product_id = p.id AND eligible_variant.status = 'ACTIVE' AND eligible_variant.publication_status = 'PUBLISHED')
