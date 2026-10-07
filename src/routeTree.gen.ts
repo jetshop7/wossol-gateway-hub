@@ -18,6 +18,7 @@ import { Route as MarketsRouteImport } from './routes/markets'
 import { Route as OpportunitiesRouteImport } from './routes/opportunities'
 import { Route as PrivacyPolicyRouteImport } from './routes/privacy-policy'
 import { Route as SectorsRouteImport } from './routes/sectors'
+import { Route as SignInRouteImport } from './routes/sign-in'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as WhyChooseWossolExportRouteImport } from './routes/why-choose-wossol-export'
 import { Route as AdminCatalogRouteImport } from './routes/admin/catalog'
@@ -73,6 +74,11 @@ const PrivacyPolicyRoute = PrivacyPolicyRouteImport.update({
 const SectorsRoute = SectorsRouteImport.update({
   id: '/sectors',
   path: '/sectors',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SignInRoute = SignInRouteImport.update({
+  id: '/sign-in',
+  path: '/sign-in',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
@@ -143,6 +149,7 @@ export interface FileRoutesByFullPath {
   '/opportunities': typeof OpportunitiesRoute
   '/privacy-policy': typeof PrivacyPolicyRoute
   '/sectors': typeof SectorsRoute
+  '/sign-in': typeof SignInRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/why-choose-wossol-export': typeof WhyChooseWossolExportRoute
   '/admin/catalog': typeof AdminCatalogRouteWithChildren
@@ -164,6 +171,7 @@ export interface FileRoutesByTo {
   '/opportunities': typeof OpportunitiesRoute
   '/privacy-policy': typeof PrivacyPolicyRoute
   '/sectors': typeof SectorsRoute
+  '/sign-in': typeof SignInRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/why-choose-wossol-export': typeof WhyChooseWossolExportRoute
   '/admin/catalog': typeof AdminCatalogRouteWithChildren
@@ -187,6 +195,7 @@ export interface FileRoutesById {
   '/opportunities': typeof OpportunitiesRoute
   '/privacy-policy': typeof PrivacyPolicyRoute
   '/sectors': typeof SectorsRoute
+  '/sign-in': typeof SignInRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/why-choose-wossol-export': typeof WhyChooseWossolExportRoute
   '/admin/catalog': typeof AdminCatalogRouteWithChildren
@@ -211,6 +220,7 @@ export interface FileRouteTypes {
     | '/opportunities'
     | '/privacy-policy'
     | '/sectors'
+    | '/sign-in'
     | '/sitemap.xml'
     | '/why-choose-wossol-export'
     | '/admin/catalog'
@@ -232,6 +242,7 @@ export interface FileRouteTypes {
     | '/opportunities'
     | '/privacy-policy'
     | '/sectors'
+    | '/sign-in'
     | '/sitemap.xml'
     | '/why-choose-wossol-export'
     | '/admin/catalog'
@@ -254,6 +265,7 @@ export interface FileRouteTypes {
     | '/opportunities'
     | '/privacy-policy'
     | '/sectors'
+    | '/sign-in'
     | '/sitemap.xml'
     | '/why-choose-wossol-export'
     | '/admin/catalog'
@@ -277,6 +289,7 @@ export interface RootRouteChildren {
   OpportunitiesRoute: typeof OpportunitiesRoute
   PrivacyPolicyRoute: typeof PrivacyPolicyRoute
   SectorsRoute: typeof SectorsRoute
+  SignInRoute: typeof SignInRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   WhyChooseWossolExportRoute: typeof WhyChooseWossolExportRoute
   ApiCatalogImagesRoute: typeof ApiCatalogImagesRoute
@@ -345,6 +358,13 @@ declare module '@tanstack/react-router' {
       path: '/sectors'
       fullPath: '/sectors'
       preLoaderRoute: typeof SectorsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sign-in': {
+      id: '/sign-in'
+      path: '/sign-in'
+      fullPath: '/sign-in'
+      preLoaderRoute: typeof SignInRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/sitemap.xml': {
@@ -491,6 +511,7 @@ const rootRouteChildren: RootRouteChildren = {
   OpportunitiesRoute: OpportunitiesRoute,
   PrivacyPolicyRoute: PrivacyPolicyRoute,
   SectorsRoute: SectorsRoute,
+  SignInRoute: SignInRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   WhyChooseWossolExportRoute: WhyChooseWossolExportRoute,
   ApiCatalogImagesRoute: ApiCatalogImagesRoute,

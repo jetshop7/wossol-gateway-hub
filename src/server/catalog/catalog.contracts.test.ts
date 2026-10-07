@@ -6,7 +6,7 @@ import {
   getPipelineCompanyLinkIdempotencyKey,
   normalizeCatalogSlug,
 } from "./catalog.contracts.ts";
-import { toClientCatalogProductDto } from "./catalog.dto.ts";
+import { toClientCatalogProduct } from "./client-catalog.dto.ts";
 import { validatePipelineCompanyLink } from "./catalog.validation.ts";
 
 test("normalizes catalog slugs without changing the canonical identity input", () => {
@@ -14,15 +14,15 @@ test("normalizes catalog slugs without changing the canonical identity input", (
 });
 
 test("client product projection allowlists public fields", () => {
-  const result = toClientCatalogProductDto({
+  const record = {
     id: "product-1",
-    companyId: "company-1",
-    brandId: null,
-    taxonomyNodeId: "taxonomy-1",
     name: "Visible product",
-    slug: "visible-product",
+    companyName: "Approved company",
+    brandName: null,
+    countryOfOrigin: "DZ",
     shortDescription: "Safe summary",
     description: "Safe description",
+    taxonomy: [{ code: "10000000", level: "SEGMENT" as const, name: "Food" }],
     variants: [
       {
         id: "variant-1",
@@ -31,26 +31,40 @@ test("client product projection allowlists public fields", () => {
         model: "MODEL-1",
         mainImageUrl: null,
         additionalImageUrls: [],
+        packaging: {},
+        factoryPrice: "900",
+        markupPercent: "25",
+        sellingPrice: "1125",
         internalNotes: "must not leak",
-        acquisitionCost: 12,
-        pipelineSourceId: "source-1",
-      } as never,
+      },
     ],
-  });
+  };
+  const result = toClientCatalogProduct(record);
 
   assert.deepEqual(result, {
     id: "product-1",
-    companyId: "company-1",
-    brandId: null,
-    taxonomyNodeId: "taxonomy-1",
     name: "Visible product",
-    slug: "visible-product",
+    companyName: "Approved company",
+    brandName: null,
+    countryOfOrigin: "DZ",
     shortDescription: "Safe summary",
     description: "Safe description",
-    variants: [{ id: "variant-1", sku: "SKU-1", name: "Visible variant", model: "MODEL-1", mainImageUrl: null, additionalImageUrls: [] }],
+    taxonomy: [{ code: "10000000", level: "SEGMENT", name: "Food" }],
+    variants: [
+      {
+        id: "variant-1",
+        name: "Visible variant",
+        model: "MODEL-1",
+        mainImageUrl: null,
+        additionalImageUrls: [],
+        packaging: {},
+      },
+    ],
   });
   assert.equal("internalNotes" in result, false);
-  assert.equal("acquisitionCost" in result, false);
+  assert.equal("companyId" in result, false);
+  assert.equal("sku" in result.variants[0]!, false);
+  assert.equal("sellingPrice" in result.variants[0]!, false);
 });
 
 test("product identity uses the stable product id, not a ProductFamily slug", () => {

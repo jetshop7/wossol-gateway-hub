@@ -7,14 +7,18 @@ const credentials = z.object({
 });
 
 export const loginInternal = createServerFn({ method: "POST" })
-  .inputValidator(credentials)
+  .validator(credentials)
   .handler(async ({ data }) => {
-    const [{ authenticateInternal }, { establishSession, requestIp }, { toPublicActor }] =
-      await Promise.all([
-        import("../../server/auth/auth.service.server.ts"),
-        import("../../server/auth/auth.context.server.ts"),
-        import("../../server/auth/auth.types.ts"),
-      ]);
+    const [
+      { authenticateInternal },
+      { establishSession, requestIp, requireSameOriginRequest },
+      { toPublicActor },
+    ] = await Promise.all([
+      import("../../server/auth/auth.service.server.ts"),
+      import("../../server/auth/auth.context.server.ts"),
+      import("../../server/auth/auth.types.ts"),
+    ]);
+    requireSameOriginRequest();
     const result = await authenticateInternal(data.email, data.password, {
       ipAddress: requestIp(),
     });
@@ -22,8 +26,28 @@ export const loginInternal = createServerFn({ method: "POST" })
     return { actor: toPublicActor(result.actor) };
   });
 
+export const loginUnified = createServerFn({ method: "POST" })
+  .validator(credentials.extend({ identity: z.enum(["INTERNAL", "CLIENT"]) }))
+  .handler(async ({ data }) => {
+    const [
+      { authenticateForWorkspace },
+      { establishSession, requestIp, requireSameOriginRequest },
+      { toPublicActor },
+    ] = await Promise.all([
+      import("../../server/auth/auth.service.server.ts"),
+      import("../../server/auth/auth.context.server.ts"),
+      import("../../server/auth/auth.types.ts"),
+    ]);
+    requireSameOriginRequest();
+    const result = await authenticateForWorkspace(data.identity, data.email, data.password, {
+      ipAddress: requestIp(),
+    });
+    await establishSession(result.token, result.expiresAt);
+    return { actor: toPublicActor(result.actor) };
+  });
+
 export const loginClient = createServerFn({ method: "POST" })
-  .inputValidator(credentials)
+  .validator(credentials)
   .handler(async ({ data }) => {
     const [
       { authenticateClient },
@@ -54,11 +78,43 @@ export const getClientAreaIdentity = createServerFn({ method: "GET" }).handler(a
   );
   if (!identity) throw new Error("Client identity is unavailable.");
   return toClientAreaIdentity({
-    clientAccountId: actor.clientAccountId!,
     clientAccountName: identity.clientAccount.name,
     userDisplayName: identity.displayName,
   });
 });
+
+const clientCatalogQuery = z
+  .object({
+    search: z.string().trim().max(120).optional(),
+    taxonomyCode: z.string().trim().max(40).optional(),
+    taxonomyLevel: z.enum(["SEGMENT", "FAMILY", "CLASS", "BRICK"]).optional(),
+    skip: z.number().int().min(0).max(1_000_000).optional(),
+  })
+  .refine((query) => Boolean(query.taxonomyCode) === Boolean(query.taxonomyLevel), {
+    message: "Taxonomy code and level must be supplied together.",
+  });
+
+export const getClientCatalogFn = createServerFn({ method: "GET" })
+  .validator(clientCatalogQuery)
+  .handler(async ({ data }) => {
+    const [{ requireClientActor }, { getClientCatalog }] = await Promise.all([
+      import("../../server/auth/auth.context.server.ts"),
+      import("../../server/catalog/client-catalog.repository.server.ts"),
+    ]);
+    const actor = await requireClientActor();
+    return getClientCatalog(actor.clientAccountId!, data);
+  });
+
+export const getClientCatalogProductFn = createServerFn({ method: "GET" })
+  .validator(z.object({ productId: z.string().uuid() }))
+  .handler(async ({ data }) => {
+    const [{ requireClientActor }, { getClientCatalogProduct }] = await Promise.all([
+      import("../../server/auth/auth.context.server.ts"),
+      import("../../server/catalog/client-catalog.repository.server.ts"),
+    ]);
+    const actor = await requireClientActor();
+    return { product: await getClientCatalogProduct(actor.clientAccountId!, data.productId) };
+  });
 
 export const getCurrentActor = createServerFn({ method: "GET" }).handler(async () => {
   const [{ resolveAuthenticatedActor }, { toPublicActor }] = await Promise.all([

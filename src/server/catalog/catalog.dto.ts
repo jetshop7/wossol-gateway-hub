@@ -105,33 +105,8 @@ export type AdminProductDto = {
   variants: AdminVariantDto[];
 };
 
-export type ClientCatalogVariantDto = {
-  id: string;
-  sku: string;
-  name: string | null;
-  model: string | null;
-  mainImageUrl: string | null;
-  additionalImageUrls: string[];
-};
-
-export type ClientCatalogProductDto = {
-  id: string;
-  companyId: string;
-  brandId: string | null;
-  taxonomyNodeId: string | null;
-  name: string;
-  slug: string;
-  shortDescription: string | null;
-  description: string | null;
-  variants: ClientCatalogVariantDto[];
-};
-
 type AdminCompanyRecord = Omit<AdminCompanyDto, "pipelineLinks"> & {
   pipelineLinks?: AdminPipelineCompanyLinkDto[];
-};
-
-type ClientCatalogProductRecord = Omit<ClientCatalogProductDto, "variants"> & {
-  variants: Array<Omit<ClientCatalogVariantDto, "additionalImageUrls"> & { additionalImageUrls: Prisma.JsonValue | null }>;
 };
 
 export function toAdminCompanyDto(record: AdminCompanyRecord): AdminCompanyDto {
@@ -160,11 +135,13 @@ export function toAdminCompanyDetailDto(record: AdminCompanyDetailRecord): Admin
 
 type DecimalLike = { toString(): string };
 type AdminProductRecord = Omit<AdminProductDto, "variants" | "taxonomyNode"> & {
-  variants: Array<Omit<AdminVariantDto, "factoryPrice" | "markupPercent" | "sellingPrice"> & {
-    factoryPrice: DecimalLike | null;
-    markupPercent: DecimalLike | null;
-    sellingPrice: DecimalLike | null;
-  }>;
+  variants: Array<
+    Omit<AdminVariantDto, "factoryPrice" | "markupPercent" | "sellingPrice"> & {
+      factoryPrice: DecimalLike | null;
+      markupPercent: DecimalLike | null;
+      sellingPrice: DecimalLike | null;
+    }
+  >;
   taxonomyNode: AdminTaxonomyRecord | null;
 };
 
@@ -220,28 +197,5 @@ export function toAdminBrandDto(record: AdminBrandDto): AdminBrandDto {
     status: record.status,
     createdAt: record.createdAt,
     updatedAt: record.updatedAt,
-  };
-}
-
-export function toClientCatalogProductDto(
-  record: ClientCatalogProductRecord,
-): ClientCatalogProductDto {
-  return {
-    id: record.id,
-    companyId: record.companyId,
-    brandId: record.brandId,
-    taxonomyNodeId: record.taxonomyNodeId,
-    name: record.name,
-    slug: record.slug,
-    shortDescription: record.shortDescription,
-    description: record.description,
-    variants: record.variants.map((variant) => ({
-      id: variant.id,
-      sku: variant.sku,
-      name: variant.name,
-      model: variant.model,
-      mainImageUrl: variant.mainImageUrl,
-      additionalImageUrls: Array.isArray(variant.additionalImageUrls) ? variant.additionalImageUrls.filter((item): item is string => typeof item === "string") : [],
-    })),
   };
 }

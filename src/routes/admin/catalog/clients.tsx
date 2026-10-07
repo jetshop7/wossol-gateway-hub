@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
-import { Pencil, Plus, Users } from "lucide-react";
+import { Pencil, Plus } from "lucide-react";
 
 import {
   createAdminClientAccountFn,
@@ -10,7 +10,6 @@ import {
 } from "@/lib/api/commercial-admin.functions";
 import { readCsrfToken } from "@/lib/admin-csrf";
 import { ClientCatalogAccessEditor } from "@/components/ClientCatalogAccessEditor";
-import { ClientAccountUsersPanel } from "@/components/ClientAccountUsersPanel";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -69,7 +68,6 @@ function ClientAccountsPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [expandedAccessId, setExpandedAccessId] = useState<string | null>(null);
-  const [expandedUsersId, setExpandedUsersId] = useState<string | null>(null);
   const [confirmModeChange, setConfirmModeChange] = useState(false);
   const beginCreate = () => {
     setEditingId(null);
@@ -312,8 +310,8 @@ function ClientAccountsPage() {
             Client may see prices
           </label>
           <p className="text-xs text-slate-500 sm:col-span-2">
-            New accounts default to hidden prices and disabled catalog access. Client credentials
-            are separate from Wossol Admin credentials and sign in at /client/login.
+            New accounts default to hidden prices and disabled catalog access. Client and Wossol
+            credentials use the secure sign-in entry point.
           </p>
           <div className="flex gap-2 sm:col-span-2">
             <button
@@ -344,8 +342,7 @@ function ClientAccountsPage() {
                   </StatusPill>
                 </div>
                 <p className="mt-1 text-sm text-slate-600">
-                  Price Profile: {client.priceProfile?.name ?? "Unassigned"} · {client.userCount}{" "}
-                  user(s)
+                  Price Profile: {client.priceProfile?.name ?? "Unassigned"}
                 </p>
                 <p className="mt-1 text-xs text-slate-500">
                   Prices {client.pricesVisible ? "visible" : "hidden"} · Catalog{" "}
@@ -371,26 +368,10 @@ function ClientAccountsPage() {
               >
                 {expandedAccessId === client.id ? "Close access rules" : "Manage access rules"}
               </button>
-              <button
-                type="button"
-                onClick={() =>
-                  setExpandedUsersId((current) => (current === client.id ? null : client.id))
-                }
-                className="inline-flex items-center gap-1 rounded border px-3 py-2 text-sm font-medium"
-              >
-                <Users className="h-4 w-4" />
-                {expandedUsersId === client.id ? "Close users" : "Manage users"}
-              </button>
               {expandedAccessId === client.id && (
                 <ClientCatalogAccessEditor
                   clientAccountId={client.id}
                   catalogAccessMode={client.catalogAccessMode}
-                />
-              )}
-              {expandedUsersId === client.id && (
-                <ClientAccountUsersPanel
-                  clientAccountId={client.id}
-                  clientAccountName={client.name}
                 />
               )}
             </article>
@@ -424,7 +405,7 @@ function ClientAccountsPage() {
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <label className="grid gap-1.5 text-sm font-medium text-slate-700">
+    <label className="grid gap-1.5 text-sm font-medium text-slate-700 [&>input]:w-full [&>input]:rounded-md [&>input]:border [&>input]:border-slate-300 [&>input]:bg-white [&>input]:px-3 [&>input]:py-2 [&>input]:text-sm [&>input]:outline-none [&>input:focus]:border-amber-500 [&>input:focus]:ring-2 [&>input:focus]:ring-amber-200 [&>select]:w-full [&>select]:rounded-md [&>select]:border [&>select]:border-slate-300 [&>select]:bg-white [&>select]:px-3 [&>select]:py-2 [&>select]:text-sm [&>select]:outline-none [&>select:focus]:border-amber-500 [&>select:focus]:ring-2 [&>select:focus]:ring-amber-200">
       {label}
       {children}
     </label>

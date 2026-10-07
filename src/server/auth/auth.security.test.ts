@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   authenticateClient,
+  authenticateForWorkspace,
   authenticateInternal,
   GENERIC_LOGIN_FAILURE,
 } from "./auth.service.server.ts";
@@ -165,6 +166,40 @@ test("Primary Client Admin credentials authenticate through Client login, never 
   assert.equal(adminRepository.sessions.length, 0);
 });
 
+test("unified sign-in authenticates only the explicitly selected identity domain", async () => {
+  const password = "same-email but distinct workspace";
+  const passwordHash = await hashPassword(password);
+  const repository = fakeRepository(
+    {
+      id: "internal-user",
+      email: "same@example.com",
+      passwordHash,
+      role: "CATALOG_ADMIN",
+      status: "ACTIVE",
+    },
+    {
+      id: "client-user",
+      email: "same@example.com",
+      clientAccountId: "account-1",
+      passwordHash,
+      status: "ACTIVE",
+      clientAccount: { status: "ACTIVE" },
+    },
+  );
+
+  const client = await authenticateForWorkspace("CLIENT", "same@example.com", password, {
+    repository,
+  });
+  assert.equal(client.actor.actorType, "CLIENT");
+  assert.equal(client.actor.clientAccountId, "account-1");
+  const internal = await authenticateForWorkspace("INTERNAL", "same@example.com", password, {
+    repository,
+  });
+  assert.equal(internal.actor.actorType, "INTERNAL");
+  assert.equal("clientAccountId" in internal.actor, false);
+  assert.equal(repository.sessions.length, 2);
+});
+
 test("wrong Client User credentials fail with the same bounded error", async () => {
   const repository = fakeRepository(null, {
     id: "client-user-1",
@@ -237,6 +272,7 @@ test("internal and client actors remain distinct and client actors cannot use in
       }),
     false,
   );
+  assert.equal("clientAccountId" in toPublicActor(client), false);
 });
 
 test("client area identity DTO allowlists only client-facing identity fields", () => {
@@ -251,7 +287,6 @@ test("client area identity DTO allowlists only client-facing identity fields", (
   };
   const identity = toClientAreaIdentity(internalRecord);
   assert.deepEqual(identity, {
-    clientAccountId: "account-1",
     clientAccountName: "Northwind",
     userDisplayName: "Alex Buyer",
   });

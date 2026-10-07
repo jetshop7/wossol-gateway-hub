@@ -6,8 +6,7 @@ import { AdminShell } from "@/lib/admin";
 export const Route = createFileRoute("/admin/catalog")({
   loader: async () => {
     const result = await getCurrentActor();
-    if (!result.actor || result.actor.actorType !== "INTERNAL")
-      throw redirect({ to: "/admin/login" });
+    if (!result.actor || result.actor.actorType !== "INTERNAL") throw redirect({ to: "/sign-in" });
     return result;
   },
   component: AdminCatalogLayout,

@@ -55,18 +55,15 @@ export function toPublicActor(actor: AuthenticatedActor) {
   return {
     actorType: actor.actorType,
     userId: actor.userId,
-    ...(actor.clientAccountId ? { clientAccountId: actor.clientAccountId } : {}),
     ...(actor.role ? { role: actor.role } : {}),
   };
 }
 
 export function toClientAreaIdentity(input: {
-  clientAccountId: string;
   clientAccountName: string;
   userDisplayName: string;
 }) {
   return {
-    clientAccountId: input.clientAccountId,
     clientAccountName: input.clientAccountName,
     userDisplayName: input.userDisplayName,
   };

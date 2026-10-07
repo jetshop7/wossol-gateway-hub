@@ -9,9 +9,16 @@ import { getWossolExportPrisma } from "./prisma.server.ts";
  */
 export async function findClientVisibleProductIds(
   clientAccountId: string,
-  options: { productId?: string; take?: number; skip?: number } = {},
+  options: {
+    productId?: string;
+    take?: number;
+    skip?: number;
+    search?: string;
+    taxonomyCode?: string;
+    taxonomyLevel?: "SEGMENT" | "FAMILY" | "CLASS" | "BRICK";
+  } = {},
 ) {
-  const take = Math.max(1, Math.min(100, Math.trunc(options.take ?? 50)));
+  const take = Math.max(1, Math.min(101, Math.trunc(options.take ?? 50)));
   const skip = Math.max(0, Math.trunc(options.skip ?? 0));
   const productFilter = options.productId
     ? Prisma.sql`AND p.id = ${options.productId}::uuid`
@@ -19,6 +26,14 @@ export async function findClientVisibleProductIds(
   const taxonomyProductFilter = options.productId
     ? Prisma.sql`WHERE p.id = ${options.productId}::uuid AND p.taxonomy_node_id IS NOT NULL`
     : Prisma.sql`WHERE p.taxonomy_node_id IS NOT NULL`;
+  const search = options.search?.trim();
+  const searchFilter = search
+    ? Prisma.sql`AND (p.name ILIKE ${`%${search}%`} OR COALESCE(p.short_description, '') ILIKE ${`%${search}%`} OR COALESCE(p.description, '') ILIKE ${`%${search}%`} OR company.display_name ILIKE ${`%${search}%`} OR EXISTS (SELECT 1 FROM catalog_brands search_brand WHERE search_brand.id = p.brand_id AND search_brand.name ILIKE ${`%${search}%`}))`
+    : Prisma.empty;
+  const taxonomyFilter =
+    options.taxonomyCode && options.taxonomyLevel
+      ? Prisma.sql`AND EXISTS (SELECT 1 FROM product_taxonomy_ancestors selected_taxonomy JOIN catalog_taxonomy_nodes selected_node ON selected_node.id = selected_taxonomy.node_id JOIN catalog_taxonomy_releases selected_release ON selected_release.source = selected_node.source AND selected_release.source_version = selected_node.source_version WHERE selected_taxonomy.product_id = p.id AND selected_node.source = 'GS1_GPC' AND selected_node.source_code = ${options.taxonomyCode} AND selected_node.level = ${options.taxonomyLevel}::"CatalogTaxonomyLevel" AND selected_node.status = 'ACTIVE' AND selected_release.is_active = TRUE AND selected_release.status = 'ACTIVE')`
+      : Prisma.empty;
 
   const rows = await getWossolExportPrisma().$queryRaw<Array<{ id: string }>>(Prisma.sql`
     WITH RECURSIVE product_taxonomy_ancestors(product_id, node_id) AS (
@@ -41,6 +56,10 @@ export async function findClientVisibleProductIds(
       AND account.status = 'ACTIVE'
       AND account.catalog_access_status = 'ENABLED'
       ${productFilter}
+      ${searchFilter}
+      ${taxonomyFilter}
+      AND EXISTS (SELECT 1 FROM catalog_variants eligible_variant WHERE eligible_variant.product_id = p.id AND eligible_variant.status = 'ACTIVE' AND eligible_variant.publication_status = 'PUBLISHED')
+      AND (p.taxonomy_node_id IS NULL OR EXISTS (SELECT 1 FROM catalog_taxonomy_nodes product_brick JOIN catalog_taxonomy_releases product_release ON product_release.source = product_brick.source AND product_release.source_version = product_brick.source_version WHERE product_brick.id = p.taxonomy_node_id AND product_brick.level = 'BRICK' AND product_brick.status = 'ACTIVE' AND (product_brick.source = 'WOSSOL_EXTENSION' OR (product_brick.source = 'GS1_GPC' AND product_release.is_active = TRUE AND product_release.status = 'ACTIVE'))))
       AND (
         account.catalog_access_mode = 'ALL_APPROVED'
         OR EXISTS (

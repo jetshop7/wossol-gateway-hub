@@ -30,7 +30,7 @@ export function AdminShell({
     setLoggingOut(true);
     try {
       await logout({ headers: { "x-wossol-csrf": readCsrfToken() ?? "" } });
-      window.location.assign("/admin/login");
+      window.location.assign("/sign-in");
     } finally {
       setLoggingOut(false);
     }

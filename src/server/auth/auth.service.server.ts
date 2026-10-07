@@ -133,3 +133,15 @@ export async function authenticateClient(
   });
   return { ...session, actor: { ...actor, sessionId: session.sessionId } };
 }
+
+/** The unified sign-in form chooses one identity domain; credentials are never tried across both. */
+export async function authenticateForWorkspace(
+  identity: "INTERNAL" | "CLIENT",
+  email: string,
+  password: string,
+  options?: { repository?: AuthRepository; ipAddress?: string; now?: Date },
+) {
+  return identity === "INTERNAL"
+    ? authenticateInternal(email, password, options)
+    : authenticateClient(email, password, options);
+}
