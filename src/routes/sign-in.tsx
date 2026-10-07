@@ -2,6 +2,7 @@ import { useState, type FormEvent } from "react";
 import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
 import { ArrowRight, LockKeyhole, Mail, ShieldCheck } from "lucide-react";
 import { Logo } from "@/components/Logo";
+import { workspacePathForActor } from "@/lib/auth-routing";
 import { getCurrentActor, loginUnified } from "@/lib/api/auth.functions";
 
 export const Route = createFileRoute("/sign-in")({
@@ -15,7 +16,6 @@ export const Route = createFileRoute("/sign-in")({
 
 function SignIn() {
   const navigate = useNavigate();
-  const [identity, setIdentity] = useState<"INTERNAL" | "CLIENT">("CLIENT");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -27,12 +27,9 @@ function SignIn() {
     setSubmitting(true);
     setError("");
     try {
-      const result = await loginUnified({ data: { identity, email, password } });
-      if (identity === "INTERNAL" && result.actor?.actorType === "INTERNAL")
-        await navigate({ to: "/admin/catalog/companies" });
-      else if (identity === "CLIENT" && result.actor?.actorType === "CLIENT")
-        await navigate({ to: "/client" });
-      else setError("Invalid email or password.");
+      const result = await loginUnified({ data: { email, password } });
+      if (!result.actor) throw new Error("Authentication failed.");
+      await navigate({ to: workspacePathForActor(result.actor.actorType) });
     } catch {
       setError("Invalid email or password.");
     } finally {
@@ -72,7 +69,7 @@ function SignIn() {
             </p>
             <h2 className="mt-3 text-3xl font-semibold tracking-tight">Sign in</h2>
             <p className="mt-3 text-sm leading-6 text-slate-500">
-              Choose the workspace associated with your account.
+              Sign in to continue to your Wossol workspace.
             </p>
           </div>
           <form onSubmit={submit} className="mt-8 space-y-5" noValidate>
@@ -84,27 +81,6 @@ function SignIn() {
                 {error}
               </div>
             )}
-            <fieldset>
-              <legend className="mb-2 text-sm font-semibold text-slate-800">Workspace</legend>
-              <div className="grid grid-cols-2 gap-2">
-                {(
-                  [
-                    { value: "CLIENT", label: "Client / Partner" },
-                    { value: "INTERNAL", label: "Wossol Admin" },
-                  ] as const
-                ).map((option) => (
-                  <button
-                    key={option.value}
-                    type="button"
-                    aria-pressed={identity === option.value}
-                    onClick={() => setIdentity(option.value)}
-                    className={`rounded-lg border px-3 py-3 text-sm font-semibold ${identity === option.value ? "border-[#102c50] bg-blue-50 text-[#102c50]" : "border-slate-300 text-slate-600 hover:bg-slate-50"}`}
-                  >
-                    {option.label}
-                  </button>
-                ))}
-              </div>
-            </fieldset>
             <label className="block">
               <span className="mb-2 block text-sm font-semibold text-slate-800">Email</span>
               <span className="relative block">

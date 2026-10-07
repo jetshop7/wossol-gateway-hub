@@ -3,7 +3,7 @@ import test from "node:test";
 
 import {
   authenticateClient,
-  authenticateForWorkspace,
+  authenticateByCredentials,
   authenticateInternal,
   GENERIC_LOGIN_FAILURE,
 } from "./auth.service.server.ts";
@@ -19,6 +19,7 @@ import {
   toPublicActor,
   type AuthenticatedActor,
 } from "./auth.types.ts";
+import { workspacePathForActor } from "../../lib/auth-routing.ts";
 import { hashPassword, verifyPassword } from "./password.server.ts";
 import type { AuthRepository } from "./auth.repository.server.ts";
 
@@ -105,11 +106,12 @@ test("disabled users and inactive or disabled client accounts cannot authenticat
   );
   await assert.rejects(
     () =>
-      authenticateClient("client@example.com", "correct horse battery staple", {
+      authenticateByCredentials("client@example.com", "correct horse battery staple", {
         repository: inactiveAccount,
       }),
     (error: Error) => error.message === GENERIC_LOGIN_FAILURE,
   );
+  assert.equal(inactiveAccount.sessions.length, 0);
 });
 
 test("active Client User authenticates only to its Client Account and receives a scoped session", async () => {
@@ -166,8 +168,110 @@ test("Primary Client Admin credentials authenticate through Client login, never 
   assert.equal(adminRepository.sessions.length, 0);
 });
 
-test("unified sign-in authenticates only the explicitly selected identity domain", async () => {
-  const password = "same-email but distinct workspace";
+test("unified sign-in resolves an active InternalUser and routes only to Admin", async () => {
+  const password = "internal account password";
+  const repository = fakeRepository({
+    id: "internal-user",
+    email: "admin@example.com",
+    passwordHash: await hashPassword(password),
+    role: "CATALOG_ADMIN",
+    status: "ACTIVE",
+  });
+  const result = await authenticateByCredentials(" Admin@Example.com ", password, { repository });
+  assert.equal(result.actor.actorType, "INTERNAL");
+  assert.equal(workspacePathForActor(result.actor.actorType), "/admin/catalog/companies");
+  assert.equal("clientAccountId" in result.actor, false);
+  assert.deepEqual(
+    repository.sessions.map((session) => (session as { actorType: string }).actorType),
+    ["INTERNAL"],
+  );
+});
+
+test("unified sign-in resolves an active ClientUser and routes only to Client", async () => {
+  const password = "client account password";
+  const repository = fakeRepository(null, {
+    id: "client-user",
+    email: "buyer@example.com",
+    passwordHash: await hashPassword(password),
+    status: "ACTIVE",
+    clientAccountId: "account-1",
+    clientAccount: { status: "ACTIVE" },
+  });
+  const result = await authenticateByCredentials("buyer@example.com", password, { repository });
+  assert.equal(result.actor.actorType, "CLIENT");
+  assert.equal(workspacePathForActor(result.actor.actorType), "/client");
+  assert.equal(result.actor.clientAccountId, "account-1");
+  assert.deepEqual(
+    repository.sessions.map((session) => (session as { actorType: string }).actorType),
+    ["CLIENT"],
+  );
+});
+
+test("credentials never authenticate into the other identity domain", async () => {
+  const password = "domain-specific password";
+  const passwordHash = await hashPassword(password);
+  const internal = fakeRepository({
+    id: "internal-user",
+    email: "admin@example.com",
+    passwordHash,
+    role: "CATALOG_ADMIN",
+    status: "ACTIVE",
+  });
+  const internalLogin = await authenticateByCredentials("admin@example.com", password, {
+    repository: internal,
+  });
+  assert.equal(internalLogin.actor.actorType, "INTERNAL");
+  const clientOnly = fakeRepository(null);
+  await assert.rejects(
+    () => authenticateClient("admin@example.com", password, { repository: clientOnly }),
+    (error: Error) => error.message === GENERIC_LOGIN_FAILURE,
+  );
+  assert.equal(clientOnly.sessions.length, 0);
+
+  const client = fakeRepository(null, {
+    id: "client-user",
+    email: "buyer@example.com",
+    passwordHash,
+    status: "ACTIVE",
+    clientAccountId: "account-1",
+    clientAccount: { status: "ACTIVE" },
+  });
+  const clientLogin = await authenticateByCredentials("buyer@example.com", password, {
+    repository: client,
+  });
+  assert.equal(clientLogin.actor.actorType, "CLIENT");
+  const internalOnly = fakeRepository(null);
+  await assert.rejects(
+    () => authenticateInternal("buyer@example.com", password, { repository: internalOnly }),
+    (error: Error) => error.message === GENERIC_LOGIN_FAILURE,
+  );
+  assert.equal(internalOnly.sessions.length, 0);
+});
+
+test("invalid credentials have the same generic failure for known and unknown emails", async () => {
+  const known = fakeRepository({
+    id: "internal-user",
+    email: "admin@example.com",
+    passwordHash: await hashPassword("correct password"),
+    role: "CATALOG_ADMIN",
+    status: "ACTIVE",
+  });
+  const unknown = fakeRepository(null);
+  const failures = await Promise.all(
+    [known, unknown].map(async (repository) => {
+      try {
+        await authenticateByCredentials("admin@example.com", "wrong password", { repository });
+        return "unexpected success";
+      } catch (error) {
+        return (error as Error).message;
+      }
+    }),
+  );
+  assert.deepEqual(failures, [GENERIC_LOGIN_FAILURE, GENERIC_LOGIN_FAILURE]);
+});
+
+test("colliding normalized emails fail generically and create no session", async () => {
+  const password = "valid in both identity stores";
   const passwordHash = await hashPassword(password);
   const repository = fakeRepository(
     {
@@ -180,24 +284,17 @@ test("unified sign-in authenticates only the explicitly selected identity domain
     {
       id: "client-user",
       email: "same@example.com",
-      clientAccountId: "account-1",
       passwordHash,
       status: "ACTIVE",
+      clientAccountId: "account-1",
       clientAccount: { status: "ACTIVE" },
     },
   );
-
-  const client = await authenticateForWorkspace("CLIENT", "same@example.com", password, {
-    repository,
-  });
-  assert.equal(client.actor.actorType, "CLIENT");
-  assert.equal(client.actor.clientAccountId, "account-1");
-  const internal = await authenticateForWorkspace("INTERNAL", "same@example.com", password, {
-    repository,
-  });
-  assert.equal(internal.actor.actorType, "INTERNAL");
-  assert.equal("clientAccountId" in internal.actor, false);
-  assert.equal(repository.sessions.length, 2);
+  await assert.rejects(
+    () => authenticateByCredentials(" Same@Example.com ", password, { repository }),
+    (error: Error) => error.message === GENERIC_LOGIN_FAILURE,
+  );
+  assert.equal(repository.sessions.length, 0);
 });
 
 test("wrong Client User credentials fail with the same bounded error", async () => {

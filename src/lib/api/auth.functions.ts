@@ -6,51 +6,11 @@ const credentials = z.object({
   password: z.string().min(1).max(256),
 });
 
-export const loginInternal = createServerFn({ method: "POST" })
-  .validator(credentials)
-  .handler(async ({ data }) => {
-    const [
-      { authenticateInternal },
-      { establishSession, requestIp, requireSameOriginRequest },
-      { toPublicActor },
-    ] = await Promise.all([
-      import("../../server/auth/auth.service.server.ts"),
-      import("../../server/auth/auth.context.server.ts"),
-      import("../../server/auth/auth.types.ts"),
-    ]);
-    requireSameOriginRequest();
-    const result = await authenticateInternal(data.email, data.password, {
-      ipAddress: requestIp(),
-    });
-    await establishSession(result.token, result.expiresAt);
-    return { actor: toPublicActor(result.actor) };
-  });
-
 export const loginUnified = createServerFn({ method: "POST" })
-  .validator(credentials.extend({ identity: z.enum(["INTERNAL", "CLIENT"]) }))
-  .handler(async ({ data }) => {
-    const [
-      { authenticateForWorkspace },
-      { establishSession, requestIp, requireSameOriginRequest },
-      { toPublicActor },
-    ] = await Promise.all([
-      import("../../server/auth/auth.service.server.ts"),
-      import("../../server/auth/auth.context.server.ts"),
-      import("../../server/auth/auth.types.ts"),
-    ]);
-    requireSameOriginRequest();
-    const result = await authenticateForWorkspace(data.identity, data.email, data.password, {
-      ipAddress: requestIp(),
-    });
-    await establishSession(result.token, result.expiresAt);
-    return { actor: toPublicActor(result.actor) };
-  });
-
-export const loginClient = createServerFn({ method: "POST" })
   .validator(credentials)
   .handler(async ({ data }) => {
     const [
-      { authenticateClient },
+      { authenticateByCredentials },
       { establishSession, requestIp, requireSameOriginRequest },
       { toPublicActor },
     ] = await Promise.all([
@@ -59,7 +19,9 @@ export const loginClient = createServerFn({ method: "POST" })
       import("../../server/auth/auth.types.ts"),
     ]);
     requireSameOriginRequest();
-    const result = await authenticateClient(data.email, data.password, { ipAddress: requestIp() });
+    const result = await authenticateByCredentials(data.email, data.password, {
+      ipAddress: requestIp(),
+    });
     await establishSession(result.token, result.expiresAt);
     return { actor: toPublicActor(result.actor) };
   });

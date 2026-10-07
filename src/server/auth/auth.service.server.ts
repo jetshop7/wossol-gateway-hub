@@ -134,14 +134,30 @@ export async function authenticateClient(
   return { ...session, actor: { ...actor, sessionId: session.sessionId } };
 }
 
-/** The unified sign-in form chooses one identity domain; credentials are never tried across both. */
-export async function authenticateForWorkspace(
-  identity: "INTERNAL" | "CLIENT",
+/** Resolve the credential owner server-side; ambiguous cross-store emails are rejected. */
+export async function authenticateByCredentials(
   email: string,
   password: string,
   options?: { repository?: AuthRepository; ipAddress?: string; now?: Date },
 ) {
-  return identity === "INTERNAL"
-    ? authenticateInternal(email, password, options)
-    : authenticateClient(email, password, options);
+  const repository = options?.repository ?? createAuthRepository();
+  const normalized = normalizedEmail(email);
+  const [internalUser, clientUser] = await Promise.all([
+    repository.findInternalUserByEmail(normalized),
+    repository.findClientUserByEmail(normalized),
+  ]);
+
+  // Email uniqueness is scoped to each table, not shared across identity stores. Refuse
+  // collisions regardless of account status or which password happens to match.
+  if (internalUser && clientUser) {
+    await repository.writeAudit({
+      action: "LOGIN_FAILED",
+      ipAddress: options?.ipAddress,
+      metadata: { actorType: "AMBIGUOUS" },
+    });
+    throw new AuthenticationError(GENERIC_LOGIN_FAILURE);
+  }
+
+  if (clientUser) return authenticateClient(email, password, { ...options, repository });
+  return authenticateInternal(email, password, { ...options, repository });
 }
