@@ -120,6 +120,507 @@ enum AuthActorType {
   CLIENT
 }
 
+// G1-B search foundation: these models mirror the operational Pipeline's
+// SQLite tables without importing data or coupling search records to catalog
+// Company rows. Source timestamps and evidence snapshots remain String because
+// the source system stores them as TEXT and may contain legacy values.
+model PipelineCompany {
+  companyId                  String   @id @map("company_id")
+  legalName                  String?  @map("legal_name")
+  tradeName                  String?  @map("trade_name")
+  countryCode                String?  @map("country_code")
+  countryRaw                 String?  @map("country_raw")
+  sector                     String?
+  wilaya                     String?
+  city                       String?
+  address                    String?
+  website                    String?
+  phone                      String?
+  whatsapp                   String?
+  contactPerson              String?  @map("contact_person")
+  department                String?
+  email                     String?
+  discoverySource           String?  @map("discovery_source")
+  sourceUrl                 String?  @map("source_url")
+  discoveryDate             String?  @map("discovery_date")
+  qualificationStatus       String   @default("UNKNOWN") @map("qualification_status")
+  duplicateStatus           String   @default("NOT_CHECKED") @map("duplicate_status")
+  duplicateReason           String?  @map("duplicate_reason")
+  duplicateMatchCompanyIds  String?  @map("duplicate_match_company_ids")
+  lifecycleStatus           String   @default("DISCOVERED") @map("lifecycle_status")
+  currentAction             String   @default("REVIEW_COMPANY") @map("current_action")
+  firstOutreachAt           String?  @map("first_outreach_at")
+  lastContactAt             String?  @map("last_contact_at")
+  nextFollowUpAt            String?  @map("next_follow_up_at")
+  replyStatus               String   @default("NO_REPLY") @map("reply_status")
+  commercialProgress        String   @default("NOT_CONTACTED") @map("commercial_progress")
+  catalogReceived           Int      @default(0) @map("catalog_received")
+  pricesReceived            Int      @default(0) @map("prices_received")
+  requiredInformationReceived Int    @default(0) @map("required_information_received")
+  internalNotes             String?  @map("internal_notes")
+  createdAt                 String   @map("created_at")
+  updatedAt                 String   @map("updated_at")
+
+  contacts                  PipelineContact[]
+  communications            PipelineCommunication[]
+  actions                   PipelineAction[]
+  auditEvents               PipelineCompanyAuditEvent[]
+  contactPoints             PipelineContactPoint[]
+  outreachDrafts            PipelineOutreachDraft[]
+  sendPlans                 PipelineSendPlan[]
+  sendAttempts              PipelineSendAttempt[]
+  discoveryEvents           PipelineDiscoveryEvent[]
+  companyCategories         PipelineCompanyCategory[]
+  classifications           PipelineCompanyClassification[]
+
+  @@index([lifecycleStatus], map: "pipeline_idx_companies_lifecycle")
+  @@index([currentAction], map: "pipeline_idx_companies_action")
+  @@map("pipeline_companies")
+}
+
+model PipelineContact {
+  contactId   String  @id @map("contact_id")
+  companyId   String  @map("company_id")
+  name        String?
+  department  String?
+  email       String?
+  phone       String?
+  whatsapp    String?
+  isPrimary   Int     @default(0) @map("is_primary")
+  createdAt   String  @map("created_at")
+
+  company PipelineCompany @relation(fields: [companyId], references: [companyId], onDelete: Restrict)
+
+  @@map("pipeline_contacts")
+}
+
+model PipelineCommunication {
+  communicationId       String  @id @map("communication_id")
+  companyId             String  @map("company_id")
+  eventType             String  @map("event_type")
+  direction             String?
+  channel               String?
+  occurredAt            String  @map("occurred_at")
+  sender                String?
+  recipients            String?
+  subject               String?
+  body                  String?
+  status                String?
+  externalMessageId     String? @map("external_message_id")
+  contactPointId        String? @map("contact_point_id")
+  contactValueSnapshot  String? @map("contact_value_snapshot")
+  outcome               String?
+  operatorSummary       String? @map("operator_summary")
+  commercialResult      String? @map("commercial_result")
+  nextAction            String? @map("next_action")
+  nextFollowUpAt        String? @map("next_follow_up_at")
+  commercialFlags       String? @map("commercial_flags")
+  createdAt             String  @map("created_at")
+
+  company PipelineCompany @relation(fields: [companyId], references: [companyId], onDelete: Restrict)
+
+  @@index([companyId, occurredAt], map: "pipeline_idx_communications_company")
+  @@map("pipeline_communications")
+}
+
+model PipelineAction {
+  actionId    String  @id @map("action_id")
+  companyId   String  @map("company_id")
+  actionType  String  @map("action_type")
+  status      String  @default("OPEN")
+  dueAt       String? @map("due_at")
+  notes       String?
+  createdAt   String  @map("created_at")
+  completedAt String? @map("completed_at")
+
+  company PipelineCompany @relation(fields: [companyId], references: [companyId], onDelete: Restrict)
+
+  @@map("pipeline_actions")
+}
+
+model PipelineCompanyAuditEvent {
+  auditId   String @id @map("audit_id")
+  companyId String @map("company_id")
+  eventType String @map("event_type")
+  details   String
+  reason    String?
+  createdAt String @map("created_at")
+
+  company PipelineCompany @relation(fields: [companyId], references: [companyId], onDelete: Restrict)
+
+  @@index([companyId, createdAt], map: "pipeline_idx_company_audit_company")
+  @@map("pipeline_company_audit_events")
+}
+
+model PipelineContactPoint {
+  contactPointId      String  @id @map("contact_point_id")
+  companyId           String  @map("company_id")
+  contactType         String  @map("contact_type")
+  normalizedValue     String  @map("normalized_value")
+  displayValue        String  @map("display_value")
+  businessFunction    String? @map("business_function")
+  whatsappStatus      String  @default("UNKNOWN") @map("whatsapp_status")
+  verificationStatus  String  @default("UNVERIFIED") @map("verification_status")
+  provenance          String?
+  sourceUrl           String? @map("source_url")
+  firstDiscoveredAt   String  @map("first_discovered_at")
+  updatedAt           String  @map("updated_at")
+  active              Int     @default(1)
+  operatorNote        String? @map("operator_note")
+
+  company       PipelineCompany          @relation(fields: [companyId], references: [companyId], onDelete: Restrict)
+  sources       PipelineContactPointSource[]
+  planRecipients PipelineSendPlanRecipient[]
+  sendAttempts  PipelineSendAttempt[]
+
+  @@unique([companyId, contactType, normalizedValue], map: "pipeline_contact_points_company_type_value_key")
+  @@index([companyId, active, contactType], map: "pipeline_idx_contact_points_company")
+  @@map("pipeline_contact_points")
+}
+
+model PipelineContactPointSource {
+  contactPointSourceId String  @id @map("contact_point_source_id")
+  contactPointId       String  @map("contact_point_id")
+  provenance           String?
+  sourceUrl            String? @map("source_url")
+  evidence             String?
+  createdAt            String  @map("created_at")
+
+  contactPoint PipelineContactPoint @relation(fields: [contactPointId], references: [contactPointId], onDelete: Restrict)
+
+  @@unique([contactPointId, provenance, sourceUrl, evidence], map: "pipeline_contact_point_sources_identity_key")
+  @@map("pipeline_contact_point_sources")
+}
+
+model PipelineOutreachDraft {
+  draftId       String  @id @map("draft_id")
+  companyId     String  @map("company_id")
+  currentVersion Int    @map("current_version")
+  status        String
+  createdAt     String  @map("created_at")
+  updatedAt     String  @map("updated_at")
+  approvedAt    String? @map("approved_at")
+  approvedBy    String? @map("approved_by")
+
+  company  PipelineCompany             @relation(fields: [companyId], references: [companyId], onDelete: Restrict)
+  versions PipelineOutreachDraftVersion[]
+  sendPlans PipelineSendPlan[]
+  sendAttempts PipelineSendAttempt[]
+
+  @@index([companyId, updatedAt], map: "pipeline_idx_outreach_drafts_company")
+  @@map("pipeline_outreach_drafts")
+}
+
+model PipelineOutreachDraftVersion {
+  versionId          String  @id @map("version_id")
+  draftId            String  @map("draft_id")
+  versionNumber      Int     @map("version_number")
+  channel            String
+  externalLanguage   String  @map("external_language")
+  subject            String?
+  externalMessage    String  @map("external_message")
+  arabicTranslation  String? @map("arabic_translation")
+  translationStatus  String  @map("translation_status")
+  draftStatus        String  @map("draft_status")
+  contextMetadata    String? @map("context_metadata")
+  createdAt          String  @map("created_at")
+  updatedAt          String  @map("updated_at")
+  approvedAt         String? @map("approved_at")
+  approvalMetadata   String? @map("approval_metadata")
+
+  draft       PipelineOutreachDraft    @relation(fields: [draftId], references: [draftId], onDelete: Restrict)
+  sendPlans   PipelineSendPlan[]
+  sendAttempts PipelineSendAttempt[]
+
+  @@unique([draftId, versionNumber], map: "pipeline_outreach_draft_versions_draft_version_key")
+  @@map("pipeline_outreach_draft_versions")
+}
+
+model PipelineSendPlan {
+  sendPlanId        String  @id @map("send_plan_id")
+  companyId         String  @map("company_id")
+  draftId           String  @map("draft_id")
+  versionId         String  @map("version_id")
+  channel           String
+  authorizationState String @map("authorization_state")
+  sendState         String  @default("NOT_STARTED") @map("send_state")
+  createdAt         String  @map("created_at")
+  updatedAt         String  @map("updated_at")
+  authorizedAt      String? @map("authorized_at")
+  operatorMetadata  String? @map("operator_metadata")
+
+  company    PipelineCompany              @relation(fields: [companyId], references: [companyId], onDelete: Restrict)
+  draft      PipelineOutreachDraft       @relation(fields: [draftId], references: [draftId], onDelete: Restrict)
+  version    PipelineOutreachDraftVersion @relation(fields: [versionId], references: [versionId], onDelete: Restrict)
+  recipients PipelineSendPlanRecipient[]
+  attempts   PipelineSendAttempt[]
+
+  @@index([companyId, createdAt], map: "pipeline_idx_send_plans_company")
+  @@map("pipeline_send_plans")
+}
+
+model PipelineSendPlanRecipient {
+  sendPlanRecipientId String  @id @map("send_plan_recipient_id")
+  sendPlanId          String  @map("send_plan_id")
+  contactPointId      String  @map("contact_point_id")
+  normalizedValue     String  @map("normalized_value")
+  displayValue        String  @map("display_value")
+  outcome             String?
+  createdAt           String  @map("created_at")
+
+  sendPlan     PipelineSendPlan   @relation(fields: [sendPlanId], references: [sendPlanId], onDelete: Restrict)
+  contactPoint PipelineContactPoint @relation(fields: [contactPointId], references: [contactPointId], onDelete: Restrict)
+
+  @@unique([sendPlanId, contactPointId], map: "pipeline_send_plan_recipients_plan_contact_key")
+  @@map("pipeline_send_plan_recipients")
+}
+
+model PipelineSendAttempt {
+  sendAttemptId      String  @id @map("send_attempt_id")
+  sendPlanId         String  @map("send_plan_id")
+  companyId          String  @map("company_id")
+  draftId            String  @map("draft_id")
+  versionId          String  @map("version_id")
+  contactPointId     String  @map("contact_point_id")
+  sender             String
+  recipient          String
+  subject            String?
+  externalMessage    String  @map("external_message")
+  attemptAt          String  @map("attempt_at")
+  provider           String
+  status             String
+  providerMessageId  String? @map("provider_message_id")
+  errorClass         String? @map("error_class")
+  errorMessage       String? @map("error_message")
+  successfulAt       String? @map("successful_at")
+  createdAt          String  @map("created_at")
+
+  sendPlan     PipelineSendPlan          @relation(fields: [sendPlanId], references: [sendPlanId], onDelete: Restrict)
+  company      PipelineCompany           @relation(fields: [companyId], references: [companyId], onDelete: Restrict)
+  draft        PipelineOutreachDraft     @relation(fields: [draftId], references: [draftId], onDelete: Restrict)
+  version      PipelineOutreachDraftVersion @relation(fields: [versionId], references: [versionId], onDelete: Restrict)
+  contactPoint PipelineContactPoint      @relation(fields: [contactPointId], references: [contactPointId], onDelete: Restrict)
+
+  @@index([sendPlanId, contactPointId, attemptAt], map: "pipeline_idx_send_attempts_plan")
+  @@map("pipeline_send_attempts")
+}
+
+model PipelineDiscoveryEvent {
+  eventId          String  @id @map("event_id")
+  companyId        String? @map("company_id")
+  candidateId      String? @map("candidate_id")
+  discoverySource  String? @map("discovery_source")
+  sourceUrl        String? @map("source_url")
+  discoveredAt     String  @map("discovered_at")
+  rawSnapshot      String  @map("raw_snapshot")
+  outcome          String
+  duplicateStatus  String  @map("duplicate_status")
+  matchReasons     String? @map("match_reasons")
+  matchEvidence    String? @map("match_evidence")
+  matchedCompanyIds String? @map("matched_company_ids")
+  fingerprint      String  @unique
+  createdAt        String  @map("created_at")
+
+  company   PipelineCompany?           @relation(fields: [companyId], references: [companyId], onDelete: Restrict)
+  candidate PipelineDiscoveryCandidate? @relation(fields: [candidateId], references: [candidateId], onDelete: Restrict)
+
+  @@index([companyId, discoveredAt], map: "pipeline_idx_discovery_events_company")
+  @@map("pipeline_discovery_events")
+}
+
+model PipelineDiscoveryCandidate {
+  candidateId         String  @id @map("candidate_id")
+  legalName           String? @map("legal_name")
+  tradeName           String? @map("trade_name")
+  countryCode         String? @map("country_code")
+  countryRaw          String? @map("country_raw")
+  city                String?
+  wilaya              String?
+  address             String?
+  website             String?
+  sector              String?
+  activityEvidence    String? @map("activity_evidence")
+  discoverySource     String? @map("discovery_source")
+  sourceUrl           String? @map("source_url")
+  discoveryDate       String  @map("discovery_date")
+  qualificationStatus String  @default("PENDING_REVIEW") @map("qualification_status")
+  duplicateStatus     String  @default("NOT_CHECKED") @map("duplicate_status")
+  duplicateReason     String? @map("duplicate_reason")
+  matchEvidence       String  @default("{}") @map("match_evidence")
+  matchedCompanyIds   String  @default("[]") @map("matched_company_ids")
+  matchedCandidateIds String  @default("[]") @map("matched_candidate_ids")
+  rejectionReason     String? @map("rejection_reason")
+  lifecycleState      String  @default("DISCOVERED") @map("lifecycle_state")
+  possibleCompanyId   String? @map("possible_company_id")
+  promotedCompanyId   String? @map("promoted_company_id")
+  rawSnapshot         String  @map("raw_snapshot")
+  normalizedDomain    String? @map("normalized_domain")
+  normalizedEmail     String? @map("normalized_email")
+  normalizedPhone     String? @map("normalized_phone")
+  normalizedName      String? @map("normalized_name")
+  normalizedLocation  String? @map("normalized_location")
+  fingerprint         String  @unique
+  createdAt           String  @map("created_at")
+  updatedAt           String  @map("updated_at")
+
+  contacts       PipelineDiscoveryCandidateContact[]
+  categories     PipelineDiscoveryCandidateCategory[]
+  events         PipelineDiscoveryCandidateEvent[]
+  discoveryEvents PipelineDiscoveryEvent[]
+
+  @@index([lifecycleState, updatedAt], map: "pipeline_idx_discovery_candidates_state")
+  @@map("pipeline_discovery_candidates")
+}
+
+model PipelineDiscoveryCandidateContact {
+  candidateContactId String  @id @map("candidate_contact_id")
+  candidateId        String  @map("candidate_id")
+  contactType        String  @map("contact_type")
+  normalizedValue    String  @map("normalized_value")
+  displayValue       String  @map("display_value")
+  businessFunction   String? @map("business_function")
+  verificationStatus String  @default("UNVERIFIED") @map("verification_status")
+  provenance         String?
+  sourceUrl          String? @map("source_url")
+  evidence           String?
+  createdAt          String  @map("created_at")
+
+  candidate PipelineDiscoveryCandidate @relation(fields: [candidateId], references: [candidateId], onDelete: Restrict)
+
+  @@unique([candidateId, contactType, normalizedValue], map: "pipeline_discovery_candidate_contacts_identity_key")
+  @@index([contactType, normalizedValue], map: "pipeline_idx_discovery_candidate_contacts_value")
+  @@map("pipeline_discovery_candidate_contacts")
+}
+
+model PipelineDiscoveryCandidateCategory {
+  candidateId    String @map("candidate_id")
+  categoryCode   String @map("category_code")
+  assignedAt     String @map("assigned_at")
+  assignmentSource String? @map("assignment_source")
+
+  candidate PipelineDiscoveryCandidate @relation(fields: [candidateId], references: [candidateId], onDelete: Restrict)
+  category  PipelineCategory            @relation(fields: [categoryCode], references: [categoryCode], onDelete: Restrict)
+
+  @@id([candidateId, categoryCode])
+  @@index([categoryCode, candidateId], map: "pipeline_idx_discovery_candidate_categories_category")
+  @@map("pipeline_discovery_candidate_categories")
+}
+
+model PipelineDiscoveryCandidateEvent {
+  eventId    String @id @map("event_id")
+  candidateId String @map("candidate_id")
+  eventType  String @map("event_type")
+  details    String
+  createdAt  String @map("created_at")
+
+  candidate PipelineDiscoveryCandidate @relation(fields: [candidateId], references: [candidateId], onDelete: Restrict)
+
+  @@map("pipeline_discovery_candidate_events")
+}
+
+model PipelineCategory {
+  categoryCode       String  @id @map("category_code")
+  displayName        String  @map("display_name")
+  parentCategoryCode String? @map("parent_category_code")
+  active             Int     @default(1)
+  provenance         String?
+  creationReason     String? @map("creation_reason")
+  createdAt          String  @map("created_at")
+
+  parent       PipelineCategory?                  @relation("PipelineCategoryParent", fields: [parentCategoryCode], references: [categoryCode], onDelete: Restrict)
+  children     PipelineCategory[]                 @relation("PipelineCategoryParent")
+  candidateCategories PipelineDiscoveryCandidateCategory[]
+  companyCategories PipelineCompanyCategory[]
+  classifications PipelineCompanyClassification[]
+
+  @@map("pipeline_categories")
+}
+
+model PipelineCountry {
+  countryCode String  @id @map("country_code")
+  displayName String  @map("display_name")
+  aliases     String  @default("[]")
+  active      Int     @default(1)
+  createdAt   String  @map("created_at")
+
+  @@map("pipeline_countries")
+}
+
+model PipelineCompanyCategory {
+  companyId      String @map("company_id")
+  categoryCode   String @map("category_code")
+  assignedAt     String @map("assigned_at")
+  assignmentSource String? @map("assignment_source")
+
+  company  PipelineCompany  @relation(fields: [companyId], references: [companyId], onDelete: Restrict)
+  category PipelineCategory @relation(fields: [categoryCode], references: [categoryCode], onDelete: Restrict)
+
+  @@id([companyId, categoryCode])
+  @@index([categoryCode, companyId], map: "pipeline_idx_company_categories_category")
+  @@map("pipeline_company_categories")
+}
+
+model PipelineCompanyClassification {
+  classificationId   String @id @map("classification_id")
+  companyId          String @map("company_id")
+  categoryCode       String @map("category_code")
+  classificationStatus String @map("classification_status")
+  provenance         String?
+  sourceUrl          String? @map("source_url")
+  evidence           String?
+  note               String?
+  classifiedAt       String @map("classified_at")
+  createdAt          String @map("created_at")
+  updatedAt          String @map("updated_at")
+
+  company  PipelineCompany  @relation(fields: [companyId], references: [companyId], onDelete: Restrict)
+  category PipelineCategory @relation(fields: [categoryCode], references: [categoryCode], onDelete: Restrict)
+
+  @@unique([companyId, categoryCode], map: "pipeline_company_classifications_company_category_key")
+  @@index([categoryCode, classificationStatus, companyId], map: "pipeline_idx_company_classifications_category")
+  @@map("pipeline_company_classifications")
+}
+
+model PipelineDiscoveryRun {
+  runId                 String  @id @map("run_id")
+  targetCategories      String  @map("target_categories")
+  targetCategoryCode    String? @map("target_category_code")
+  targetSubcategories   String? @map("target_subcategories")
+  queryDescription      String? @map("query_description")
+  startedAt             String  @map("started_at")
+  completedAt           String? @map("completed_at")
+  status                String
+  candidatesDiscovered  Int     @default(0) @map("candidates_discovered")
+  newCompanies          Int     @default(0) @map("new_companies")
+  strongDuplicates      Int     @default(0) @map("strong_duplicates")
+  possibleDuplicates    Int     @default(0) @map("possible_duplicates")
+  identityConflicts     Int     @default(0) @map("identity_conflicts")
+  rejectedInvalid       Int     @default(0) @map("rejected_invalid")
+  sourceNotes           String? @map("source_notes")
+
+  results PipelineDiscoveryRunResult[]
+
+  @@map("pipeline_discovery_runs")
+}
+
+model PipelineDiscoveryRunResult {
+  resultId       String  @id @map("result_id")
+  runId          String  @map("run_id")
+  candidateIndex Int     @map("candidate_index")
+  eventId        String? @map("event_id")
+  companyId      String? @map("company_id")
+  categories     String?
+  outcome        String
+  error          String?
+  createdAt      String  @map("created_at")
+
+  run PipelineDiscoveryRun @relation(fields: [runId], references: [runId], onDelete: Restrict)
+
+  @@unique([runId, candidateIndex], map: "pipeline_discovery_run_results_run_candidate_key")
+  @@index([runId, candidateIndex], map: "pipeline_idx_discovery_run_results_run")
+  @@map("pipeline_discovery_run_results")
+}
+
 model Company {
   id            String              @id @default(uuid()) @db.Uuid
   displayName   String              @map("display_name")
