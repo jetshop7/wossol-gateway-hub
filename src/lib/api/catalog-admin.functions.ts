@@ -1,10 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import {
-  catalogImageReferenceSchema,
-  catalogVariantPackagingSchema,
-} from "../../server/catalog/catalog.validation.ts";
 import { adminProductDirectoryInputSchema } from "../../server/catalog/catalog.products-directory.ts";
+import { adminProductInputSchema } from "../../server/catalog/catalog.admin.contracts.ts";
 
 const idSchema = z.string().uuid();
 const companyInput = z.object({
@@ -26,37 +23,9 @@ const productFamilyInput = z.object({
   description: z.string().nullable().optional(),
   status: z.enum(["ACTIVE", "INACTIVE", "ARCHIVED"]).optional(),
 });
-const productInput = z.object({
-  name: z.string(),
-  brandId: idSchema.nullable().optional(),
-  taxonomyNodeId: idSchema.nullable().optional(),
-  countryOfOrigin: z.string().length(2).optional(),
-  shortDescription: z.string().nullable().optional(),
-  description: z.string().nullable().optional(),
-  internalNotes: z.string().nullable().optional(),
-  publicationStatus: z.enum(["DRAFT", "IN_REVIEW", "PUBLISHED", "ARCHIVED"]).optional(),
-  variants: z
-    .array(
-      z.object({
-        id: idSchema.optional(),
-        clientKey: idSchema.optional(),
-        name: z.string().nullable().optional(),
-        supplierSku: z.string().nullable().optional(),
-        mainImageUrl: catalogImageReferenceSchema.nullable().optional(),
-        additionalImageUrls: z.array(catalogImageReferenceSchema).optional(),
-        packaging: catalogVariantPackagingSchema.optional(),
-        factoryPrice: z.number().nonnegative().nullable().optional(),
-        markupPercent: z.number().nullable().optional(),
-        sellingPrice: z.number().nonnegative().nullable().optional(),
-        pricingMethod: z.enum(["MARKUP_PERCENT", "FIXED_SELLING_PRICE"]).nullable().optional(),
-        status: z.enum(["ACTIVE", "INACTIVE", "ARCHIVED"]).optional(),
-        publicationStatus: z.enum(["DRAFT", "IN_REVIEW", "PUBLISHED", "ARCHIVED"]).optional(),
-      }),
-    )
-    .optional(),
-});
-
 function safeFailure(error: unknown) {
+  if (error instanceof Error && error.name === "CatalogPublicationError")
+    return { ok: false as const, error: error.message };
   if (error instanceof z.ZodError)
     return { ok: false as const, error: "Please check the highlighted fields." };
   if (typeof error === "object" && error !== null && "code" in error && error.code === "P2002")
@@ -73,6 +42,7 @@ async function guard(
     | "catalog.brand.manage"
     | "catalog.product_family.manage"
     | "catalog.product.manage"
+    | "catalog.publish"
     | "catalog.read_internal",
 ) {
   const { requireCatalogCapability, requireMutationCsrf } =
@@ -95,6 +65,31 @@ export const getAdminProductsDirectoryFn = createServerFn({ method: "GET" })
     const { listAdminProductsDirectory } =
       await import("../../server/catalog/catalog.admin.repository.server.ts");
     return { ok: true as const, ...(await listAdminProductsDirectory(data)) };
+  });
+
+export const transitionAdminProductPublicationFn = createServerFn({ method: "POST" })
+  .inputValidator(
+    z.object({
+      productId: idSchema,
+      publicationStatus: z.enum(["DRAFT", "IN_REVIEW", "PUBLISHED", "ARCHIVED"]),
+    }),
+  )
+  .handler(async ({ data }) => {
+    try {
+      const actor = await guard("catalog.publish");
+      const { transitionAdminProductPublication } =
+        await import("../../server/catalog/catalog.admin.repository.server.ts");
+      return {
+        ok: true as const,
+        ...(await transitionAdminProductPublication(
+          data.productId,
+          data.publicationStatus,
+          actor.userId,
+        )),
+      };
+    } catch (error) {
+      return safeFailure(error);
+    }
   });
 
 export const searchAdminCompanyOptionsFn = createServerFn({ method: "GET" })
@@ -129,7 +124,10 @@ export const searchAdminTaxonomyNodesFn = createServerFn({ method: "GET" })
 
 export const browseAdminTaxonomyNodesFn = createServerFn({ method: "GET" })
   .inputValidator(
-    z.object({ parentId: idSchema.nullable().default(null), page: z.number().int().min(0).max(1000).default(0) }),
+    z.object({
+      parentId: idSchema.nullable().default(null),
+      page: z.number().int().min(0).max(1000).default(0),
+    }),
   )
   .handler(async ({ data }) => {
     await guard("catalog.read_internal");
@@ -217,7 +215,7 @@ export const createAdminProductFamilyFn = createServerFn({ method: "POST" })
   });
 
 export const createAdminProductFn = createServerFn({ method: "POST" })
-  .inputValidator(z.object({ companyId: idSchema, data: productInput }))
+  .inputValidator(z.object({ companyId: idSchema, data: adminProductInputSchema }))
   .handler(async ({ data }) => {
     try {
       await guard("catalog.product.manage");
@@ -231,7 +229,9 @@ export const createAdminProductFn = createServerFn({ method: "POST" })
   });
 
 export const updateAdminProductFn = createServerFn({ method: "POST" })
-  .inputValidator(z.object({ companyId: idSchema, productId: idSchema, data: productInput }))
+  .inputValidator(
+    z.object({ companyId: idSchema, productId: idSchema, data: adminProductInputSchema }),
+  )
   .handler(async ({ data }) => {
     try {
       await guard("catalog.product.manage");

@@ -1,4 +1,4 @@
-import { useEffect, useId, useState, type FormEvent } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { ArrowLeft, ArrowRight, Package, Search } from "lucide-react";
 
@@ -8,6 +8,11 @@ import {
   searchAdminCompanyOptionsFn,
 } from "@/lib/api/catalog-admin.functions";
 import type { AdminTaxonomySelection } from "@/server/catalog/catalog.taxonomy";
+import {
+  createLatestRequestGate,
+  directoryFilterDelay,
+  type DirectoryFilters,
+} from "@/lib/admin-product-directory-requests";
 
 const defaultQuery = { query: "", page: 0, pageSize: 25 };
 
@@ -40,35 +45,74 @@ function ProductsDirectoryPage() {
   const [selectedCompanyId, setSelectedCompanyId] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const requestGate = useRef(createLatestRequestGate());
+  const previousFilters = useRef<DirectoryFilters>({
+    query: "",
+    companyId: "",
+    taxonomyNodeId: "",
+    countryOfOrigin: "",
+    publicationStatus: "",
+  });
+  const hasMounted = useRef(false);
+  const filters = useMemo<DirectoryFilters>(
+    () => ({
+      query,
+      companyId,
+      taxonomyNodeId: taxonomy?.id ?? "",
+      countryOfOrigin,
+      publicationStatus,
+    }),
+    [query, companyId, taxonomy?.id, countryOfOrigin, publicationStatus],
+  );
 
-  const loadProducts = async (event?: FormEvent<HTMLFormElement>, requestedPage = 0) => {
-    event?.preventDefault();
+  useEffect(() => {
+    if (!hasMounted.current) {
+      hasMounted.current = true;
+      previousFilters.current = filters;
+      return;
+    }
+    const requestGateForEffect = requestGate.current;
+    const requestId = requestGateForEffect.begin();
+    const delay = directoryFilterDelay(previousFilters.current, filters);
+    previousFilters.current = filters;
     setLoading(true);
     setError("");
-    try {
-      const result = await getAdminProductsDirectoryFn({
+    if (filters.countryOfOrigin.length === 1) {
+      setLoading(false);
+      return () => requestGateForEffect.invalidate();
+    }
+    const timer = window.setTimeout(() => {
+      void getAdminProductsDirectoryFn({
         data: {
-          query,
-          companyId: companyId || undefined,
-          taxonomyNodeId: taxonomy?.id,
-          countryOfOrigin: countryOfOrigin || undefined,
-          publicationStatus:
-            publicationStatus === ""
-              ? undefined
-              : (publicationStatus as "DRAFT" | "IN_REVIEW" | "PUBLISHED" | "ARCHIVED"),
-          page: requestedPage,
+          query: filters.query,
+          companyId: filters.companyId || undefined,
+          taxonomyNodeId: filters.taxonomyNodeId || undefined,
+          countryOfOrigin: filters.countryOfOrigin || undefined,
+          publicationStatus: filters.publicationStatus
+            ? (filters.publicationStatus as "DRAFT" | "IN_REVIEW" | "PUBLISHED" | "ARCHIVED")
+            : undefined,
+          page,
           pageSize: 25,
         },
-      });
-      setProducts(result.products);
-      setTotal(result.total);
-      setPage(result.page);
-    } catch {
-      setError("Products could not be loaded. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  };
+      })
+        .then((result) => {
+          if (!requestGateForEffect.isCurrent(requestId)) return;
+          setProducts(result.products);
+          setTotal(result.total);
+        })
+        .catch(() => {
+          if (requestGateForEffect.isCurrent(requestId))
+            setError("Products could not be loaded. Please try again.");
+        })
+        .finally(() => {
+          if (requestGateForEffect.isCurrent(requestId)) setLoading(false);
+        });
+    }, delay);
+    return () => {
+      window.clearTimeout(timer);
+      requestGateForEffect.invalidate();
+    };
+  }, [filters, page]);
 
   const chooseCompanyAndCreate = () => {
     if (!selectedCompanyId) return;
@@ -110,10 +154,7 @@ function ProductsDirectoryPage() {
         </div>
       </header>
 
-      <form
-        onSubmit={(event) => void loadProducts(event)}
-        className="space-y-4 rounded-xl border bg-white p-4"
-      >
+      <section className="space-y-4 rounded-xl border bg-white p-4" aria-label="Product filters">
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <label className="relative block text-sm lg:col-span-2">
             <span className="mb-1 block text-xs font-semibold text-slate-500">
@@ -122,7 +163,10 @@ function ProductsDirectoryPage() {
             <Search className="pointer-events-none absolute left-3 top-9 h-4 w-4 text-slate-400" />
             <input
               value={query}
-              onChange={(event) => setQuery(event.target.value)}
+              onChange={(event) => {
+                setQuery(event.target.value);
+                setPage(0);
+              }}
               placeholder="Search products"
               className="h-10 w-full rounded-md border border-slate-300 pl-9 pr-3"
             />
@@ -130,7 +174,10 @@ function ProductsDirectoryPage() {
           <CompanySearchPicker
             label="Company filter"
             placeholder="Search any company"
-            onSelect={(company) => setCompanyId(company?.id ?? "")}
+            onSelect={(company) => {
+              setCompanyId(company?.id ?? "");
+              setPage(0);
+            }}
           />
           <label className="block text-sm">
             <span className="mb-1 block text-xs font-semibold text-slate-500">
@@ -138,7 +185,10 @@ function ProductsDirectoryPage() {
             </span>
             <input
               value={countryOfOrigin}
-              onChange={(event) => setCountryOfOrigin(event.target.value.toUpperCase().slice(0, 2))}
+              onChange={(event) => {
+                setCountryOfOrigin(event.target.value.toUpperCase().slice(0, 2));
+                setPage(0);
+              }}
               placeholder="ISO code, e.g. DZ"
               className="h-10 w-full rounded-md border border-slate-300 px-3"
             />
@@ -149,7 +199,10 @@ function ProductsDirectoryPage() {
             </span>
             <select
               value={publicationStatus}
-              onChange={(event) => setPublicationStatus(event.target.value)}
+              onChange={(event) => {
+                setPublicationStatus(event.target.value);
+                setPage(0);
+              }}
               className="h-10 w-full rounded-md border border-slate-300 px-3"
             >
               <option value="">All statuses</option>
@@ -162,22 +215,20 @@ function ProductsDirectoryPage() {
           <div className="sm:col-span-2 lg:col-span-3">
             <TaxonomySelector
               selected={taxonomy}
-              onSelect={setTaxonomy}
-              onClear={() => setTaxonomy(null)}
+              onSelect={(selection) => {
+                setTaxonomy(selection);
+                setPage(0);
+              }}
+              onClear={() => {
+                setTaxonomy(null);
+                setPage(0);
+              }}
               title="Taxonomy filter"
               helperText="Optionally filter by one GS1 Brick."
             />
           </div>
-          <div className="flex items-end">
-            <button
-              disabled={loading}
-              className="h-10 rounded-md bg-amber-500 px-4 text-sm font-semibold text-slate-950 disabled:opacity-50"
-            >
-              {loading ? "Searching…" : "Apply filters"}
-            </button>
-          </div>
         </div>
-      </form>
+      </section>
 
       {error && (
         <p role="alert" className="rounded-md bg-red-50 p-3 text-sm text-red-700">
@@ -264,7 +315,7 @@ function ProductsDirectoryPage() {
           <button
             type="button"
             disabled={loading || page === 0}
-            onClick={() => void loadProducts(undefined, page - 1)}
+            onClick={() => setPage((current) => current - 1)}
             className="inline-flex items-center gap-1 rounded border px-3 py-2 text-sm disabled:opacity-40"
           >
             <ArrowLeft size={15} /> Previous
@@ -272,7 +323,7 @@ function ProductsDirectoryPage() {
           <button
             type="button"
             disabled={loading || page >= lastPage}
-            onClick={() => void loadProducts(undefined, page + 1)}
+            onClick={() => setPage((current) => current + 1)}
             className="inline-flex items-center gap-1 rounded border px-3 py-2 text-sm disabled:opacity-40"
           >
             Next <ArrowRight size={15} />

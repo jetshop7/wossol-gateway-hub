@@ -109,11 +109,14 @@ export function AdminShell({
             )}
             <div className="mt-5 border-t border-slate-100 pt-4">
               <p className="px-3 pb-2 text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">
-                Coming later
+                Operations
               </p>
-              <span className="flex items-center gap-3 rounded-md px-3 py-2 text-sm text-slate-400">
-                <ShieldCheck className="h-4 w-4" /> Publishing
-              </span>
+              <NavItem
+                to="/admin/catalog/publishing"
+                icon={<ShieldCheck className="h-4 w-4" />}
+                label="Publishing"
+                onClick={() => setOpen(false)}
+              />
               <span className="flex items-center gap-3 rounded-md px-3 py-2 text-sm text-slate-400">
                 <Settings className="h-4 w-4" /> Settings
               </span>
@@ -132,7 +135,7 @@ function NavItem({
   label,
   onClick,
 }: {
-  to: "/admin/catalog/companies" | "/admin/catalog/products" | "/admin/catalog/clients" | "/admin/catalog/price-profiles";
+  to: "/admin/catalog/companies" | "/admin/catalog/products" | "/admin/catalog/publishing" | "/admin/catalog/clients" | "/admin/catalog/price-profiles";
   icon: React.ReactNode;
   label: string;
   onClick: () => void;

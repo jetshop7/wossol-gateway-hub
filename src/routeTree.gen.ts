@@ -31,6 +31,7 @@ import { Route as AdminCatalogClientsRouteImport } from './routes/admin/catalog/
 import { Route as AdminCatalogCompaniesRouteImport } from './routes/admin/catalog/companies'
 import { Route as AdminCatalogPriceProfilesRouteImport } from './routes/admin/catalog/price-profiles'
 import { Route as AdminCatalogProductsRouteImport } from './routes/admin/catalog/products'
+import { Route as AdminCatalogPublishingRouteImport } from './routes/admin/catalog/publishing'
 import { Route as ClientProductsProductReferenceRouteImport } from './routes/client.products.$productReference'
 import { Route as AdminCatalogCompaniesCompanyIdRouteImport } from './routes/admin/catalog/companies/$companyId'
 
@@ -145,6 +146,11 @@ const AdminCatalogProductsRoute = AdminCatalogProductsRouteImport.update({
   path: '/products',
   getParentRoute: () => AdminCatalogRoute,
 } as any)
+const AdminCatalogPublishingRoute = AdminCatalogPublishingRouteImport.update({
+  id: '/publishing',
+  path: '/publishing',
+  getParentRoute: () => AdminCatalogRoute,
+} as any)
 const ClientProductsProductReferenceRoute =
   ClientProductsProductReferenceRouteImport.update({
     id: '/products/$productReference',
@@ -181,6 +187,7 @@ export interface FileRoutesByFullPath {
   '/admin/catalog/companies': typeof AdminCatalogCompaniesRouteWithChildren
   '/admin/catalog/price-profiles': typeof AdminCatalogPriceProfilesRoute
   '/admin/catalog/products': typeof AdminCatalogProductsRoute
+  '/admin/catalog/publishing': typeof AdminCatalogPublishingRoute
   '/client/products/$productReference': typeof ClientProductsProductReferenceRoute
   '/admin/catalog/companies/$companyId': typeof AdminCatalogCompaniesCompanyIdRoute
 }
@@ -206,6 +213,7 @@ export interface FileRoutesByTo {
   '/admin/catalog/companies': typeof AdminCatalogCompaniesRouteWithChildren
   '/admin/catalog/price-profiles': typeof AdminCatalogPriceProfilesRoute
   '/admin/catalog/products': typeof AdminCatalogProductsRoute
+  '/admin/catalog/publishing': typeof AdminCatalogPublishingRoute
   '/client/products/$productReference': typeof ClientProductsProductReferenceRoute
   '/admin/catalog/companies/$companyId': typeof AdminCatalogCompaniesCompanyIdRoute
 }
@@ -233,6 +241,7 @@ export interface FileRoutesById {
   '/admin/catalog/companies': typeof AdminCatalogCompaniesRouteWithChildren
   '/admin/catalog/price-profiles': typeof AdminCatalogPriceProfilesRoute
   '/admin/catalog/products': typeof AdminCatalogProductsRoute
+  '/admin/catalog/publishing': typeof AdminCatalogPublishingRoute
   '/client/products/$productReference': typeof ClientProductsProductReferenceRoute
   '/admin/catalog/companies/$companyId': typeof AdminCatalogCompaniesCompanyIdRoute
 }
@@ -261,6 +270,7 @@ export interface FileRouteTypes {
     | '/admin/catalog/companies'
     | '/admin/catalog/price-profiles'
     | '/admin/catalog/products'
+    | '/admin/catalog/publishing'
     | '/client/products/$productReference'
     | '/admin/catalog/companies/$companyId'
   fileRoutesByTo: FileRoutesByTo
@@ -286,6 +296,7 @@ export interface FileRouteTypes {
     | '/admin/catalog/companies'
     | '/admin/catalog/price-profiles'
     | '/admin/catalog/products'
+    | '/admin/catalog/publishing'
     | '/client/products/$productReference'
     | '/admin/catalog/companies/$companyId'
   id:
@@ -312,6 +323,7 @@ export interface FileRouteTypes {
     | '/admin/catalog/companies'
     | '/admin/catalog/price-profiles'
     | '/admin/catalog/products'
+    | '/admin/catalog/publishing'
     | '/client/products/$productReference'
     | '/admin/catalog/companies/$companyId'
   fileRoutesById: FileRoutesById
@@ -488,6 +500,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminCatalogProductsRouteImport
       parentRoute: typeof AdminCatalogRoute
     }
+    '/admin/catalog/publishing': {
+      id: '/admin/catalog/publishing'
+      path: '/publishing'
+      fullPath: '/admin/catalog/publishing'
+      preLoaderRoute: typeof AdminCatalogPublishingRouteImport
+      parentRoute: typeof AdminCatalogRoute
+    }
     '/client/products/$productReference': {
       id: '/client/products/$productReference'
       path: '/products/$productReference'
@@ -523,6 +542,7 @@ interface AdminCatalogRouteChildren {
   AdminCatalogCompaniesRoute: typeof AdminCatalogCompaniesRouteWithChildren
   AdminCatalogPriceProfilesRoute: typeof AdminCatalogPriceProfilesRoute
   AdminCatalogProductsRoute: typeof AdminCatalogProductsRoute
+  AdminCatalogPublishingRoute: typeof AdminCatalogPublishingRoute
 }
 
 const AdminCatalogRouteChildren: AdminCatalogRouteChildren = {
@@ -530,6 +550,7 @@ const AdminCatalogRouteChildren: AdminCatalogRouteChildren = {
   AdminCatalogCompaniesRoute: AdminCatalogCompaniesRouteWithChildren,
   AdminCatalogPriceProfilesRoute: AdminCatalogPriceProfilesRoute,
   AdminCatalogProductsRoute: AdminCatalogProductsRoute,
+  AdminCatalogPublishingRoute: AdminCatalogPublishingRoute,
 }
 
 const AdminCatalogRouteWithChildren = AdminCatalogRoute._addFileChildren(

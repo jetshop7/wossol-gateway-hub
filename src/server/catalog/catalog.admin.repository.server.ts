@@ -13,6 +13,11 @@ import {
   type AdminProductDirectoryInput,
 } from "./catalog.products-directory.ts";
 import { resolveVariantPricing } from "./variant-pricing.ts";
+import {
+  CatalogPublicationError,
+  publicationReadinessError,
+  type PublicationStatus,
+} from "./catalog.publication.ts";
 import { activeGs1TaxonomyNodeWhere, activeProductBrickWhere } from "./catalog.taxonomy.ts";
 import {
   clientCatalogAccessModePolicy,
@@ -252,6 +257,68 @@ export async function listAdminProductsDirectory(input: AdminProductDirectoryInp
     page: input.page,
     pageSize: input.pageSize,
   };
+}
+
+export async function transitionAdminProductPublication(
+  productId: string,
+  nextStatus: PublicationStatus,
+  actorId: string,
+) {
+  const prisma = getWossolExportPrisma();
+  return prisma.$transaction(async (tx) => {
+    const product = await tx.product.findUnique({
+      where: { id: productId },
+      select: {
+        id: true,
+        name: true,
+        taxonomyNodeId: true,
+        publicationStatus: true,
+        company: { select: { status: true } },
+        variants: { where: { status: "ACTIVE" }, select: { id: true, publicationStatus: true } },
+      },
+    });
+    if (!product) throw new CatalogPublicationError("The selected product was not found.");
+    const variantsNeedTransition = product.variants.some((variant) => variant.publicationStatus !== nextStatus);
+    if (product.publicationStatus === nextStatus && !variantsNeedTransition)
+      return { publicationStatus: nextStatus };
+
+    if (nextStatus === "PUBLISHED") {
+      const readinessError = publicationReadinessError({
+        productName: product.name,
+        companyStatus: product.company?.status ?? "MISSING",
+        activeVariantCount: product.variants.length,
+      });
+      if (readinessError) throw new CatalogPublicationError(readinessError);
+      if (product.taxonomyNodeId) {
+        const activeBrick = await tx.catalogTaxonomyNode.findFirst({
+          where: activeProductBrickWhere(product.taxonomyNodeId),
+          select: { id: true },
+        });
+        if (!activeBrick)
+          throw new CatalogPublicationError(
+            "Replace or remove the inactive product taxonomy Brick before publishing.",
+          );
+      }
+    }
+
+    if (product.publicationStatus !== nextStatus)
+      await tx.product.update({ where: { id: product.id }, data: { publicationStatus: nextStatus } });
+    await tx.variant.updateMany({
+      where: { productId: product.id, status: "ACTIVE" },
+      data: { publicationStatus: nextStatus },
+    });
+    await tx.authAuditEvent.create({
+      data: {
+        action: "PRODUCT_PUBLICATION_STATUS_CHANGED",
+        actorType: "INTERNAL",
+        internalUserId: actorId,
+        entityType: "PRODUCT",
+        entityId: product.id,
+        metadata: { previousStatus: product.publicationStatus, publicationStatus: nextStatus },
+      },
+    });
+    return { publicationStatus: nextStatus };
+  });
 }
 
 export async function searchAdminCompanyOptions(query: string) {
@@ -775,7 +842,7 @@ export async function updateAdminProduct(companyId: string, productId: string, i
       if (!submittedImages.includes(imageId)) removedImageIds.add(imageId);
   }
 
-  const { variants, ...productData } = data;
+  const { variants, publicationStatus: _publicationStatus, ...productData } = data;
   const variantIdsByClientKey: Record<string, string> = {};
   await prisma.$transaction(async (tx) => {
     await tx.product.update({
@@ -818,7 +885,9 @@ export async function updateAdminProduct(companyId: string, productId: string, i
         sellingPrice: pricing.sellingPrice,
         currency: "DZD",
         status: variant.status,
-        publicationStatus: variant.publicationStatus,
+        publicationStatus: variant.id
+          ? (product.variants.find((candidate) => candidate.id === variant.id)?.publicationStatus ?? "DRAFT")
+          : "DRAFT",
       };
       if (variant.id) {
         const previous = product.variants.find((candidate) => candidate.id === variant.id);
