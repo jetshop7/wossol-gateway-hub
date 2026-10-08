@@ -1,0 +1,9 @@
+# G1-D Admin Search UI
+
+G1-D adds a read-only Admin Search surface at `/admin/search` for the separate Pipeline PostgreSQL tables. It is protected server-side by the existing `catalog.read_internal` capability, so Client and Partner actors cannot call the Search server functions or load the route.
+
+The directory supports debounced text search, a searchable ISO country combobox backed by the shared 249-country catalog dataset, reply/lifecycle/commercial/attention/email-outreach filters, URL-persisted filter state, server-side pagination, and operational columns for sector/category, channel status, last contact, and next follow-up. Company detail is separated into Overview, Contacts, Tracking / Activity, Outreach, Communications, and Audit tabs. It shows Pipeline company fields, contact points and provenance, immutable outreach draft versions and Arabic translations, send attempts, discovery evidence, audit events, actions, and classification context. No catalog `Company` query or `CompanyPipelineLink` operation is used.
+
+No migration, import, edit, send, discovery execution, or destructive action is included. When the Pipeline tables are empty, the directory displays an explicit import-required empty state. Stored website values are clickable only when their parsed protocol is `http:` or `https:`; other values remain text. Phone and WhatsApp are independent explicit channels; email success never marks either channel as contacted. `SENT` is provider acceptance/submission only, not delivery, reading, or reply.
+
+Verification should use an isolated database with the existing Pipeline schema applied. The repository contract tests cover Admin-only server authorization shape, safe website rendering, channel-specific status derivation, read-only UI scope, detail tab/history rendering, and empty-state behavior. Local visual acceptance uses only a disposable synthetic database; no real Pipeline data is imported.

@@ -24,6 +24,7 @@ import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as WhyChooseWossolExportRouteImport } from './routes/why-choose-wossol-export'
 import { Route as AdminCatalogRouteImport } from './routes/admin/catalog'
 import { Route as AdminLoginRouteImport } from './routes/admin/login'
+import { Route as AdminSearchRouteImport } from './routes/admin/search'
 import { Route as ApiCatalogImagesRouteImport } from './routes/api.catalog-images'
 import { Route as ClientIndexRouteImport } from './routes/client.index'
 import { Route as ClientFavoritesRouteImport } from './routes/client.favorites'
@@ -35,6 +36,8 @@ import { Route as AdminCatalogCompaniesRouteImport } from './routes/admin/catalo
 import { Route as AdminCatalogPriceProfilesRouteImport } from './routes/admin/catalog/price-profiles'
 import { Route as AdminCatalogProductsRouteImport } from './routes/admin/catalog/products'
 import { Route as AdminCatalogPublishingRouteImport } from './routes/admin/catalog/publishing'
+import { Route as AdminSearchIndexRouteImport } from './routes/admin/search/index'
+import { Route as AdminSearchCompanyIdRouteImport } from './routes/admin/search/$companyId'
 import { Route as ClientProductsProductReferenceRouteImport } from './routes/client.products.$productReference'
 import { Route as PartnerProductsProductReferenceRouteImport } from './routes/partner.products.$productReference'
 import { Route as AdminCatalogCompaniesCompanyIdRouteImport } from './routes/admin/catalog/companies/$companyId'
@@ -114,6 +117,11 @@ const AdminLoginRoute = AdminLoginRouteImport.update({
   path: '/login',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminSearchRoute = AdminSearchRouteImport.update({
+  id: '/search',
+  path: '/search',
+  getParentRoute: () => AdminRoute,
+} as any)
 const ApiCatalogImagesRoute = ApiCatalogImagesRouteImport.update({
   id: '/api/catalog-images',
   path: '/api/catalog-images',
@@ -170,6 +178,16 @@ const AdminCatalogPublishingRoute = AdminCatalogPublishingRouteImport.update({
   path: '/publishing',
   getParentRoute: () => AdminCatalogRoute,
 } as any)
+const AdminSearchIndexRoute = AdminSearchIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AdminSearchRoute,
+} as any)
+const AdminSearchCompanyIdRoute = AdminSearchCompanyIdRouteImport.update({
+  id: '/$companyId',
+  path: '/$companyId',
+  getParentRoute: () => AdminSearchRoute,
+} as any)
 const ClientProductsProductReferenceRoute =
   ClientProductsProductReferenceRouteImport.update({
     id: '/products/$productReference',
@@ -205,6 +223,7 @@ export interface FileRoutesByFullPath {
   '/why-choose-wossol-export': typeof WhyChooseWossolExportRoute
   '/admin/catalog': typeof AdminCatalogRouteWithChildren
   '/admin/login': typeof AdminLoginRoute
+  '/admin/search': typeof AdminSearchRouteWithChildren
   '/api/catalog-images': typeof ApiCatalogImagesRoute
   '/client/favorites': typeof ClientFavoritesRoute
   '/client/login': typeof ClientLoginRoute
@@ -216,8 +235,10 @@ export interface FileRoutesByFullPath {
   '/admin/catalog/price-profiles': typeof AdminCatalogPriceProfilesRoute
   '/admin/catalog/products': typeof AdminCatalogProductsRoute
   '/admin/catalog/publishing': typeof AdminCatalogPublishingRoute
+  '/admin/search/$companyId': typeof AdminSearchCompanyIdRoute
   '/client/products/$productReference': typeof ClientProductsProductReferenceRoute
   '/partner/products/$productReference': typeof PartnerProductsProductReferenceRoute
+  '/admin/search/': typeof AdminSearchIndexRoute
   '/admin/catalog/companies/$companyId': typeof AdminCatalogCompaniesCompanyIdRoute
 }
 export interface FileRoutesByTo {
@@ -245,8 +266,10 @@ export interface FileRoutesByTo {
   '/admin/catalog/price-profiles': typeof AdminCatalogPriceProfilesRoute
   '/admin/catalog/products': typeof AdminCatalogProductsRoute
   '/admin/catalog/publishing': typeof AdminCatalogPublishingRoute
+  '/admin/search/$companyId': typeof AdminSearchCompanyIdRoute
   '/client/products/$productReference': typeof ClientProductsProductReferenceRoute
   '/partner/products/$productReference': typeof PartnerProductsProductReferenceRoute
+  '/admin/search': typeof AdminSearchIndexRoute
   '/admin/catalog/companies/$companyId': typeof AdminCatalogCompaniesCompanyIdRoute
 }
 export interface FileRoutesById {
@@ -266,6 +289,7 @@ export interface FileRoutesById {
   '/why-choose-wossol-export': typeof WhyChooseWossolExportRoute
   '/admin/catalog': typeof AdminCatalogRouteWithChildren
   '/admin/login': typeof AdminLoginRoute
+  '/admin/search': typeof AdminSearchRouteWithChildren
   '/api/catalog-images': typeof ApiCatalogImagesRoute
   '/client/favorites': typeof ClientFavoritesRoute
   '/client/login': typeof ClientLoginRoute
@@ -277,8 +301,10 @@ export interface FileRoutesById {
   '/admin/catalog/price-profiles': typeof AdminCatalogPriceProfilesRoute
   '/admin/catalog/products': typeof AdminCatalogProductsRoute
   '/admin/catalog/publishing': typeof AdminCatalogPublishingRoute
+  '/admin/search/$companyId': typeof AdminSearchCompanyIdRoute
   '/client/products/$productReference': typeof ClientProductsProductReferenceRoute
   '/partner/products/$productReference': typeof PartnerProductsProductReferenceRoute
+  '/admin/search/': typeof AdminSearchIndexRoute
   '/admin/catalog/companies/$companyId': typeof AdminCatalogCompaniesCompanyIdRoute
 }
 export interface FileRouteTypes {
@@ -299,6 +325,7 @@ export interface FileRouteTypes {
     | '/why-choose-wossol-export'
     | '/admin/catalog'
     | '/admin/login'
+    | '/admin/search'
     | '/api/catalog-images'
     | '/client/favorites'
     | '/client/login'
@@ -310,8 +337,10 @@ export interface FileRouteTypes {
     | '/admin/catalog/price-profiles'
     | '/admin/catalog/products'
     | '/admin/catalog/publishing'
+    | '/admin/search/$companyId'
     | '/client/products/$productReference'
     | '/partner/products/$productReference'
+    | '/admin/search/'
     | '/admin/catalog/companies/$companyId'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -339,8 +368,10 @@ export interface FileRouteTypes {
     | '/admin/catalog/price-profiles'
     | '/admin/catalog/products'
     | '/admin/catalog/publishing'
+    | '/admin/search/$companyId'
     | '/client/products/$productReference'
     | '/partner/products/$productReference'
+    | '/admin/search'
     | '/admin/catalog/companies/$companyId'
   id:
     | '__root__'
@@ -359,6 +390,7 @@ export interface FileRouteTypes {
     | '/why-choose-wossol-export'
     | '/admin/catalog'
     | '/admin/login'
+    | '/admin/search'
     | '/api/catalog-images'
     | '/client/favorites'
     | '/client/login'
@@ -370,8 +402,10 @@ export interface FileRouteTypes {
     | '/admin/catalog/price-profiles'
     | '/admin/catalog/products'
     | '/admin/catalog/publishing'
+    | '/admin/search/$companyId'
     | '/client/products/$productReference'
     | '/partner/products/$productReference'
+    | '/admin/search/'
     | '/admin/catalog/companies/$companyId'
   fileRoutesById: FileRoutesById
 }
@@ -499,6 +533,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminLoginRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/search': {
+      id: '/admin/search'
+      path: '/search'
+      fullPath: '/admin/search'
+      preLoaderRoute: typeof AdminSearchRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/api/catalog-images': {
       id: '/api/catalog-images'
       path: '/api/catalog-images'
@@ -576,6 +617,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminCatalogPublishingRouteImport
       parentRoute: typeof AdminCatalogRoute
     }
+    '/admin/search/': {
+      id: '/admin/search/'
+      path: '/'
+      fullPath: '/admin/search/'
+      preLoaderRoute: typeof AdminSearchIndexRouteImport
+      parentRoute: typeof AdminSearchRoute
+    }
+    '/admin/search/$companyId': {
+      id: '/admin/search/$companyId'
+      path: '/$companyId'
+      fullPath: '/admin/search/$companyId'
+      preLoaderRoute: typeof AdminSearchCompanyIdRouteImport
+      parentRoute: typeof AdminSearchRoute
+    }
     '/client/products/$productReference': {
       id: '/client/products/$productReference'
       path: '/products/$productReference'
@@ -633,14 +688,30 @@ const AdminCatalogRouteWithChildren = AdminCatalogRoute._addFileChildren(
   AdminCatalogRouteChildren,
 )
 
+interface AdminSearchRouteChildren {
+  AdminSearchCompanyIdRoute: typeof AdminSearchCompanyIdRoute
+  AdminSearchIndexRoute: typeof AdminSearchIndexRoute
+}
+
+const AdminSearchRouteChildren: AdminSearchRouteChildren = {
+  AdminSearchCompanyIdRoute: AdminSearchCompanyIdRoute,
+  AdminSearchIndexRoute: AdminSearchIndexRoute,
+}
+
+const AdminSearchRouteWithChildren = AdminSearchRoute._addFileChildren(
+  AdminSearchRouteChildren,
+)
+
 interface AdminRouteChildren {
   AdminCatalogRoute: typeof AdminCatalogRouteWithChildren
   AdminLoginRoute: typeof AdminLoginRoute
+  AdminSearchRoute: typeof AdminSearchRouteWithChildren
 }
 
 const AdminRouteChildren: AdminRouteChildren = {
   AdminCatalogRoute: AdminCatalogRouteWithChildren,
   AdminLoginRoute: AdminLoginRoute,
+  AdminSearchRoute: AdminSearchRouteWithChildren,
 }
 
 const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)

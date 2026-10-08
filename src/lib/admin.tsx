@@ -4,6 +4,7 @@ import {
   LogOut,
   Menu,
   Package,
+  Search,
   Settings,
   ShieldCheck,
   Users,
@@ -71,7 +72,7 @@ export function AdminShell({
           </div>
         </div>
       </header>
-      <div className="mx-auto flex max-w-[1440px]">
+      <div className="mx-auto flex w-full max-w-none">
         <aside
           className={`${open ? "fixed inset-y-16 left-0 z-30 block w-72" : "hidden"} border-r border-slate-200 bg-white lg:static lg:block lg:min-h-[calc(100vh-4rem)] lg:w-64 lg:shrink-0`}
         >
@@ -117,13 +118,14 @@ export function AdminShell({
                 label="Publishing"
                 onClick={() => setOpen(false)}
               />
+              <NavItem to="/admin/search" icon={<Search className="h-4 w-4" />} label="Pipeline Search" onClick={() => setOpen(false)} />
               <span className="flex items-center gap-3 rounded-md px-3 py-2 text-sm text-slate-400">
                 <Settings className="h-4 w-4" /> Settings
               </span>
             </div>
           </nav>
         </aside>
-        <main className="min-w-0 flex-1 p-4 sm:p-6 lg:p-8">{children}</main>
+        <main className="min-w-0 w-full flex-1 p-4 sm:p-6 lg:p-8">{children}</main>
       </div>
     </div>
   );
@@ -135,7 +137,7 @@ function NavItem({
   label,
   onClick,
 }: {
-  to: "/admin/catalog/companies" | "/admin/catalog/products" | "/admin/catalog/publishing" | "/admin/catalog/clients" | "/admin/catalog/price-profiles";
+  to: "/admin/catalog/companies" | "/admin/catalog/products" | "/admin/catalog/publishing" | "/admin/catalog/clients" | "/admin/catalog/price-profiles" | "/admin/search";
   icon: React.ReactNode;
   label: string;
   onClick: () => void;
