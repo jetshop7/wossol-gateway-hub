@@ -44,8 +44,9 @@ const userSelect = {
 export async function assertClientLoginEmailAvailable(
   email: string,
   findInternalUser: (normalizedEmail: string) => Promise<unknown>,
+  findPartnerUser: (normalizedEmail: string) => Promise<unknown> = async () => null,
 ) {
-  if (await findInternalUser(email)) {
+  if ((await findInternalUser(email)) || (await findPartnerUser(email))) {
     const error = new Error("This login email is unavailable. Choose another email.");
     error.name = "ClientLoginEmailCollisionError";
     throw error;
@@ -106,6 +107,11 @@ function auditData(
 
 export async function listAdminClientUsers(clientAccountId: string) {
   const accountId = accountIdSchema.parse(clientAccountId);
+  const account = await getWossolExportPrisma().clientAccount.findUnique({
+    where: { id: accountId },
+    select: { accountType: true },
+  });
+  if (account?.accountType !== "DIRECT_CLIENT") return [];
   return getWossolExportPrisma().clientUser.findMany({
     where: { clientAccountId: accountId },
     select: userSelect,
@@ -116,6 +122,11 @@ export async function listAdminClientUsers(clientAccountId: string) {
 export async function getAdminPrimaryClientLogin(clientAccountId: string) {
   const accountId = accountIdSchema.parse(clientAccountId);
   const prisma = getWossolExportPrisma();
+  const account = await prisma.clientAccount.findUnique({
+    where: { id: accountId },
+    select: { accountType: true },
+  });
+  if (account?.accountType !== "DIRECT_CLIENT") return null;
   const primary = await prisma.clientUser.findFirst({
     where: { clientAccountId: accountId, designation: "PRIMARY_ADMIN" },
     select: userSelect,
@@ -140,7 +151,11 @@ export async function saveAdminPrimaryClientLogin(
   if (passwordError) throw new Error(passwordError);
   const passwordHash = password ? await hashPassword(password) : undefined;
   return getWossolExportPrisma().$transaction(async (tx) => {
-    await tx.clientAccount.findUniqueOrThrow({ where: { id: accountId }, select: { id: true } });
+    const account = await tx.clientAccount.findUniqueOrThrow({
+      where: { id: accountId },
+      select: { id: true, accountType: true },
+    });
+    if (account.accountType !== "DIRECT_CLIENT") throw new Error("Direct Client account required.");
     const primary = await tx.clientUser.findFirst({
       where: { clientAccountId: accountId, designation: "PRIMARY_ADMIN" },
       select: { id: true, email: true, displayName: true, status: true },
@@ -154,6 +169,10 @@ export async function saveAdminPrimaryClientLogin(
       }));
     await assertClientLoginEmailAvailable(data.email, (email) =>
       tx.internalUser.findFirst({
+        where: { email: { equals: email, mode: "insensitive" } },
+        select: { id: true },
+      }),
+      (email) => tx.partnerUser.findFirst({
         where: { email: { equals: email, mode: "insensitive" } },
         select: { id: true },
       }),
@@ -220,9 +239,17 @@ export async function createAdminClientUser(
   return createClientUserWithPersistence(clientAccountId, input, actorId, (userData, creatorId) => {
     const accountId = userData.clientAccountId;
     return getWossolExportPrisma().$transaction(async (tx) => {
-      await tx.clientAccount.findUniqueOrThrow({ where: { id: accountId }, select: { id: true } });
+      const account = await tx.clientAccount.findUniqueOrThrow({
+        where: { id: accountId },
+        select: { id: true, accountType: true },
+      });
+      if (account.accountType !== "DIRECT_CLIENT") throw new Error("Direct Client account required.");
       await assertClientLoginEmailAvailable(userData.email, (email) =>
         tx.internalUser.findFirst({
+          where: { email: { equals: email, mode: "insensitive" } },
+          select: { id: true },
+        }),
+        (email) => tx.partnerUser.findFirst({
           where: { email: { equals: email, mode: "insensitive" } },
           select: { id: true },
         }),
@@ -254,11 +281,15 @@ export async function updateAdminClientUser(
   const passwordHash = password ? await hashPassword(password) : undefined;
   return getWossolExportPrisma().$transaction(async (tx) => {
     const before = await tx.clientUser.findFirstOrThrow({
-      where: { id, clientAccountId: accountId },
+      where: { id, clientAccountId: accountId, clientAccount: { accountType: "DIRECT_CLIENT" } },
       select: { email: true, displayName: true, status: true },
     });
     await assertClientLoginEmailAvailable(data.email, (email) =>
       tx.internalUser.findFirst({
+        where: { email: { equals: email, mode: "insensitive" } },
+        select: { id: true },
+      }),
+      (email) => tx.partnerUser.findFirst({
         where: { email: { equals: email, mode: "insensitive" } },
         select: { id: true },
       }),

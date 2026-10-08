@@ -2,7 +2,9 @@ import { useEffect, useState, type FormEvent } from "react";
 import { KeyRound, Save, ShieldCheck } from "lucide-react";
 
 import {
+  getAdminPrimaryPartnerLoginFn,
   getAdminPrimaryClientLoginFn,
+  saveAdminPrimaryPartnerLoginFn,
   saveAdminPrimaryClientLoginFn,
 } from "@/lib/api/commercial-admin.functions";
 import { readCsrfToken } from "@/lib/admin-csrf";
@@ -12,17 +14,19 @@ type PrimaryLogin = {
   displayName: string;
   email: string;
   status: "ACTIVE" | "DISABLED";
-  designation: "PRIMARY_ADMIN" | "CLIENT_USER";
+  designation: "PRIMARY_ADMIN" | "CLIENT_USER" | "PARTNER_ADMIN";
 };
 
 export function ClientAccountUsersPanel({
   clientAccountId,
   clientAccountName,
   accountStatus,
+  accountType,
 }: {
   clientAccountId: string;
   clientAccountName: string;
   accountStatus: "ACTIVE" | "INACTIVE" | "DISABLED";
+  accountType: "DIRECT_CLIENT" | "PARTNER";
 }) {
   const [login, setLogin] = useState<PrimaryLogin | null>(null);
   const [displayName, setDisplayName] = useState("");
@@ -36,7 +40,10 @@ export function ClientAccountUsersPanel({
   const refresh = async () => {
     setLoading(true);
     try {
-      const response = await getAdminPrimaryClientLoginFn({ data: { clientAccountId } });
+      const response =
+        accountType === "PARTNER"
+          ? await getAdminPrimaryPartnerLoginFn({ data: { catalogAccountId: clientAccountId } })
+          : await getAdminPrimaryClientLoginFn({ data: { clientAccountId } });
       if (response.ok && response.login) {
         setLogin(response.login);
         setDisplayName(response.login.displayName);
@@ -67,13 +74,17 @@ export function ClientAccountUsersPanel({
     setError("");
     setNotice("");
     try {
-      const response = await saveAdminPrimaryClientLoginFn({
-        data: {
-          clientAccountId,
-          data: { displayName, email, ...(password ? { password } : {}) },
-        },
-        headers: { "x-wossol-csrf": readCsrfToken() ?? "" },
-      });
+      const credentials = { displayName, email, ...(password ? { password } : {}) };
+      const response =
+        accountType === "PARTNER"
+          ? await saveAdminPrimaryPartnerLoginFn({
+              data: { catalogAccountId: clientAccountId, data: credentials },
+              headers: { "x-wossol-csrf": readCsrfToken() ?? "" },
+            })
+          : await saveAdminPrimaryClientLoginFn({
+              data: { clientAccountId, data: credentials },
+              headers: { "x-wossol-csrf": readCsrfToken() ?? "" },
+            });
       if (!response.ok) {
         setError(response.error);
         return;
@@ -81,7 +92,7 @@ export function ClientAccountUsersPanel({
       setPassword("");
       setNotice(
         password
-          ? "Login details saved. Existing Client sessions were signed out."
+          ? `Login details saved. Existing ${accountType === "PARTNER" ? "Partner" : "Client"} sessions were signed out.`
           : "Login details saved.",
       );
       await refresh();
@@ -100,7 +111,7 @@ export function ClientAccountUsersPanel({
             <KeyRound className="h-4 w-4 text-amber-600" /> Account access
           </h3>
           <p className="mt-1 text-xs text-slate-600">
-            Manage the primary Client sign-in for {clientAccountName}.
+            Manage the primary {accountType === "PARTNER" ? "Partner Admin" : "Client"} sign-in for {clientAccountName}.
           </p>
         </div>
         <span
@@ -132,8 +143,7 @@ export function ClientAccountUsersPanel({
               <ShieldCheck className="h-4 w-4 text-emerald-700" /> Primary login
             </p>
             <p className="mt-1 text-xs text-slate-500">
-              Passwords are never displayed. Setting a new password invalidates current Client
-              sessions.
+              Passwords are never displayed. Setting a new password invalidates current {accountType === "PARTNER" ? "Partner" : "Client"} sessions.
             </p>
           </div>
           <label className="grid gap-1 text-sm font-medium text-slate-700">
@@ -177,7 +187,7 @@ export function ClientAccountUsersPanel({
               <span className="font-semibold">
                 {login.status === "ACTIVE" ? "Active" : "Disabled"}
               </span>
-              {login.designation !== "PRIMARY_ADMIN" &&
+              {login.designation === "CLIENT_USER" &&
                 " · This existing account login will be designated as the primary login when saved."}
             </p>
           )}

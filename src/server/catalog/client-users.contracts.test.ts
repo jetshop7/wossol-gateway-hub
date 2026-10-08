@@ -30,6 +30,18 @@ test("client primary login email cannot collide with a normalized Wossol Interna
   );
 });
 
+test("Direct Client logins cannot reuse an existing Partner identity email", async () => {
+  await assert.rejects(
+    () =>
+      assertClientLoginEmailAvailable(
+        "partner@example.com",
+        async () => null,
+        async (email) => (email === "partner@example.com" ? { id: "partner-user-id" } : null),
+      ),
+    (error: unknown) => error instanceof Error && error.name === "ClientLoginEmailCollisionError",
+  );
+});
+
 test("Client User creation normalizes email and scopes the persisted user to the selected account", async () => {
   const data = await buildClientUserCreationData(accountId, {
     displayName: "  Alex Buyer  ",

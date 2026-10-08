@@ -41,7 +41,9 @@ async function createSession(repository: AuthRepository, actor: AuthenticatedAct
     actorType: actor.actorType,
     ...(actor.actorType === "INTERNAL"
       ? { internalUserId: actor.userId }
-      : { clientUserId: actor.userId, clientAccountId: actor.clientAccountId }),
+      : actor.actorType === "CLIENT"
+        ? { clientUserId: actor.userId, clientAccountId: actor.clientAccountId }
+        : { partnerUserId: actor.userId, partnerAccountId: actor.partnerAccountId }),
     expiresAt: new Date(now.getTime() + SESSION_TTL_SECONDS * 1000),
   });
   return { token, sessionId: session.id, expiresAt: session.expiresAt };
@@ -104,6 +106,7 @@ export async function authenticateClient(
   const valid = user
     ? user.status === "ACTIVE" &&
       user.clientAccount.status === "ACTIVE" &&
+      user.clientAccount.accountType === "DIRECT_CLIENT" &&
       (await verifyPassword(password, user.passwordHash))
     : false;
   if (!valid || !user) {
@@ -134,6 +137,58 @@ export async function authenticateClient(
   return { ...session, actor: { ...actor, sessionId: session.sessionId } };
 }
 
+export async function authenticatePartner(
+  email: string,
+  password: string,
+  options?: { repository?: AuthRepository; ipAddress?: string; now?: Date },
+) {
+  const repository = options?.repository ?? createAuthRepository();
+  const now = options?.now ?? new Date();
+  const normalized = normalizedEmail(email);
+  const key = `partner:${normalized}:${options?.ipAddress ?? "unknown"}`;
+  if (!(await allowLogin(repository, key, now)))
+    throw new AuthenticationError(GENERIC_LOGIN_FAILURE);
+  const user = await repository.findPartnerUserByEmail(normalized);
+  const valid = user
+    ? user.status === "ACTIVE" &&
+      user.partnerAccount.catalogAccount.status === "ACTIVE" &&
+      user.partnerAccount.catalogAccount.accountType === "PARTNER" &&
+      (await verifyPassword(password, user.passwordHash))
+    : false;
+  if (!valid || !user) {
+    await recordFailure(repository, key, now);
+    await repository.writeAudit({
+      action: "LOGIN_FAILED",
+      ipAddress: options?.ipAddress,
+      metadata: { actorType: "PARTNER" },
+    });
+    throw new AuthenticationError(GENERIC_LOGIN_FAILURE);
+  }
+  await clearFailures(repository, key, now);
+  const actor: AuthenticatedActor = {
+    actorType: "PARTNER",
+    userId: user.id,
+    partnerAccountId: user.partnerAccountId,
+    catalogAccountId: user.partnerAccount.catalogAccountId,
+    capabilities: [],
+    partnerCapabilities: [
+      "partner.catalog.read",
+      "partner.catalog.favorite",
+      "partner.account.read",
+    ],
+    sessionId: "pending",
+  };
+  const session = await createSession(repository, actor, now);
+  await repository.writeAudit({
+    action: "LOGIN_SUCCEEDED",
+    actorType: "PARTNER",
+    partnerUserId: user.id,
+    partnerAccountId: user.partnerAccountId,
+    ipAddress: options?.ipAddress,
+  });
+  return { ...session, actor: { ...actor, sessionId: session.sessionId } };
+}
+
 /** Resolve the credential owner server-side; ambiguous cross-store emails are rejected. */
 export async function authenticateByCredentials(
   email: string,
@@ -142,14 +197,15 @@ export async function authenticateByCredentials(
 ) {
   const repository = options?.repository ?? createAuthRepository();
   const normalized = normalizedEmail(email);
-  const [internalUser, clientUser] = await Promise.all([
+  const [internalUser, clientUser, partnerUser] = await Promise.all([
     repository.findInternalUserByEmail(normalized),
     repository.findClientUserByEmail(normalized),
+    repository.findPartnerUserByEmail(normalized),
   ]);
 
   // Email uniqueness is scoped to each table, not shared across identity stores. Refuse
   // collisions regardless of account status or which password happens to match.
-  if (internalUser && clientUser) {
+  if ([internalUser, clientUser, partnerUser].filter(Boolean).length > 1) {
     await repository.writeAudit({
       action: "LOGIN_FAILED",
       ipAddress: options?.ipAddress,
@@ -158,6 +214,7 @@ export async function authenticateByCredentials(
     throw new AuthenticationError(GENERIC_LOGIN_FAILURE);
   }
 
+  if (partnerUser) return authenticatePartner(email, password, { ...options, repository });
   if (clientUser) return authenticateClient(email, password, { ...options, repository });
   return authenticateInternal(email, password, { ...options, repository });
 }

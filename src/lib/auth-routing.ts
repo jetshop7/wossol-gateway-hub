@@ -1,5 +1,6 @@
-export type SignInActorType = "INTERNAL" | "CLIENT";
+export type SignInActorType = "INTERNAL" | "CLIENT" | "PARTNER";
 
 export function workspacePathForActor(actorType: SignInActorType) {
-  return actorType === "INTERNAL" ? ("/admin/catalog/companies" as const) : ("/client" as const);
+  if (actorType === "INTERNAL") return "/admin/catalog/companies" as const;
+  return actorType === "PARTNER" ? ("/partner" as const) : ("/client" as const);
 }

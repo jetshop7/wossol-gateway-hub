@@ -15,7 +15,7 @@
     "test:client-visibility": "node --experimental-strip-types --test src/server/catalog/client-visibility.test.ts",
     "test:client-pricing": "node --experimental-strip-types --test src/server/catalog/client-pricing.test.ts",
     "test:client-catalog": "node --experimental-strip-types --test src/server/catalog/client-catalog.dto.test.ts src/lib/countries.test.ts",
-    "test:client-catalog-integration": "node --experimental-strip-types --test src/server/catalog/client-catalog.integration.test.ts src/server/catalog/client-login-management.integration.test.ts",
+    "test:client-catalog-integration": "node --experimental-strip-types --test src/server/catalog/client-catalog.integration.test.ts src/server/catalog/client-login-management.integration.test.ts src/server/catalog/partner-accounts.integration.test.ts",
     "test:taxonomy": "node --experimental-strip-types --test src/server/catalog/gs1-gpc-import.test.ts src/server/catalog/catalog.taxonomy-admin.test.ts",
     "test:pipeline-schema": "node --experimental-strip-types --test src/server/search/pipeline-search-schema.contract.test.ts",
     "postinstall": "prisma generate --schema prisma/schema.prisma",

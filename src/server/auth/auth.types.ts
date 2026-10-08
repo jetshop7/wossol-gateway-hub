@@ -15,14 +15,23 @@ export const AUTH_CAPABILITIES = [
 ] as const;
 
 export type AuthCapability = (typeof AUTH_CAPABILITIES)[number];
-export type AuthActorType = "INTERNAL" | "CLIENT";
+export type AuthActorType = "INTERNAL" | "CLIENT" | "PARTNER";
+export const PARTNER_CAPABILITIES = [
+  "partner.catalog.read",
+  "partner.catalog.favorite",
+  "partner.account.read",
+] as const;
+export type PartnerCapability = (typeof PARTNER_CAPABILITIES)[number];
 
 export type AuthenticatedActor = {
   actorType: AuthActorType;
   userId: string;
   clientAccountId?: string;
+  partnerAccountId?: string;
+  catalogAccountId?: string;
   role?: "CATALOG_ADMIN" | "CATALOG_EDITOR";
   capabilities: readonly AuthCapability[];
+  partnerCapabilities?: readonly PartnerCapability[];
   sessionId: string;
 };
 
@@ -49,6 +58,10 @@ export function capabilitiesForRole(role: NonNullable<AuthenticatedActor["role"]
 
 export function can(actor: AuthenticatedActor, capability: AuthCapability): boolean {
   return actor.actorType === "INTERNAL" && actor.capabilities.includes(capability);
+}
+
+export function partnerCan(actor: AuthenticatedActor, capability: PartnerCapability): boolean {
+  return actor.actorType === "PARTNER" && actor.partnerCapabilities?.includes(capability) === true;
 }
 
 export function toPublicActor(actor: AuthenticatedActor) {

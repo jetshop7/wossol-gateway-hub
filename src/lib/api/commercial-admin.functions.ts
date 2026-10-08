@@ -10,6 +10,7 @@ const profileInput = z.object({
   defaultAdjustment: z.string().regex(/^-?\d{1,4}(?:\.\d{1,4})?$/),
 });
 const clientInput = z.object({
+  accountType: z.enum(["DIRECT_CLIENT", "PARTNER"]).default("DIRECT_CLIENT"),
   name: z.string().trim().min(1).max(200),
   status: z.enum(["ACTIVE", "INACTIVE"]),
   priceProfileId: id,
@@ -36,6 +37,14 @@ const clientUserUpdateInput = z.object({
 });
 const primaryClientLoginInput = z.object({
   clientAccountId: id,
+  data: z.object({
+    displayName: z.string().trim().min(1).max(120),
+    email: z.string().trim().email().max(320),
+    password: z.string().max(256).optional(),
+  }),
+});
+const primaryPartnerLoginInput = z.object({
+  catalogAccountId: id,
   data: z.object({
     displayName: z.string().trim().min(1).max(120),
     email: z.string().trim().email().max(320),
@@ -193,6 +202,43 @@ export const saveAdminPrimaryClientLoginFn = createServerFn({ method: "POST" })
       return {
         ok: true as const,
         login: await saveAdminPrimaryClientLogin(data.clientAccountId, data.data, actor.userId),
+      };
+    } catch (error) {
+      if (error instanceof Error && error.name === "ClientLoginEmailCollisionError")
+        return {
+          ok: false as const,
+          error: "This login email is unavailable. Choose another email.",
+        };
+      return safeFailure(error);
+    }
+  });
+
+export const getAdminPrimaryPartnerLoginFn = createServerFn({ method: "GET" })
+  .validator(z.object({ catalogAccountId: id }))
+  .handler(async ({ data }) => {
+    await guard("catalog.client.manage");
+    const { getAdminPrimaryPartnerLogin } =
+      await import("../../server/catalog/partner-management.repository.server.ts");
+    return {
+      ok: true as const,
+      login: await getAdminPrimaryPartnerLogin(data.catalogAccountId),
+    };
+  });
+
+export const saveAdminPrimaryPartnerLoginFn = createServerFn({ method: "POST" })
+  .validator(primaryPartnerLoginInput)
+  .handler(async ({ data }) => {
+    const actor = await guard("catalog.client.manage", true);
+    try {
+      const { saveAdminPrimaryPartnerLogin } =
+        await import("../../server/catalog/partner-management.repository.server.ts");
+      return {
+        ok: true as const,
+        login: await saveAdminPrimaryPartnerLogin(
+          data.catalogAccountId,
+          data.data,
+          actor.userId,
+        ),
       };
     } catch (error) {
       if (error instanceof Error && error.name === "ClientLoginEmailCollisionError")

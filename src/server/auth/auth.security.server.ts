@@ -35,7 +35,11 @@ export function clientSessionHasValidIdentity(session: {
   clientUser: {
     status: "ACTIVE" | "DISABLED";
     clientAccountId: string;
-    clientAccount: { id: string; status: "ACTIVE" | "INACTIVE" | "DISABLED" };
+    clientAccount: {
+      id: string;
+      status: "ACTIVE" | "INACTIVE" | "DISABLED";
+      accountType: "DIRECT_CLIENT" | "PARTNER";
+    };
   } | null;
 }): boolean {
   return Boolean(
@@ -45,6 +49,57 @@ export function clientSessionHasValidIdentity(session: {
     session.clientUser.status === "ACTIVE" &&
     session.clientUser.clientAccountId === session.clientAccountId &&
     session.clientUser.clientAccount.id === session.clientAccountId &&
+    session.clientUser.clientAccount.accountType === "DIRECT_CLIENT" &&
     session.clientUser.clientAccount.status === "ACTIVE",
+  );
+}
+
+export function csrfMutationIsValid(
+  csrfCookie: string | null,
+  csrfHeader: string | null,
+  origin: string | null,
+  requestUrl: string,
+): boolean {
+  return Boolean(
+    csrfCookie && csrfHeader && csrfCookie === csrfHeader && sameOriginForMutation(origin, requestUrl),
+  );
+}
+
+export function partnerSessionHasValidIdentity(session: {
+  partnerUserId: string | null;
+  partnerAccountId: string | null;
+  partnerUser: {
+    status: "ACTIVE" | "DISABLED";
+    partnerAccountId: string;
+    partnerAccount: {
+      id: string;
+      catalogAccount: {
+        id: string;
+        status: "ACTIVE" | "INACTIVE" | "DISABLED";
+        accountType: "DIRECT_CLIENT" | "PARTNER";
+      };
+    };
+  } | null;
+  partnerAccount: {
+    id: string;
+    catalogAccount: {
+      id: string;
+      status: "ACTIVE" | "INACTIVE" | "DISABLED";
+      accountType: "DIRECT_CLIENT" | "PARTNER";
+    };
+  } | null;
+}): boolean {
+  return Boolean(
+    session.partnerUserId &&
+      session.partnerAccountId &&
+      session.partnerUser &&
+      session.partnerAccount &&
+      session.partnerUser.status === "ACTIVE" &&
+      session.partnerUser.partnerAccountId === session.partnerAccountId &&
+      session.partnerAccount.id === session.partnerAccountId &&
+      session.partnerUser.partnerAccount.id === session.partnerAccountId &&
+      session.partnerAccount.catalogAccount.id === session.partnerUser.partnerAccount.catalogAccount.id &&
+      session.partnerAccount.catalogAccount.accountType === "PARTNER" &&
+      session.partnerAccount.catalogAccount.status === "ACTIVE",
   );
 }

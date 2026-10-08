@@ -157,6 +157,8 @@ export const logout = createServerFn({ method: "POST" }).handler(async () => {
       internalUserId: actor.actorType === "INTERNAL" ? actor.userId : undefined,
       clientUserId: actor.actorType === "CLIENT" ? actor.userId : undefined,
       clientAccountId: actor.clientAccountId,
+      partnerUserId: actor.actorType === "PARTNER" ? actor.userId : undefined,
+      partnerAccountId: actor.partnerAccountId,
     });
   }
   clearSessionCookies();

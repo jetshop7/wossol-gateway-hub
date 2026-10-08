@@ -7,7 +7,7 @@ import {
 } from "./client-catalog.dto.ts";
 import { getWossolExportPrisma } from "./prisma.server.ts";
 
-export async function getClientCatalog(
+async function getCatalogForAccount(
   clientAccountId: string,
   input: {
     search?: string;
@@ -17,6 +17,7 @@ export async function getClientCatalog(
     productId?: string;
     productIds?: string[];
   } = {},
+  audience: "CLIENT" | "PARTNER" = "CLIENT",
 ) {
   const prisma = getWossolExportPrisma();
   const account = await prisma.clientAccount.findUnique({
@@ -24,6 +25,7 @@ export async function getClientCatalog(
     select: {
       id: true,
       status: true,
+      accountType: true,
       catalogAccessStatus: true,
       catalogAccessMode: true,
       priceProfileId: true,
@@ -32,10 +34,16 @@ export async function getClientCatalog(
     },
   });
   if (!account || account.status !== "ACTIVE") throw new Error("Client account is unavailable.");
+  if (
+    (audience === "CLIENT" && account.accountType !== "DIRECT_CLIENT") ||
+    (audience === "PARTNER" && account.accountType !== "PARTNER")
+  )
+    throw new Error("Catalog account is unavailable.");
+  const pricesVisible = audience === "PARTNER" || account.pricesVisible;
   if (account.catalogAccessStatus !== "ENABLED")
     return {
       accessEnabled: false as const,
-      pricesVisible: account.pricesVisible,
+      pricesVisible,
       hasMore: false,
       products: [] as ClientCatalogProductDto[],
     };
@@ -52,7 +60,7 @@ export async function getClientCatalog(
   if (!ids.length)
     return {
       accessEnabled: true as const,
-      pricesVisible: account.pricesVisible,
+      pricesVisible,
       hasMore: false,
       products: [] as ClientCatalogProductDto[],
     };
@@ -144,7 +152,7 @@ export async function getClientCatalog(
 
   const allVariants = rows.flatMap((product) => product.variants);
   const overrides =
-    account.pricesVisible && account.priceProfile
+    pricesVisible && account.priceProfile
       ? await prisma.variantPriceOverride.findMany({
           where: {
             priceProfileId: account.priceProfile.id,
@@ -182,7 +190,7 @@ export async function getClientCatalog(
     if (!eligibleVariants.length) return [];
     const variants = eligibleVariants.map((variant) => {
       let price;
-      if (account.pricesVisible && account.priceProfile) {
+      if (pricesVisible && account.priceProfile) {
         const override = overrideByVariant.get(variant.id);
         try {
           price = toClientVisiblePriceDto(
@@ -198,7 +206,7 @@ export async function getClientCatalog(
                     }
                   : null,
               },
-              client: account,
+              client: pricesVisible ? { ...account, pricesVisible: true } : account,
             }),
           );
         } catch {
@@ -214,14 +222,41 @@ export async function getClientCatalog(
         countryOfOrigin: row.countryOfOrigin,
         shortDescription: row.shortDescription,
         description: row.description,
-        pricesVisible: account.pricesVisible,
+        pricesVisible,
         taxonomy,
         isFavorite: favoriteProductIds.has(row.id),
         variants,
       }),
     ];
   });
-  return { accessEnabled: true as const, pricesVisible: account.pricesVisible, hasMore, products };
+  return { accessEnabled: true as const, pricesVisible, hasMore, products };
+}
+
+export function getClientCatalog(
+  clientAccountId: string,
+  input: Parameters<typeof getCatalogForAccount>[1] = {},
+) {
+  return getCatalogForAccount(clientAccountId, input, "CLIENT");
+}
+
+async function getPartnerCatalogAccountId(partnerAccountId: string) {
+  const partner = await getWossolExportPrisma().partnerAccount.findFirst({
+    where: {
+      id: partnerAccountId,
+      catalogAccount: { status: "ACTIVE", accountType: "PARTNER" },
+    },
+    select: { catalogAccountId: true, catalogAccount: { select: { status: true } } },
+  });
+  if (!partner || partner.catalogAccount.status !== "ACTIVE")
+    throw new Error("Partner catalog is unavailable.");
+  return partner.catalogAccountId;
+}
+
+export async function getPartnerCatalog(
+  partnerAccountId: string,
+  input: Parameters<typeof getCatalogForAccount>[1] = {},
+) {
+  return getCatalogForAccount(await getPartnerCatalogAccountId(partnerAccountId), input, "PARTNER");
 }
 
 export async function getClientCatalogProduct(clientAccountId: string, productReference: string) {
@@ -246,6 +281,18 @@ export async function getClientCatalogProduct(clientAccountId: string, productRe
   return result.accessEnabled ? (result.products[0] ?? null) : null;
 }
 
+export async function getPartnerCatalogProduct(partnerAccountId: string, productReference: string) {
+  const catalogAccountId = await getPartnerCatalogAccountId(partnerAccountId);
+  const prisma = getWossolExportPrisma();
+  const product = await prisma.product.findUnique({
+    where: { publicReference: productReference },
+    select: { id: true },
+  });
+  if (!product) return null;
+  const result = await getCatalogForAccount(catalogAccountId, { productId: product.id }, "PARTNER");
+  return result.accessEnabled ? (result.products[0] ?? null) : null;
+}
+
 export async function getClientCatalogFavorites(clientAccountId: string, skip = 0) {
   const prisma = getWossolExportPrisma();
   const favorites = await prisma.clientCatalogFavorite.findMany({
@@ -263,6 +310,26 @@ export async function getClientCatalogFavorites(clientAccountId: string, skip = 
     skip,
   });
   const catalog = await getClientCatalog(clientAccountId, { productIds: visibleIds.slice(0, 100) });
+  return { ...catalog, hasMore: visibleIds.length > 100 };
+}
+
+export async function getPartnerCatalogFavorites(partnerAccountId: string, skip = 0) {
+  const catalogAccountId = await getPartnerCatalogAccountId(partnerAccountId);
+  const favorites = await getWossolExportPrisma().clientCatalogFavorite.findMany({
+    where: { clientAccountId: catalogAccountId },
+    select: { productId: true },
+    orderBy: { createdAt: "desc" },
+  });
+  const visibleIds = await findClientVisibleProductIds(catalogAccountId, {
+    productIds: favorites.map((favorite) => favorite.productId),
+    take: 101,
+    skip,
+  });
+  const catalog = await getCatalogForAccount(
+    catalogAccountId,
+    { productIds: visibleIds.slice(0, 100) },
+    "PARTNER",
+  );
   return { ...catalog, hasMore: visibleIds.length > 100 };
 }
 
@@ -302,6 +369,36 @@ export async function setClientCatalogFavorite(
   } else {
     await prisma.clientCatalogFavorite.deleteMany({
       where: { clientAccountId, productId: product.id },
+    });
+  }
+  return { isFavorite };
+}
+
+export async function setPartnerCatalogFavorite(
+  partnerAccountId: string,
+  productReference: string,
+  isFavorite: boolean,
+) {
+  const catalogAccountId = await getPartnerCatalogAccountId(partnerAccountId);
+  const prisma = getWossolExportPrisma();
+  const product = await prisma.product.findUnique({
+    where: { publicReference: productReference },
+    select: { id: true },
+  });
+  if (
+    !product ||
+    !(await findClientVisibleProductIds(catalogAccountId, { productId: product.id, take: 1 })).length
+  )
+    throw new Error("This product is not available in your catalog.");
+  if (isFavorite) {
+    await prisma.clientCatalogFavorite.upsert({
+      where: { clientAccountId_productId: { clientAccountId: catalogAccountId, productId: product.id } },
+      create: { clientAccountId: catalogAccountId, productId: product.id },
+      update: {},
+    });
+  } else {
+    await prisma.clientCatalogFavorite.deleteMany({
+      where: { clientAccountId: catalogAccountId, productId: product.id },
     });
   }
   return { isFavorite };
@@ -378,4 +475,11 @@ export async function getClientTaxonomyCategories(
     const name = node.translations[0]?.name;
     return name ? [{ code: node.sourceCode, level: node.level, name }] : [];
   });
+}
+
+export async function getPartnerTaxonomyCategories(
+  partnerAccountId: string,
+  parent: { code: string; level: "SEGMENT" | "FAMILY" | "CLASS" | "BRICK" } | null,
+) {
+  return getClientTaxonomyCategories(await getPartnerCatalogAccountId(partnerAccountId), parent);
 }

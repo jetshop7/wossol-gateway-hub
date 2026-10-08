@@ -9,6 +9,7 @@ export const priceProfileInputSchema = z.object({
 });
 
 export const clientAccountInputSchema = z.object({
+  accountType: z.enum(["DIRECT_CLIENT", "PARTNER"]).default("DIRECT_CLIENT"),
   name: z.string().trim().min(1).max(200),
   status: z.enum(["ACTIVE", "INACTIVE"]),
   priceProfileId: z.string().uuid(),

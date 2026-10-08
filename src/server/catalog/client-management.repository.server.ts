@@ -38,6 +38,7 @@ const profileSelect = {
 const clientSelect = {
   id: true,
   name: true,
+  accountType: true,
   status: true,
   priceProfileId: true,
   pricesVisible: true,
@@ -227,6 +228,7 @@ async function saveClientAccount(
             where: { id },
             select: {
               name: true,
+              accountType: true,
               status: true,
               priceProfileId: true,
               pricesVisible: true,
@@ -235,8 +237,11 @@ async function saveClientAccount(
             },
           })
         : null;
+      if (before && before.accountType !== data.accountType)
+        throw new Error("Account type cannot be changed after creation.");
       const values = {
         name: data.name,
+        accountType: before?.accountType ?? data.accountType,
         status: data.status,
         priceProfileId: data.priceProfileId,
         pricesVisible: data.pricesVisible,
@@ -291,41 +296,80 @@ async function saveClientAccount(
         : await tx.clientAccount.create({ data: values, select: { id: true } });
 
       if (primaryAdminData) {
-        await assertClientLoginEmailAvailable(primaryAdminData.email, (email) =>
-          tx.internalUser.findFirst({
-            where: { email: { equals: email, mode: "insensitive" } },
-            select: { id: true },
-          }),
-        );
-        const primaryAdmin = await tx.clientUser.create({
-          data: {
-            ...primaryAdminData,
-            clientAccountId: account.id,
-            designation: "PRIMARY_ADMIN",
-          },
-          select: { id: true, email: true, status: true },
+        await assertClientLoginEmailAvailable(primaryAdminData.email, async (email) => {
+          const matches = await Promise.all([
+            tx.internalUser.findFirst({
+              where: { email: { equals: email, mode: "insensitive" } },
+              select: { id: true },
+            }),
+            tx.clientUser.findFirst({
+              where: { email: { equals: email, mode: "insensitive" } },
+              select: { id: true },
+            }),
+            tx.partnerUser.findFirst({
+              where: { email: { equals: email, mode: "insensitive" } },
+              select: { id: true },
+            }),
+          ]);
+          return matches.find(Boolean) ?? null;
         });
-        await tx.authAuditEvent.create({
-          data: {
-            action: "CLIENT_USER_CREATED",
-            actorType: "INTERNAL",
-            internalUserId: actorId,
-            clientAccountId: account.id,
-            clientUserId: primaryAdmin.id,
-            entityType: "CLIENT_USER",
-            entityId: primaryAdmin.id,
-            metadata: {
-              email: primaryAdmin.email,
-              status: primaryAdmin.status,
+        if (values.accountType === "DIRECT_CLIENT") {
+          const primaryAdmin = await tx.clientUser.create({
+            data: {
+              ...primaryAdminData,
+              clientAccountId: account.id,
               designation: "PRIMARY_ADMIN",
             },
-          },
-        });
+            select: { id: true, email: true, status: true },
+          });
+          await tx.authAuditEvent.create({
+            data: {
+              action: "CLIENT_USER_CREATED",
+              actorType: "INTERNAL",
+              internalUserId: actorId,
+              clientAccountId: account.id,
+              clientUserId: primaryAdmin.id,
+              entityType: "CLIENT_USER",
+              entityId: primaryAdmin.id,
+              metadata: {
+                email: primaryAdmin.email,
+                status: primaryAdmin.status,
+                designation: "PRIMARY_ADMIN",
+              },
+            },
+          });
+        } else {
+          const partnerAccount = await tx.partnerAccount.create({
+            data: { catalogAccountId: account.id },
+            select: { id: true },
+          });
+          const partnerAdmin = await tx.partnerUser.create({
+            data: { ...primaryAdminData, partnerAccountId: partnerAccount.id },
+            select: { id: true, email: true, status: true },
+          });
+          await tx.authAuditEvent.create({
+            data: {
+              action: "PARTNER_USER_CREATED",
+              actorType: "INTERNAL",
+              internalUserId: actorId,
+              clientAccountId: account.id,
+              partnerAccountId: partnerAccount.id,
+              partnerUserId: partnerAdmin.id,
+              entityType: "PARTNER_USER",
+              entityId: partnerAdmin.id,
+              metadata: { email: partnerAdmin.email, status: partnerAdmin.status },
+            },
+          });
+        }
       }
 
       if (id && data.status !== "ACTIVE") {
         await tx.authSession.updateMany({
           where: { clientAccountId: id, revokedAt: null },
+          data: { revokedAt: new Date() },
+        });
+        await tx.authSession.updateMany({
+          where: { partnerAccount: { is: { catalogAccountId: id } }, revokedAt: null },
           data: { revokedAt: new Date() },
         });
       }
@@ -356,6 +400,7 @@ async function saveClientAccount(
         "CLIENT_ACCOUNT",
         account.id,
         {
+          accountType: values.accountType,
           nameBefore: before?.name ?? null,
           nameAfter: data.name,
           profileBefore: before?.priceProfileId ?? null,

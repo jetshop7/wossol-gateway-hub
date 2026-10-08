@@ -6,6 +6,7 @@ import { duplicateClientUserEmailMessage } from "../../lib/client-user-errors.ts
 import { createClientAccountOnboardingWithPersistence } from "./client-onboarding.server.ts";
 
 const accountInput = {
+  accountType: "DIRECT_CLIENT" as const,
   name: "Northwind Imports",
   status: "ACTIVE" as const,
   priceProfileId: "550e8400-e29b-41d4-a716-446655440000",
@@ -36,6 +37,19 @@ test("onboarding sends account and hashed Primary Admin credentials to one persi
     true,
   );
   assert.equal("password" in result.primaryAdmin, false);
+});
+
+test("Partner onboarding preserves shared Wossol account settings and identifies Partner account type", async () => {
+  const partnerInput = { ...accountInput, accountType: "PARTNER" as const };
+  const result = await createClientAccountOnboardingWithPersistence(
+    { ...partnerInput, primaryAdmin: primaryAdminInput },
+    "internal-admin-id",
+    async (account, primaryAdmin) => ({ account, primaryAdmin }),
+  );
+  assert.equal(result.account.accountType, "PARTNER");
+  assert.equal(result.account.priceProfileId, partnerInput.priceProfileId);
+  assert.equal(result.account.catalogAccessMode, partnerInput.catalogAccessMode);
+  assert.equal(result.primaryAdmin.email, "primary@example.com");
 });
 
 test("onboarding persistence rolls back account, user, and audit state together on user failure", async () => {

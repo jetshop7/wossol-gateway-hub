@@ -31,6 +31,7 @@ test("Client Account contract assigns one profile and carries access/price visib
     catalogAccessStatus: "ENABLED",
     catalogAccessMode: "SELECTED",
   });
+  assert.equal(account.accountType, "DIRECT_CLIENT");
   assert.equal(account.priceProfileId, "550e8400-e29b-41d4-a716-446655440000");
   assert.equal(account.pricesVisible, true);
   assert.equal(account.catalogAccessMode, "SELECTED");
@@ -41,6 +42,8 @@ test("Client Account contract assigns one profile and carries access/price visib
     priceProfileId: "8c201e5d-c1df-4e65-b73d-8c2c72081f72",
   });
   assert.notEqual(reassigned.priceProfileId, account.priceProfileId);
+  const partner = clientAccountInputSchema.parse({ ...account, accountType: "PARTNER" });
+  assert.equal(partner.accountType, "PARTNER");
 });
 
 test("duplicating a profile copies rules into independent rows and no client assignments", () => {

@@ -16,6 +16,7 @@ import { Route as ClientRouteImport } from './routes/client'
 import { Route as ContactRouteImport } from './routes/contact'
 import { Route as MarketsRouteImport } from './routes/markets'
 import { Route as OpportunitiesRouteImport } from './routes/opportunities'
+import { Route as PartnerRouteImport } from './routes/partner'
 import { Route as PrivacyPolicyRouteImport } from './routes/privacy-policy'
 import { Route as SectorsRouteImport } from './routes/sectors'
 import { Route as SignInRouteImport } from './routes/sign-in'
@@ -27,12 +28,15 @@ import { Route as ApiCatalogImagesRouteImport } from './routes/api.catalog-image
 import { Route as ClientIndexRouteImport } from './routes/client.index'
 import { Route as ClientFavoritesRouteImport } from './routes/client.favorites'
 import { Route as ClientLoginRouteImport } from './routes/client.login'
+import { Route as PartnerIndexRouteImport } from './routes/partner.index'
+import { Route as PartnerFavoritesRouteImport } from './routes/partner.favorites'
 import { Route as AdminCatalogClientsRouteImport } from './routes/admin/catalog/clients'
 import { Route as AdminCatalogCompaniesRouteImport } from './routes/admin/catalog/companies'
 import { Route as AdminCatalogPriceProfilesRouteImport } from './routes/admin/catalog/price-profiles'
 import { Route as AdminCatalogProductsRouteImport } from './routes/admin/catalog/products'
 import { Route as AdminCatalogPublishingRouteImport } from './routes/admin/catalog/publishing'
 import { Route as ClientProductsProductReferenceRouteImport } from './routes/client.products.$productReference'
+import { Route as PartnerProductsProductReferenceRouteImport } from './routes/partner.products.$productReference'
 import { Route as AdminCatalogCompaniesCompanyIdRouteImport } from './routes/admin/catalog/companies/$companyId'
 
 const IndexRoute = IndexRouteImport.update({
@@ -68,6 +72,11 @@ const MarketsRoute = MarketsRouteImport.update({
 const OpportunitiesRoute = OpportunitiesRouteImport.update({
   id: '/opportunities',
   path: '/opportunities',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PartnerRoute = PartnerRouteImport.update({
+  id: '/partner',
+  path: '/partner',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PrivacyPolicyRoute = PrivacyPolicyRouteImport.update({
@@ -125,6 +134,16 @@ const ClientLoginRoute = ClientLoginRouteImport.update({
   path: '/login',
   getParentRoute: () => ClientRoute,
 } as any)
+const PartnerIndexRoute = PartnerIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => PartnerRoute,
+} as any)
+const PartnerFavoritesRoute = PartnerFavoritesRouteImport.update({
+  id: '/favorites',
+  path: '/favorites',
+  getParentRoute: () => PartnerRoute,
+} as any)
 const AdminCatalogClientsRoute = AdminCatalogClientsRouteImport.update({
   id: '/clients',
   path: '/clients',
@@ -157,6 +176,12 @@ const ClientProductsProductReferenceRoute =
     path: '/products/$productReference',
     getParentRoute: () => ClientRoute,
   } as any)
+const PartnerProductsProductReferenceRoute =
+  PartnerProductsProductReferenceRouteImport.update({
+    id: '/products/$productReference',
+    path: '/products/$productReference',
+    getParentRoute: () => PartnerRoute,
+  } as any)
 const AdminCatalogCompaniesCompanyIdRoute =
   AdminCatalogCompaniesCompanyIdRouteImport.update({
     id: '/$companyId',
@@ -172,6 +197,7 @@ export interface FileRoutesByFullPath {
   '/contact': typeof ContactRoute
   '/markets': typeof MarketsRoute
   '/opportunities': typeof OpportunitiesRoute
+  '/partner': typeof PartnerRouteWithChildren
   '/privacy-policy': typeof PrivacyPolicyRoute
   '/sectors': typeof SectorsRoute
   '/sign-in': typeof SignInRoute
@@ -182,13 +208,16 @@ export interface FileRoutesByFullPath {
   '/api/catalog-images': typeof ApiCatalogImagesRoute
   '/client/favorites': typeof ClientFavoritesRoute
   '/client/login': typeof ClientLoginRoute
+  '/partner/favorites': typeof PartnerFavoritesRoute
   '/client/': typeof ClientIndexRoute
+  '/partner/': typeof PartnerIndexRoute
   '/admin/catalog/clients': typeof AdminCatalogClientsRoute
   '/admin/catalog/companies': typeof AdminCatalogCompaniesRouteWithChildren
   '/admin/catalog/price-profiles': typeof AdminCatalogPriceProfilesRoute
   '/admin/catalog/products': typeof AdminCatalogProductsRoute
   '/admin/catalog/publishing': typeof AdminCatalogPublishingRoute
   '/client/products/$productReference': typeof ClientProductsProductReferenceRoute
+  '/partner/products/$productReference': typeof PartnerProductsProductReferenceRoute
   '/admin/catalog/companies/$companyId': typeof AdminCatalogCompaniesCompanyIdRoute
 }
 export interface FileRoutesByTo {
@@ -208,13 +237,16 @@ export interface FileRoutesByTo {
   '/api/catalog-images': typeof ApiCatalogImagesRoute
   '/client/favorites': typeof ClientFavoritesRoute
   '/client/login': typeof ClientLoginRoute
+  '/partner/favorites': typeof PartnerFavoritesRoute
   '/client': typeof ClientIndexRoute
+  '/partner': typeof PartnerIndexRoute
   '/admin/catalog/clients': typeof AdminCatalogClientsRoute
   '/admin/catalog/companies': typeof AdminCatalogCompaniesRouteWithChildren
   '/admin/catalog/price-profiles': typeof AdminCatalogPriceProfilesRoute
   '/admin/catalog/products': typeof AdminCatalogProductsRoute
   '/admin/catalog/publishing': typeof AdminCatalogPublishingRoute
   '/client/products/$productReference': typeof ClientProductsProductReferenceRoute
+  '/partner/products/$productReference': typeof PartnerProductsProductReferenceRoute
   '/admin/catalog/companies/$companyId': typeof AdminCatalogCompaniesCompanyIdRoute
 }
 export interface FileRoutesById {
@@ -226,6 +258,7 @@ export interface FileRoutesById {
   '/contact': typeof ContactRoute
   '/markets': typeof MarketsRoute
   '/opportunities': typeof OpportunitiesRoute
+  '/partner': typeof PartnerRouteWithChildren
   '/privacy-policy': typeof PrivacyPolicyRoute
   '/sectors': typeof SectorsRoute
   '/sign-in': typeof SignInRoute
@@ -236,13 +269,16 @@ export interface FileRoutesById {
   '/api/catalog-images': typeof ApiCatalogImagesRoute
   '/client/favorites': typeof ClientFavoritesRoute
   '/client/login': typeof ClientLoginRoute
+  '/partner/favorites': typeof PartnerFavoritesRoute
   '/client/': typeof ClientIndexRoute
+  '/partner/': typeof PartnerIndexRoute
   '/admin/catalog/clients': typeof AdminCatalogClientsRoute
   '/admin/catalog/companies': typeof AdminCatalogCompaniesRouteWithChildren
   '/admin/catalog/price-profiles': typeof AdminCatalogPriceProfilesRoute
   '/admin/catalog/products': typeof AdminCatalogProductsRoute
   '/admin/catalog/publishing': typeof AdminCatalogPublishingRoute
   '/client/products/$productReference': typeof ClientProductsProductReferenceRoute
+  '/partner/products/$productReference': typeof PartnerProductsProductReferenceRoute
   '/admin/catalog/companies/$companyId': typeof AdminCatalogCompaniesCompanyIdRoute
 }
 export interface FileRouteTypes {
@@ -255,6 +291,7 @@ export interface FileRouteTypes {
     | '/contact'
     | '/markets'
     | '/opportunities'
+    | '/partner'
     | '/privacy-policy'
     | '/sectors'
     | '/sign-in'
@@ -265,13 +302,16 @@ export interface FileRouteTypes {
     | '/api/catalog-images'
     | '/client/favorites'
     | '/client/login'
+    | '/partner/favorites'
     | '/client/'
+    | '/partner/'
     | '/admin/catalog/clients'
     | '/admin/catalog/companies'
     | '/admin/catalog/price-profiles'
     | '/admin/catalog/products'
     | '/admin/catalog/publishing'
     | '/client/products/$productReference'
+    | '/partner/products/$productReference'
     | '/admin/catalog/companies/$companyId'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -291,13 +331,16 @@ export interface FileRouteTypes {
     | '/api/catalog-images'
     | '/client/favorites'
     | '/client/login'
+    | '/partner/favorites'
     | '/client'
+    | '/partner'
     | '/admin/catalog/clients'
     | '/admin/catalog/companies'
     | '/admin/catalog/price-profiles'
     | '/admin/catalog/products'
     | '/admin/catalog/publishing'
     | '/client/products/$productReference'
+    | '/partner/products/$productReference'
     | '/admin/catalog/companies/$companyId'
   id:
     | '__root__'
@@ -308,6 +351,7 @@ export interface FileRouteTypes {
     | '/contact'
     | '/markets'
     | '/opportunities'
+    | '/partner'
     | '/privacy-policy'
     | '/sectors'
     | '/sign-in'
@@ -318,13 +362,16 @@ export interface FileRouteTypes {
     | '/api/catalog-images'
     | '/client/favorites'
     | '/client/login'
+    | '/partner/favorites'
     | '/client/'
+    | '/partner/'
     | '/admin/catalog/clients'
     | '/admin/catalog/companies'
     | '/admin/catalog/price-profiles'
     | '/admin/catalog/products'
     | '/admin/catalog/publishing'
     | '/client/products/$productReference'
+    | '/partner/products/$productReference'
     | '/admin/catalog/companies/$companyId'
   fileRoutesById: FileRoutesById
 }
@@ -336,6 +383,7 @@ export interface RootRouteChildren {
   ContactRoute: typeof ContactRoute
   MarketsRoute: typeof MarketsRoute
   OpportunitiesRoute: typeof OpportunitiesRoute
+  PartnerRoute: typeof PartnerRouteWithChildren
   PrivacyPolicyRoute: typeof PrivacyPolicyRoute
   SectorsRoute: typeof SectorsRoute
   SignInRoute: typeof SignInRoute
@@ -393,6 +441,13 @@ declare module '@tanstack/react-router' {
       path: '/opportunities'
       fullPath: '/opportunities'
       preLoaderRoute: typeof OpportunitiesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/partner': {
+      id: '/partner'
+      path: '/partner'
+      fullPath: '/partner'
+      preLoaderRoute: typeof PartnerRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/privacy-policy': {
@@ -472,6 +527,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ClientLoginRouteImport
       parentRoute: typeof ClientRoute
     }
+    '/partner/': {
+      id: '/partner/'
+      path: '/'
+      fullPath: '/partner/'
+      preLoaderRoute: typeof PartnerIndexRouteImport
+      parentRoute: typeof PartnerRoute
+    }
+    '/partner/favorites': {
+      id: '/partner/favorites'
+      path: '/favorites'
+      fullPath: '/partner/favorites'
+      preLoaderRoute: typeof PartnerFavoritesRouteImport
+      parentRoute: typeof PartnerRoute
+    }
     '/admin/catalog/clients': {
       id: '/admin/catalog/clients'
       path: '/clients'
@@ -513,6 +582,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/client/products/$productReference'
       preLoaderRoute: typeof ClientProductsProductReferenceRouteImport
       parentRoute: typeof ClientRoute
+    }
+    '/partner/products/$productReference': {
+      id: '/partner/products/$productReference'
+      path: '/products/$productReference'
+      fullPath: '/partner/products/$productReference'
+      preLoaderRoute: typeof PartnerProductsProductReferenceRouteImport
+      parentRoute: typeof PartnerRoute
     }
     '/admin/catalog/companies/$companyId': {
       id: '/admin/catalog/companies/$companyId'
@@ -586,6 +662,21 @@ const ClientRouteChildren: ClientRouteChildren = {
 const ClientRouteWithChildren =
   ClientRoute._addFileChildren(ClientRouteChildren)
 
+interface PartnerRouteChildren {
+  PartnerFavoritesRoute: typeof PartnerFavoritesRoute
+  PartnerIndexRoute: typeof PartnerIndexRoute
+  PartnerProductsProductReferenceRoute: typeof PartnerProductsProductReferenceRoute
+}
+
+const PartnerRouteChildren: PartnerRouteChildren = {
+  PartnerFavoritesRoute: PartnerFavoritesRoute,
+  PartnerIndexRoute: PartnerIndexRoute,
+  PartnerProductsProductReferenceRoute: PartnerProductsProductReferenceRoute,
+}
+
+const PartnerRouteWithChildren =
+  PartnerRoute._addFileChildren(PartnerRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AboutRoute: AboutRoute,
@@ -594,6 +685,7 @@ const rootRouteChildren: RootRouteChildren = {
   ContactRoute: ContactRoute,
   MarketsRoute: MarketsRoute,
   OpportunitiesRoute: OpportunitiesRoute,
+  PartnerRoute: PartnerRouteWithChildren,
   PrivacyPolicyRoute: PrivacyPolicyRoute,
   SectorsRoute: SectorsRoute,
   SignInRoute: SignInRoute,

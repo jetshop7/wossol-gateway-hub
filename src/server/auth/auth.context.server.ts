@@ -15,6 +15,8 @@ import {
   CSRF_HEADER_NAME,
   hashOpaqueToken,
   clientSessionHasValidIdentity,
+  partnerSessionHasValidIdentity,
+  csrfMutationIsValid,
   sameOriginForMutation,
 } from "./auth.security.server.ts";
 import {
@@ -68,6 +70,7 @@ export async function resolveAuthenticatedActor(): Promise<AuthenticatedActor | 
   )
     return null;
   if (session.actorType === "CLIENT" && !clientSessionHasValidIdentity(session)) return null;
+  if (session.actorType === "PARTNER" && !partnerSessionHasValidIdentity(session)) return null;
   await createAuthRepository().touchSession(session.id);
   if (session.actorType === "INTERNAL") {
     return {
@@ -75,6 +78,21 @@ export async function resolveAuthenticatedActor(): Promise<AuthenticatedActor | 
       userId: session.internalUserId!,
       role: session.internalUser!.role,
       capabilities: capabilitiesForRole(session.internalUser!.role),
+      sessionId: session.id,
+    };
+  }
+  if (session.actorType === "PARTNER") {
+    return {
+      actorType: "PARTNER",
+      userId: session.partnerUserId!,
+      partnerAccountId: session.partnerAccountId!,
+      catalogAccountId: session.partnerAccount!.catalogAccount.id,
+      capabilities: [],
+      partnerCapabilities: [
+        "partner.catalog.read",
+        "partner.catalog.favorite",
+        "partner.account.read",
+      ],
       sessionId: session.id,
     };
   }
@@ -107,6 +125,13 @@ export async function requireClientActor() {
   return actor;
 }
 
+export async function requirePartnerActor() {
+  const actor = await requireAuthenticatedActor();
+  if (actor.actorType !== "PARTNER" || !actor.partnerAccountId || !actor.catalogAccountId)
+    throw new AuthorizationError("Partner workspace access is required.");
+  return actor;
+}
+
 export async function requireCatalogCapability(capability: AuthCapability) {
   const actor = await requireInternalActor();
   if (!can(actor, capability))
@@ -119,12 +144,7 @@ export function requireMutationCsrf() {
   const csrfHeader = getRequestHeader(CSRF_HEADER_NAME);
   const origin = getRequestHeader("origin");
   const requestUrl = getRequest().url;
-  if (
-    !csrfCookie ||
-    !csrfHeader ||
-    csrfCookie !== csrfHeader ||
-    !sameOriginForMutation(origin ?? null, requestUrl)
-  )
+  if (!csrfMutationIsValid(csrfCookie ?? null, csrfHeader ?? null, origin ?? null, requestUrl))
     throw new InvalidCsrfError("A valid same-origin CSRF token is required.");
 }
 

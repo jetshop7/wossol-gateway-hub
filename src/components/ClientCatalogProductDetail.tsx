@@ -134,10 +134,12 @@ export function ClientCatalogProductDetail({
   product,
   onToggleFavorite,
   favoriteBusy,
+  workspaceBase = "/client",
 }: {
   product: ClientCatalogProductDto;
   onToggleFavorite: () => void;
   favoriteBusy: boolean;
+  workspaceBase?: "/client" | "/partner";
 }) {
   const [copied, setCopied] = useState(false);
   const packagingKeys = [
@@ -172,7 +174,7 @@ export function ClientCatalogProductDetail({
   return (
     <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
       <a
-        href="/client"
+        href={workspaceBase}
         className="inline-flex items-center gap-2 text-sm font-semibold text-[#17436a] hover:underline"
       >
         <ArrowLeft className="h-4 w-4" /> Back to catalog

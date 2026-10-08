@@ -9,6 +9,10 @@ import {
   getClientCatalogProduct,
   getClientTaxonomyCategories,
   setClientCatalogFavorite,
+  getPartnerCatalog,
+  getPartnerCatalogFavorites,
+  getPartnerCatalogProduct,
+  setPartnerCatalogFavorite,
 } from "./client-catalog.repository.server.ts";
 
 const databaseAvailable = Boolean(process.env.WOSSOL_EXPORT_DATABASE_URL);
@@ -24,6 +28,8 @@ test(
     const reference = `WOS-TEST-${suffix.replaceAll("-", "").slice(0, 16).toUpperCase()}`;
     let profileId: string | undefined;
     let accountId: string | undefined;
+    const partnerCatalogAccountIds: string[] = [];
+    const partnerAccountIds: string[] = [];
     let companyId: string | undefined;
     let brandId: string | undefined;
     let productId: string | undefined;
@@ -143,6 +149,60 @@ test(
       });
       productId = product.id;
       productIds.push(product.id);
+      const partnerCatalogAccount = await prisma.clientAccount.create({
+        data: {
+          name: `Partner catalog ${suffix}`,
+          accountType: "PARTNER",
+          status: "ACTIVE",
+          catalogAccessStatus: "ENABLED",
+          catalogAccessMode: "SELECTED",
+          pricesVisible: false,
+          priceProfileId: profile.id,
+        },
+        select: { id: true },
+      });
+      partnerCatalogAccountIds.push(partnerCatalogAccount.id);
+      const partner = await prisma.partnerAccount.create({
+        data: { catalogAccountId: partnerCatalogAccount.id },
+        select: { id: true },
+      });
+      partnerAccountIds.push(partner.id);
+      const otherPartnerCatalogAccount = await prisma.clientAccount.create({
+        data: {
+          name: `Isolated Partner catalog ${suffix}`,
+          accountType: "PARTNER",
+          status: "ACTIVE",
+          catalogAccessStatus: "ENABLED",
+          catalogAccessMode: "SELECTED",
+          pricesVisible: true,
+          priceProfileId: profile.id,
+        },
+        select: { id: true },
+      });
+      partnerCatalogAccountIds.push(otherPartnerCatalogAccount.id);
+      const otherPartner = await prisma.partnerAccount.create({
+        data: { catalogAccountId: otherPartnerCatalogAccount.id },
+        select: { id: true },
+      });
+      partnerAccountIds.push(otherPartner.id);
+      const entirePartnerCatalog = await prisma.clientAccount.create({
+        data: {
+          name: `Entire Partner catalog ${suffix}`,
+          accountType: "PARTNER",
+          status: "ACTIVE",
+          catalogAccessStatus: "ENABLED",
+          catalogAccessMode: "ALL_APPROVED",
+          pricesVisible: false,
+          priceProfileId: profile.id,
+        },
+        select: { id: true },
+      });
+      partnerCatalogAccountIds.push(entirePartnerCatalog.id);
+      const entirePartner = await prisma.partnerAccount.create({
+        data: { catalogAccountId: entirePartnerCatalog.id },
+        select: { id: true },
+      });
+      partnerAccountIds.push(entirePartner.id);
       const hiddenProduct = await prisma.product.create({
         data: {
           companyId: company.id,
@@ -174,6 +234,14 @@ test(
           productId: product.id,
         },
       });
+      await prisma.clientCatalogVisibilityRule.create({
+        data: {
+          clientAccountId: partnerCatalogAccount.id,
+          effect: "INCLUDE",
+          targetType: "PRODUCT",
+          productId: product.id,
+        },
+      });
 
       const initial = await getClientCatalog(account.id, { productIds: [product.id] });
       assert.equal(initial.products.length, 1);
@@ -200,6 +268,23 @@ test(
           `${secret} must not be returned to the client`,
         );
       assert.equal("price" in dto.variants[0]!, false);
+      const partnerCatalog = await getPartnerCatalog(partner.id, {
+        search: `Integration product ${suffix}`,
+      });
+      assert.equal(partnerCatalog.products.length, 1);
+      assert.deepEqual(partnerCatalog.products[0]?.variants[0]?.price, {
+        price: "875.00",
+        currency: "DZD",
+      });
+      const partnerDtoText = JSON.stringify(partnerCatalog.products[0]);
+      for (const secret of [company.displayName, brand.name, "SUPPLIER-SKU-SECRET", "factoryPrice", "markupPercent"])
+        assert.equal(partnerDtoText.includes(secret), false, `${secret} must not leak to Partner`);
+      assert.equal((await getPartnerCatalog(otherPartner.id)).products.length, 0);
+      assert.equal(await getPartnerCatalogProduct(otherPartner.id, reference), null);
+      assert.equal((await getPartnerCatalog(entirePartner.id)).products.length, 2);
+      await setPartnerCatalogFavorite(partner.id, reference, true);
+      assert.equal((await getPartnerCatalogFavorites(partner.id)).products[0]?.reference, reference);
+      assert.equal((await getPartnerCatalogFavorites(otherPartner.id)).products.length, 0);
       assert.equal(
         (await getClientCatalog(account.id, { search: `Integration product ${suffix}` })).products
           .length,
@@ -293,6 +378,21 @@ test(
       );
       assert.equal((await getClientCatalogFavorites(account.id)).products.length, 0);
       assert.deepEqual(await getClientTaxonomyCategories(account.id, null), []);
+      await prisma.product.update({ where: { id: product.id }, data: { publicationStatus: "DRAFT" } });
+      assert.equal((await getPartnerCatalog(partner.id)).products.length, 0);
+      assert.equal(await getPartnerCatalogProduct(partner.id, reference), null);
+      assert.equal((await getPartnerCatalog(entirePartner.id)).products.length, 1);
+      await prisma.product.update({ where: { id: product.id }, data: { publicationStatus: "PUBLISHED" } });
+      await prisma.clientCatalogVisibilityRule.create({
+        data: {
+          clientAccountId: partnerCatalogAccount.id,
+          effect: "EXCLUDE",
+          targetType: "PRODUCT",
+          productId: product.id,
+        },
+      });
+      assert.equal((await getPartnerCatalog(partner.id)).products.length, 0);
+      assert.equal((await getPartnerCatalogFavorites(partner.id)).products.length, 0);
       await assert.rejects(
         () => setClientCatalogFavorite(account.id, reference, true),
         /not available/,
@@ -310,6 +410,16 @@ test(
           where: { clientAccountId: accountId },
         });
       }
+      if (partnerCatalogAccountIds.length) {
+        await prisma.clientCatalogFavorite.deleteMany({
+          where: { clientAccountId: { in: partnerCatalogAccountIds } },
+        });
+        await prisma.clientCatalogVisibilityRule.deleteMany({
+          where: { clientAccountId: { in: partnerCatalogAccountIds } },
+        });
+      }
+      if (partnerAccountIds.length)
+        await prisma.partnerAccount.deleteMany({ where: { id: { in: partnerAccountIds } } });
       if (productIds.length) {
         await prisma.variant.deleteMany({ where: { productId: { in: productIds } } });
         await prisma.product.deleteMany({ where: { id: { in: productIds } } });
@@ -325,6 +435,8 @@ test(
       if (brandId) await prisma.brand.deleteMany({ where: { id: brandId } });
       if (companyId) await prisma.company.deleteMany({ where: { id: companyId } });
       if (accountId) await prisma.clientAccount.deleteMany({ where: { id: accountId } });
+      if (partnerCatalogAccountIds.length)
+        await prisma.clientAccount.deleteMany({ where: { id: { in: partnerCatalogAccountIds } } });
       if (profileId) await prisma.priceProfile.deleteMany({ where: { id: profileId } });
     }
   },

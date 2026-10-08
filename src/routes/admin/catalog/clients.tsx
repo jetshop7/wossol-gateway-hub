@@ -34,6 +34,7 @@ export const Route = createFileRoute("/admin/catalog/clients")({
 });
 
 type ClientForm = {
+  accountType: "DIRECT_CLIENT" | "PARTNER";
   name: string;
   status: "ACTIVE" | "INACTIVE";
   priceProfileId: string;
@@ -56,6 +57,7 @@ function ClientAccountsPage() {
   const clients = result.clients.ok ? result.clients.clients : [];
   const profiles = result.profiles.ok ? result.profiles.profiles : [];
   const [form, setForm] = useState<ClientForm>({
+    accountType: "DIRECT_CLIENT",
     name: "",
     status: "ACTIVE",
     priceProfileId: profiles.find((profile) => profile.status === "ACTIVE")?.id ?? "",
@@ -75,6 +77,7 @@ function ClientAccountsPage() {
     setEditingId(null);
     setPrimaryAdmin(emptyPrimaryAdmin());
     setForm({
+      accountType: "DIRECT_CLIENT",
       name: "",
       status: "ACTIVE",
       priceProfileId: profiles.find((profile) => profile.status === "ACTIVE")?.id ?? "",
@@ -91,6 +94,7 @@ function ClientAccountsPage() {
     setExpandedCredentialsId(client.id);
     setPrimaryAdmin(emptyPrimaryAdmin());
     setForm({
+      accountType: client.accountType,
       name: client.name,
       status: client.status === "ACTIVE" ? "ACTIVE" : "INACTIVE",
       priceProfileId: client.priceProfileId ?? "",
@@ -154,9 +158,9 @@ function ClientAccountsPage() {
           <p className="text-xs font-bold uppercase tracking-[0.18em] text-amber-600">
             Commercial access
           </p>
-          <h1 className="mt-2 text-3xl font-semibold tracking-tight">Client Accounts</h1>
+          <h1 className="mt-2 text-3xl font-semibold tracking-tight">Accounts</h1>
           <p className="mt-2 max-w-2xl text-sm text-slate-600">
-            Manage account status, assigned pricing policy, price visibility, and catalog access.
+            Manage Direct Client and Partner access using Wossol Price Profiles and Catalog Access.
           </p>
         </div>
         <button
@@ -165,13 +169,13 @@ function ClientAccountsPage() {
           disabled={!profiles.some((profile) => profile.status === "ACTIVE")}
           className="inline-flex items-center gap-2 rounded-md bg-[#102c50] px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
         >
-          <Plus className="h-4 w-4" /> Add Client Account
+          <Plus className="h-4 w-4" /> Add Account
         </button>
       </header>
 
       {!profiles.some((profile) => profile.status === "ACTIVE") && (
         <p className="rounded-md border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-          Create an active Price Profile before adding or assigning a Client Account.{" "}
+          Create an active Price Profile before adding or assigning an account.{" "}
           <Link to="/admin/catalog/price-profiles" className="font-semibold underline">
             Open Price Profiles
           </Link>
@@ -186,9 +190,35 @@ function ClientAccountsPage() {
       {showForm && (
         <form onSubmit={save} className="grid gap-4 rounded-xl border bg-white p-5 sm:grid-cols-2">
           <h2 className="text-lg font-semibold sm:col-span-2">
-            {editingId ? "Edit Client Account" : "Create Client Account & Primary Admin"}
+            {editingId
+              ? `Edit ${form.accountType === "PARTNER" ? "Partner" : "Direct Client"} Account`
+              : "Create Account & Primary Admin"}
           </h2>
-          <Field label="Client / company name *">
+          {!editingId && (
+            <Field label="Account type *">
+              <select
+                value={form.accountType}
+                onChange={(event) =>
+                  setForm({
+                    ...form,
+                    accountType: event.target.value as ClientForm["accountType"],
+                  })
+                }
+              >
+                <option value="DIRECT_CLIENT">Direct Client</option>
+                <option value="PARTNER">Partner</option>
+              </select>
+            </Field>
+          )}
+          {editingId && (
+            <Field label="Account type">
+              <input
+                readOnly
+                value={form.accountType === "PARTNER" ? "Partner" : "Direct Client"}
+              />
+            </Field>
+          )}
+          <Field label={`${form.accountType === "PARTNER" ? "Partner" : "Client / company"} name *`}>
             <input
               required
               maxLength={200}
@@ -199,9 +229,11 @@ function ClientAccountsPage() {
           {!editingId && (
             <>
               <div className="sm:col-span-2 border-t pt-4">
-                <h3 className="font-semibold text-slate-900">Primary Client Admin sign-in</h3>
+                <h3 className="font-semibold text-slate-900">
+                  {form.accountType === "PARTNER" ? "Partner Admin sign-in" : "Primary Client Admin sign-in"}
+                </h3>
                 <p className="mt-1 text-xs text-slate-500">
-                  This creates the account’s first Client login in the same save. No invitation
+                  This creates the account’s first {form.accountType === "PARTNER" ? "Partner" : "Client"} login in the same save. No invitation
                   email is sent; share the initial password through an approved secure channel.
                 </p>
               </div>
@@ -303,16 +335,18 @@ function ClientAccountsPage() {
               ? "All eligible published catalog content is included by default. Exclusions can narrow access."
               : "Only explicitly included taxonomy, companies, or products are available. Exclusions still take precedence."}
           </p>
-          <label className="flex items-center gap-2 self-end rounded-md border p-3 text-sm">
-            <input
-              type="checkbox"
-              checked={form.pricesVisible}
-              onChange={(event) => setForm({ ...form, pricesVisible: event.target.checked })}
-            />
-            Client may see prices
-          </label>
+          {form.accountType === "DIRECT_CLIENT" && (
+            <label className="flex items-center gap-2 self-end rounded-md border p-3 text-sm">
+              <input
+                type="checkbox"
+                checked={form.pricesVisible}
+                onChange={(event) => setForm({ ...form, pricesVisible: event.target.checked })}
+              />
+              Client may see prices
+            </label>
+          )}
           <p className="text-xs text-slate-500 sm:col-span-2">
-            New accounts default to hidden prices and disabled catalog access. Client and Wossol
+            New accounts default to disabled catalog access. Direct Client prices remain controlled below. Client and Wossol
             credentials use the secure sign-in entry point.
           </p>
           <div className="flex gap-2 sm:col-span-2">
@@ -320,7 +354,7 @@ function ClientAccountsPage() {
               disabled={busy || !form.priceProfileId}
               className="rounded bg-[#102c50] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
             >
-              {busy ? "Saving…" : "Save Client"}
+              {busy ? "Saving…" : "Save Account"}
             </button>
             <button type="button" onClick={cancelForm} className="rounded border px-4 py-2 text-sm">
               Cancel
@@ -339,6 +373,9 @@ function ClientAccountsPage() {
               <div className="min-w-52 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <h2 className="font-semibold">{client.name}</h2>
+                  <span className="rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-800">
+                    {client.accountType === "PARTNER" ? "Partner" : "Direct Client"}
+                  </span>
                   <StatusPill active={client.status === "ACTIVE"}>
                     {client.status === "ACTIVE" ? "Active" : "Inactive"}
                   </StatusPill>
@@ -347,7 +384,9 @@ function ClientAccountsPage() {
                   Price Profile: {client.priceProfile?.name ?? "Unassigned"}
                 </p>
                 <p className="mt-1 text-xs text-slate-500">
-                  Prices {client.pricesVisible ? "visible" : "hidden"} · Catalog{" "}
+                  {client.accountType === "PARTNER"
+                    ? "Assigned Wossol prices"
+                    : `Client prices ${client.pricesVisible ? "visible" : "hidden"}`} · Catalog{" "}
                   {client.catalogAccessStatus.toLowerCase()} ·{" "}
                   {client.catalogAccessMode === "ALL_APPROVED"
                     ? "entire catalog"
@@ -384,6 +423,7 @@ function ClientAccountsPage() {
                   clientAccountId={client.id}
                   clientAccountName={client.name}
                   accountStatus={client.status}
+                  accountType={client.accountType}
                 />
               )}
               {expandedAccessId === client.id && (

@@ -6,14 +6,16 @@ export function ClientCatalogProductCard({
   product,
   onToggleFavorite,
   favoriteBusy = false,
+  workspaceBase = "/client",
 }: {
   product: ClientCatalogProductDto;
   onToggleFavorite?: (product: ClientCatalogProductDto) => void;
   favoriteBusy?: boolean;
+  workspaceBase?: "/client" | "/partner";
 }) {
   const image = product.variants.find((variant) => variant.mainImageUrl)?.mainImageUrl;
   const price = product.variants.find((variant) => variant.price)?.price;
-  const href = `/client/products/${encodeURIComponent(product.reference)}`;
+  const href = `${workspaceBase}/products/${encodeURIComponent(product.reference)}`;
 
   return (
     <article className="group overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">

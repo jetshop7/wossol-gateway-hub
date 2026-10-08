@@ -1,11 +1,12 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
-import { authenticateClient, authenticateInternal } from "./auth.service.server.ts";
+import { authenticateByCredentials } from "./auth.service.server.ts";
 import {
   clearSessionCookies,
   establishSession,
   requestIp,
+  requireSameOriginRequest,
   requireAuthenticatedActor,
   requireMutationCsrf,
   resolveAuthenticatedActor,
@@ -21,7 +22,8 @@ const credentials = z.object({
 export const loginInternal = createServerFn({ method: "POST" })
   .inputValidator(credentials)
   .handler(async ({ data }) => {
-    const result = await authenticateInternal(data.email, data.password, {
+    requireSameOriginRequest();
+    const result = await authenticateByCredentials(data.email, data.password, {
       ipAddress: requestIp(),
     });
     await establishSession(result.token, result.expiresAt);
@@ -31,7 +33,10 @@ export const loginInternal = createServerFn({ method: "POST" })
 export const loginClient = createServerFn({ method: "POST" })
   .inputValidator(credentials)
   .handler(async ({ data }) => {
-    const result = await authenticateClient(data.email, data.password, { ipAddress: requestIp() });
+    requireSameOriginRequest();
+    const result = await authenticateByCredentials(data.email, data.password, {
+      ipAddress: requestIp(),
+    });
     await establishSession(result.token, result.expiresAt);
     return { actor: toPublicActor(result.actor) };
   });
@@ -54,6 +59,8 @@ export const logout = createServerFn({ method: "POST" }).handler(async () => {
       internalUserId: actor.actorType === "INTERNAL" ? actor.userId : undefined,
       clientUserId: actor.actorType === "CLIENT" ? actor.userId : undefined,
       clientAccountId: actor.clientAccountId,
+      partnerUserId: actor.actorType === "PARTNER" ? actor.userId : undefined,
+      partnerAccountId: actor.partnerAccountId,
     });
   }
   clearSessionCookies();

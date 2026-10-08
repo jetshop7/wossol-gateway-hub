@@ -10,6 +10,7 @@ export const Route = createFileRoute("/sign-in")({
     const { actor } = await getCurrentActor();
     if (actor?.actorType === "INTERNAL") throw redirect({ to: "/admin/catalog/companies" });
     if (actor?.actorType === "CLIENT") throw redirect({ to: "/client" });
+    if (actor?.actorType === "PARTNER") throw redirect({ to: "/partner" });
   },
   component: SignIn,
 });

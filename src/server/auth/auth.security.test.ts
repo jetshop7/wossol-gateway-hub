@@ -5,16 +5,20 @@ import {
   authenticateClient,
   authenticateByCredentials,
   authenticateInternal,
+  authenticatePartner,
   GENERIC_LOGIN_FAILURE,
 } from "./auth.service.server.ts";
 import {
   clientSessionHasValidIdentity,
+  csrfMutationIsValid,
+  partnerSessionHasValidIdentity,
   hashOpaqueToken,
   sessionIsUsable,
 } from "./auth.security.server.ts";
 import {
   capabilitiesForRole,
   can,
+  partnerCan,
   toClientAreaIdentity,
   toPublicActor,
   type AuthenticatedActor,
@@ -34,11 +38,21 @@ test("password hashes are salted, non-plaintext, and safely verifiable", async (
 function fakeRepository(
   user: Record<string, unknown> | null,
   clientUser: Record<string, unknown> | null = null,
+  partnerUser: Record<string, unknown> | null = null,
 ): AuthRepository & { sessions: unknown[] } {
   const sessions: unknown[] = [];
   return {
     findInternalUserByEmail: async () => user,
-    findClientUserByEmail: async () => clientUser,
+    findClientUserByEmail: async () => {
+      if (!clientUser || typeof clientUser.clientAccount !== "object" || !clientUser.clientAccount)
+        return clientUser;
+      const account = clientUser.clientAccount as Record<string, unknown>;
+      return {
+        ...clientUser,
+        clientAccount: { ...account, accountType: account.accountType ?? "DIRECT_CLIENT" },
+      };
+    },
+    findPartnerUserByEmail: async () => partnerUser,
     createSession: async (input: Record<string, unknown>) => {
       const session = { id: "session-1", expiresAt: new Date(Date.now() + 60_000), ...input };
       sessions.push(session);
@@ -207,6 +221,121 @@ test("unified sign-in resolves an active ClientUser and routes only to Client", 
   );
 });
 
+test("unified sign-in resolves active Partner credentials only to Partner", async () => {
+  const password = "partner account password";
+  const repository = fakeRepository(null, null, {
+    id: "partner-user",
+    email: "partner@example.com",
+    passwordHash: await hashPassword(password),
+    status: "ACTIVE",
+    partnerAccountId: "partner-account-1",
+    partnerAccount: {
+      id: "partner-account-1",
+      catalogAccountId: "catalog-account-1",
+      catalogAccount: { id: "catalog-account-1", status: "ACTIVE", accountType: "PARTNER" },
+    },
+  });
+  const result = await authenticateByCredentials("Partner@Example.com", password, { repository });
+  assert.equal(result.actor.actorType, "PARTNER");
+  assert.equal(workspacePathForActor(result.actor.actorType), "/partner");
+  assert.equal(result.actor.partnerAccountId, "partner-account-1");
+  assert.deepEqual(
+    repository.sessions.map((session) => (session as { actorType: string }).actorType),
+    ["PARTNER"],
+  );
+  assert.equal("clientAccountId" in result.actor, false);
+});
+
+test("an ambiguous Admin/Partner email never chooses the higher-privilege identity", async () => {
+  const password = "identical credential password";
+  const passwordHash = await hashPassword(password);
+  const repository = fakeRepository(
+    {
+      id: "internal-user",
+      email: "collision@example.com",
+      passwordHash,
+      role: "CATALOG_ADMIN",
+      status: "ACTIVE",
+    },
+    null,
+    {
+      id: "partner-user",
+      email: "collision@example.com",
+      passwordHash,
+      status: "ACTIVE",
+      partnerAccountId: "partner-1",
+      partnerAccount: {
+        id: "partner-1",
+        catalogAccountId: "catalog-1",
+        catalogAccount: { id: "catalog-1", status: "ACTIVE", accountType: "PARTNER" },
+      },
+    },
+  );
+  await assert.rejects(
+    () => authenticateByCredentials("collision@example.com", password, { repository }),
+    (error: Error) => error.message === GENERIC_LOGIN_FAILURE,
+  );
+  assert.equal(repository.sessions.length, 0);
+});
+
+test("Partner login blocks inactive identities and non-Partner catalog accounts generically", async () => {
+  const passwordHash = await hashPassword("correct horse battery staple");
+  for (const [userStatus, accountStatus, accountType] of [
+    ["DISABLED", "ACTIVE", "PARTNER"],
+    ["ACTIVE", "DISABLED", "PARTNER"],
+    ["ACTIVE", "ACTIVE", "DIRECT_CLIENT"],
+  ]) {
+    const repository = fakeRepository(null, null, {
+      id: "partner-user",
+      passwordHash,
+      status: userStatus,
+      partnerAccountId: "partner-account",
+      partnerAccount: {
+        id: "partner-account",
+        catalogAccountId: "catalog-account",
+        catalogAccount: { id: "catalog-account", status: accountStatus, accountType },
+      },
+    });
+    await assert.rejects(
+      () => authenticatePartner("partner@example.com", "correct horse battery staple", { repository }),
+      (error: Error) => error.message === GENERIC_LOGIN_FAILURE,
+    );
+    assert.equal(repository.sessions.length, 0);
+  }
+});
+
+test("an ambiguous Admin and Partner email cannot select the Admin privilege", async () => {
+  const password = "same password in both stores";
+  const passwordHash = await hashPassword(password);
+  const repository = fakeRepository(
+    {
+      id: "internal-user",
+      email: "collision@example.com",
+      passwordHash,
+      role: "CATALOG_ADMIN",
+      status: "ACTIVE",
+    },
+    null,
+    {
+      id: "partner-user",
+      email: "collision@example.com",
+      passwordHash,
+      status: "ACTIVE",
+      partnerAccountId: "partner-account",
+      partnerAccount: {
+        id: "partner-account",
+        catalogAccountId: "catalog-account",
+        catalogAccount: { id: "catalog-account", status: "ACTIVE", accountType: "PARTNER" },
+      },
+    },
+  );
+  await assert.rejects(
+    () => authenticateByCredentials("collision@example.com", password, { repository }),
+    (error: Error) => error.message === GENERIC_LOGIN_FAILURE,
+  );
+  assert.equal(repository.sessions.length, 0);
+});
+
 test("credentials never authenticate into the other identity domain", async () => {
   const password = "domain-specific password";
   const passwordHash = await hashPassword(password);
@@ -318,7 +447,11 @@ test("client session identity rejects mismatched account links and inactive reco
     clientUser: {
       status: "ACTIVE" as const,
       clientAccountId: "account-1",
-      clientAccount: { id: "account-1", status: "ACTIVE" as const },
+      clientAccount: {
+        id: "account-1",
+        status: "ACTIVE" as const,
+        accountType: "DIRECT_CLIENT" as const,
+      },
     },
   };
   assert.equal(clientSessionHasValidIdentity(valid), true);
@@ -336,7 +469,53 @@ test("client session identity rejects mismatched account links and inactive reco
   assert.equal(
     clientSessionHasValidIdentity({
       ...valid,
-      clientUser: { ...valid.clientUser, clientAccount: { id: "account-1", status: "INACTIVE" } },
+      clientUser: {
+        ...valid.clientUser,
+        clientAccount: {
+          id: "account-1",
+          status: "INACTIVE",
+          accountType: "DIRECT_CLIENT" as const,
+        },
+      },
+    }),
+    false,
+  );
+});
+
+test("Partner session identity requires matching tenant links and a Partner catalog account", () => {
+  const valid = {
+    partnerUserId: "user-1",
+    partnerAccountId: "partner-1",
+    partnerUser: {
+      status: "ACTIVE" as const,
+      partnerAccountId: "partner-1",
+      partnerAccount: {
+        id: "partner-1",
+        catalogAccount: {
+          id: "catalog-1",
+          status: "ACTIVE" as const,
+          accountType: "PARTNER" as const,
+        },
+      },
+    },
+    partnerAccount: {
+      id: "partner-1",
+      catalogAccount: {
+        id: "catalog-1",
+        status: "ACTIVE" as const,
+        accountType: "PARTNER" as const,
+      },
+    },
+  };
+  assert.equal(partnerSessionHasValidIdentity(valid), true);
+  assert.equal(partnerSessionHasValidIdentity({ ...valid, partnerAccountId: "other" }), false);
+  assert.equal(
+    partnerSessionHasValidIdentity({
+      ...valid,
+      partnerAccount: {
+        ...valid.partnerAccount,
+        catalogAccount: { ...valid.partnerAccount.catalogAccount, accountType: "DIRECT_CLIENT" },
+      },
     }),
     false,
   );
@@ -357,9 +536,21 @@ test("internal and client actors remain distinct and client actors cannot use in
     capabilities: [],
     sessionId: "s-2",
   };
+  const partner: AuthenticatedActor = {
+    actorType: "PARTNER",
+    userId: "p-1",
+    partnerAccountId: "pa-1",
+    catalogAccountId: "ca-1",
+    capabilities: [],
+    partnerCapabilities: ["partner.catalog.read"],
+    sessionId: "s-3",
+  };
   assert.equal(can(internal, "catalog.product.manage"), true);
   assert.equal(can(internal, "catalog.price_profile.manage"), false);
   assert.equal(can(client, "catalog.product.manage"), false);
+  assert.equal(can(partner, "catalog.product.manage"), false);
+  assert.equal(partnerCan(partner, "partner.catalog.read"), true);
+  assert.equal(partnerCan(partner, "partner.catalog.favorite"), false);
   assert.equal(capabilitiesForRole("CATALOG_ADMIN").includes("catalog.price_profile.manage"), true);
   assert.equal(capabilitiesForRole("CATALOG_EDITOR").includes("catalog.client.manage"), false);
   assert.equal(
@@ -404,4 +595,14 @@ test("session tokens are opaque hashes and expiration/revocation are enforced", 
     sessionIsUsable({ expiresAt: new Date("2026-10-05T00:01:00Z"), revokedAt: now }, now),
     false,
   );
+});
+
+test("CSRF validation requires matching cookie/header tokens and same-origin mutations", () => {
+  const origin = "https://export.example.test";
+  const requestUrl = "https://export.example.test/api/favorite";
+  assert.equal(csrfMutationIsValid("token", "token", origin, requestUrl), true);
+  assert.equal(csrfMutationIsValid(null, "token", origin, requestUrl), false);
+  assert.equal(csrfMutationIsValid("token", "other", origin, requestUrl), false);
+  assert.equal(csrfMutationIsValid("token", "token", "https://attacker.test", requestUrl), false);
+  assert.equal(csrfMutationIsValid("token", "token", null, requestUrl), false);
 });
