@@ -136,6 +136,11 @@ model PipelineCompany {
   tradeName                   String? @map("trade_name")
   countryCode                 String? @map("country_code")
   countryRaw                  String? @map("country_raw")
+  normalizedDomain            String? @map("normalized_domain")
+  normalizedEmail             String? @map("normalized_email")
+  normalizedPhone             String? @map("normalized_phone")
+  normalizedName              String? @map("normalized_name")
+  normalizedLocation          String? @map("normalized_location")
   sector                      String?
   wilaya                      String?
   city                        String?
@@ -163,6 +168,11 @@ model PipelineCompany {
   catalogReceived             Int     @default(0) @map("catalog_received")
   pricesReceived              Int     @default(0) @map("prices_received")
   requiredInformationReceived Int     @default(0) @map("required_information_received")
+  exportExperienceStatus      String  @default("UNKNOWN") @map("export_experience_status")
+  exportExperienceEvidence    String? @map("export_experience_evidence")
+  exportExperienceSourceUrl   String? @map("export_experience_source_url")
+  exportExperienceNote        String? @map("export_experience_note")
+  exportExperienceUpdatedAt   String? @map("export_experience_updated_at")
   internalNotes               String? @map("internal_notes")
   createdAt                   String  @map("created_at")
   updatedAt                   String  @map("updated_at")
