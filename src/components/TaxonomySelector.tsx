@@ -13,6 +13,7 @@ import type {
   AdminTaxonomySelection,
   CatalogTaxonomyLevel,
 } from "@/server/catalog/catalog.taxonomy";
+import { isTaxonomySelectionCurrent } from "@/lib/taxonomy-selection";
 
 type BrowseNode = AdminTaxonomyLabel;
 type Mode = "search" | "browse";
@@ -227,11 +228,17 @@ export function TaxonomySelector({
                       key={item.id}
                       type="button"
                       onClick={() => onSelect(item)}
-                      className={`block w-full border-b p-3 text-left text-sm last:border-b-0 hover:bg-slate-50 ${selected?.id === item.id ? "bg-amber-50" : ""}`}
+                      aria-pressed={isTaxonomySelectionCurrent(selected?.id ?? null, item.id)}
+                      className={`block w-full border-b p-3 text-left text-sm last:border-b-0 hover:bg-slate-50 ${isTaxonomySelectionCurrent(selected?.id ?? null, item.id) ? "bg-amber-50 ring-1 ring-inset ring-amber-300" : ""}`}
                     >
-                      <span className="block font-medium">
+                      <span className="flex items-center justify-between gap-2 font-medium">
+                        <span>
                         {item.name}{" "}
                         <span className="font-normal text-slate-500">· GPC {item.sourceCode}</span>
+                        </span>
+                        <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs ${isTaxonomySelectionCurrent(selected?.id ?? null, item.id) ? "bg-amber-200 text-amber-950" : "bg-slate-100 text-slate-600"}`}>
+                          {isTaxonomySelectionCurrent(selected?.id ?? null, item.id) ? "Selected" : "Select"}
+                        </span>
                       </span>
                       <span className="mt-0.5 block text-xs text-slate-500">
                         {item.breadcrumb
@@ -355,6 +362,7 @@ export function TaxonomySelector({
                     type="button"
                     onClick={() => chooseBrowseNode(node)}
                     className="flex w-full items-center justify-between gap-3 border-b p-3 text-left text-sm last:border-b-0 hover:bg-slate-50"
+                    aria-pressed={node.level === "BRICK" && isTaxonomySelectionCurrent(selected?.id ?? null, node.id)}
                   >
                     <span>
                       <span className="block font-medium">{node.name}</span>
@@ -363,7 +371,9 @@ export function TaxonomySelector({
                       </span>
                     </span>
                     {node.level === "BRICK" ? (
-                      <span className="shrink-0 text-xs font-semibold text-amber-800">Select</span>
+                      <span className={`shrink-0 rounded-full px-2 py-1 text-xs font-semibold ${isTaxonomySelectionCurrent(selected?.id ?? null, node.id) ? "bg-amber-200 text-amber-950" : "bg-slate-100 text-amber-800"}`}>
+                        {isTaxonomySelectionCurrent(selected?.id ?? null, node.id) ? "Selected" : "Select"}
+                      </span>
                     ) : (
                       <ChevronRight size={17} className="shrink-0 text-slate-400" />
                     )}

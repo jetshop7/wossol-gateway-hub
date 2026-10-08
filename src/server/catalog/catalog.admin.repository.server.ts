@@ -8,6 +8,10 @@ import {
   catalogProductInputSchema,
 } from "./catalog.validation.ts";
 import { normalizeCatalogSlug } from "./catalog.contracts.ts";
+import {
+  buildAdminProductDirectoryWhere,
+  type AdminProductDirectoryInput,
+} from "./catalog.products-directory.ts";
 import { resolveVariantPricing } from "./variant-pricing.ts";
 import { activeGs1TaxonomyNodeWhere, activeProductBrickWhere } from "./catalog.taxonomy.ts";
 import {
@@ -189,6 +193,82 @@ export async function listAdminCompanies(): Promise<AdminCompanySummaryDto[]> {
     orderBy: { displayName: "asc" },
   });
   return records.map(toAdminCompanySummaryDto);
+}
+
+export async function listAdminProductsDirectory(input: AdminProductDirectoryInput) {
+  const prisma = getWossolExportPrisma();
+  const where = buildAdminProductDirectoryWhere(input);
+  const [products, total] = await Promise.all([
+    prisma.product.findMany({
+      where,
+      select: {
+        id: true,
+        companyId: true,
+        name: true,
+        publicReference: true,
+        company: { select: { displayName: true } },
+        taxonomyNode: {
+          select: {
+            id: true,
+            sourceCode: true,
+            translations: {
+              where: { languageCode: "EN" },
+              select: { name: true },
+              take: 1,
+            },
+          },
+        },
+        countryOfOrigin: true,
+        _count: { select: { variants: { where: { status: "ACTIVE" } } } },
+        publicationStatus: true,
+        updatedAt: true,
+      },
+      orderBy: [{ updatedAt: "desc" }, { id: "asc" }],
+      skip: input.page * input.pageSize,
+      take: input.pageSize,
+    }),
+    prisma.product.count({ where }),
+  ]);
+  return {
+    products: products.map((product) => ({
+      id: product.id,
+      companyId: product.companyId,
+      name: product.name,
+      publicReference: product.publicReference,
+      companyName: product.company.displayName,
+      taxonomy: product.taxonomyNode
+        ? {
+            id: product.taxonomyNode.id,
+            sourceCode: product.taxonomyNode.sourceCode,
+            name: product.taxonomyNode.translations[0]?.name ?? product.taxonomyNode.sourceCode,
+          }
+        : null,
+      countryOfOrigin: product.countryOfOrigin,
+      activeVariantCount: product._count.variants,
+      publicationStatus: product.publicationStatus,
+      updatedAt: product.updatedAt,
+    })),
+    total,
+    page: input.page,
+    pageSize: input.pageSize,
+  };
+}
+
+export async function searchAdminCompanyOptions(query: string) {
+  const text = query.trim();
+  return getWossolExportPrisma().company.findMany({
+    where: text
+      ? {
+          OR: [
+            { displayName: { contains: text, mode: "insensitive" } },
+            { legalName: { contains: text, mode: "insensitive" } },
+          ],
+        }
+      : undefined,
+    select: { id: true, displayName: true, countryCode: true },
+    orderBy: { displayName: "asc" },
+    take: 50,
+  });
 }
 
 export async function getAdminCompany(id: string): Promise<AdminCompanyDetailDto | null> {

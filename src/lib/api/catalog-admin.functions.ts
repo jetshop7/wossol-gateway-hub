@@ -4,6 +4,7 @@ import {
   catalogImageReferenceSchema,
   catalogVariantPackagingSchema,
 } from "../../server/catalog/catalog.validation.ts";
+import { adminProductDirectoryInputSchema } from "../../server/catalog/catalog.products-directory.ts";
 
 const idSchema = z.string().uuid();
 const companyInput = z.object({
@@ -86,6 +87,24 @@ export const getAdminCompanies = createServerFn({ method: "GET" }).handler(async
     await import("../../server/catalog/catalog.admin.repository.server.ts");
   return { ok: true as const, companies: await listAdminCompanies() };
 });
+
+export const getAdminProductsDirectoryFn = createServerFn({ method: "GET" })
+  .inputValidator(adminProductDirectoryInputSchema)
+  .handler(async ({ data }) => {
+    await guard("catalog.read_internal");
+    const { listAdminProductsDirectory } =
+      await import("../../server/catalog/catalog.admin.repository.server.ts");
+    return { ok: true as const, ...(await listAdminProductsDirectory(data)) };
+  });
+
+export const searchAdminCompanyOptionsFn = createServerFn({ method: "GET" })
+  .inputValidator(z.object({ query: z.string().trim().max(120).default("") }))
+  .handler(async ({ data }) => {
+    await guard("catalog.read_internal");
+    const { searchAdminCompanyOptions } =
+      await import("../../server/catalog/catalog.admin.repository.server.ts");
+    return { ok: true as const, companies: await searchAdminCompanyOptions(data.query) };
+  });
 
 export const getAdminCompanyDetail = createServerFn({ method: "GET" })
   .inputValidator(z.object({ companyId: idSchema }))

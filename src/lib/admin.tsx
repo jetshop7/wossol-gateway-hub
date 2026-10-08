@@ -85,6 +85,12 @@ export function AdminShell({
               label="Companies & brands"
               onClick={() => setOpen(false)}
             />
+            <NavItem
+              to="/admin/catalog/products"
+              icon={<Package className="h-4 w-4" />}
+              label="Products"
+              onClick={() => setOpen(false)}
+            />
             {actor.role === "CATALOG_ADMIN" && (
               <>
                 <NavItem
@@ -106,9 +112,6 @@ export function AdminShell({
                 Coming later
               </p>
               <span className="flex items-center gap-3 rounded-md px-3 py-2 text-sm text-slate-400">
-                <Package className="h-4 w-4" /> Products
-              </span>
-              <span className="flex items-center gap-3 rounded-md px-3 py-2 text-sm text-slate-400">
                 <ShieldCheck className="h-4 w-4" /> Publishing
               </span>
               <span className="flex items-center gap-3 rounded-md px-3 py-2 text-sm text-slate-400">
@@ -129,7 +132,7 @@ function NavItem({
   label,
   onClick,
 }: {
-  to: "/admin/catalog/companies" | "/admin/catalog/clients" | "/admin/catalog/price-profiles";
+  to: "/admin/catalog/companies" | "/admin/catalog/products" | "/admin/catalog/clients" | "/admin/catalog/price-profiles";
   icon: React.ReactNode;
   label: string;
   onClick: () => void;

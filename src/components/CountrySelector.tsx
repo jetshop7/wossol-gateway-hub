@@ -1,14 +1,20 @@
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
 
 import { COUNTRIES, countryLabel, searchCountries } from "@/lib/countries";
 
 export function CountrySelector({
   value,
   onChange,
+  label = "Country of origin",
+  id: providedId,
 }: {
   value: string;
   onChange: (value: string) => void;
+  label?: string;
+  id?: string;
 }) {
+  const generatedId = useId();
+  const id = providedId ?? generatedId;
   const [query, setQuery] = useState(() => countryLabel(value));
   const [open, setOpen] = useState(false);
   const matches = searchCountries(query);
@@ -19,15 +25,15 @@ export function CountrySelector({
 
   return (
     <div className="relative text-sm">
-      <label htmlFor="country-of-origin" className="block">
-        Country of origin
+      <label htmlFor={id} className="block">
+        {label}
       </label>
       <input
-        id="country-of-origin"
+        id={id}
         role="combobox"
         aria-autocomplete="list"
         aria-expanded={open}
-        aria-controls="country-of-origin-options"
+        aria-controls={`${id}-options`}
         autoComplete="off"
         value={query}
         onFocus={() => setOpen(true)}
@@ -41,7 +47,7 @@ export function CountrySelector({
       />
       {open && (
         <div
-          id="country-of-origin-options"
+          id={`${id}-options`}
           role="listbox"
           aria-label="Countries"
           className="absolute z-20 mt-1 max-h-64 w-full overflow-y-auto rounded-lg border border-slate-200 bg-white p-1 shadow-lg"

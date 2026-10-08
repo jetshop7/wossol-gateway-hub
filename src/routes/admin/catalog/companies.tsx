@@ -4,6 +4,7 @@ import { ArrowRight, Building2, Globe2, Plus, Search } from "lucide-react";
 
 import { createAdminCompanyFn, getAdminCompanies } from "@/lib/api/catalog-admin.functions";
 import { readCsrfToken } from "@/lib/admin-csrf";
+import { CountrySelector } from "@/components/CountrySelector";
 
 export const Route = createFileRoute("/admin/catalog/companies")({
   loader: () => getAdminCompanies(),
@@ -43,7 +44,7 @@ function CompaniesPage() {
     setError("");
     try {
       const response = await createAdminCompanyFn({
-        data: form,
+        data: { ...form, countryCode: form.countryCode || null },
         headers: { "x-wossol-csrf": readCsrfToken() ?? "" },
       });
       if (!response.ok) {
@@ -119,14 +120,12 @@ function CompaniesPage() {
                 onChange={(event) => setForm({ ...form, legalName: event.target.value })}
               />
             </Field>
-            <Field label="Country code">
-              <input
-                maxLength={2}
-                value={form.countryCode}
-                onChange={(event) => setForm({ ...form, countryCode: event.target.value })}
-                placeholder="DZ"
-              />
-            </Field>
+            <CountrySelector
+              id="company-country"
+              label="Country"
+              value={form.countryCode}
+              onChange={(countryCode) => setForm({ ...form, countryCode })}
+            />
             <Field label="Website">
               <input
                 type="url"

@@ -18,6 +18,7 @@ VA VC VE VG VI VN VU WF WS YE YT ZA ZM ZW
   .split(/\s+/);
 
 const countryNames = new Intl.DisplayNames(["en"], { type: "region" });
+const countryCodes = new Set(ISO_3166_ALPHA_2_CODES);
 
 export type CountryOption = { code: string; name: string };
 
@@ -41,6 +42,15 @@ export function countryLabel(value: string | null | undefined): string {
   if (!normalized) return "";
   const country = COUNTRIES.find((item) => item.code === normalized.toUpperCase());
   return country ? `${country.name} (${country.code})` : normalized;
+}
+
+export function validCountryCode(value: string | null | undefined): string | undefined {
+  const normalized = value?.trim().toUpperCase();
+  return normalized && countryCodes.has(normalized) ? normalized : undefined;
+}
+
+export function getDefaultProductOrigin(companyCountryCode: string | null | undefined): string {
+  return validCountryCode(companyCountryCode) ?? "DZ";
 }
 
 export const clientCountryLabel = countryLabel;

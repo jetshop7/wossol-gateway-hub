@@ -1,7 +1,14 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { COUNTRIES, clientCountryLabel, countryLabel, searchCountries } from "./countries.ts";
+import {
+  COUNTRIES,
+  clientCountryLabel,
+  countryLabel,
+  getDefaultProductOrigin,
+  searchCountries,
+  validCountryCode,
+} from "./countries.ts";
 
 test("country selector includes the complete ISO alpha-2 country set", () => {
   assert.equal(COUNTRIES.length, 249);
@@ -27,4 +34,13 @@ test("country presentation is readable and safely preserves unknown legacy value
   assert.equal(clientCountryLabel("Legacy origin"), "Legacy origin");
   assert.equal(clientCountryLabel("ZZ"), "ZZ");
   assert.equal(clientCountryLabel(null), "");
+});
+
+test("new Product origin can default from a valid Company country without accepting invalid codes", () => {
+  assert.equal(validCountryCode("dz"), "DZ");
+  assert.equal(validCountryCode("GB"), "GB");
+  assert.equal(validCountryCode("legacy"), undefined);
+  assert.equal(validCountryCode(null), undefined);
+  assert.equal(getDefaultProductOrigin("dz"), "DZ");
+  assert.equal(getDefaultProductOrigin("legacy"), "DZ");
 });
