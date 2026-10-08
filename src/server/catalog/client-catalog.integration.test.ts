@@ -276,6 +276,7 @@ test(
         price: "875.00",
         currency: "DZD",
       });
+      assert.equal((await getPartnerCatalogProduct(partner.id, reference))?.reference, reference);
       const partnerDtoText = JSON.stringify(partnerCatalog.products[0]);
       for (const secret of [company.displayName, brand.name, "SUPPLIER-SKU-SECRET", "factoryPrice", "markupPercent"])
         assert.equal(partnerDtoText.includes(secret), false, `${secret} must not leak to Partner`);
@@ -285,6 +286,28 @@ test(
       await setPartnerCatalogFavorite(partner.id, reference, true);
       assert.equal((await getPartnerCatalogFavorites(partner.id)).products[0]?.reference, reference);
       assert.equal((await getPartnerCatalogFavorites(otherPartner.id)).products.length, 0);
+      await setPartnerCatalogFavorite(partner.id, reference, false);
+      assert.equal((await getPartnerCatalogFavorites(partner.id)).products.length, 0);
+
+      await prisma.product.update({
+        where: { id: product.id },
+        data: { publicReference: reference.slice(4).toLowerCase() },
+      });
+      assert.equal((await getPartnerCatalogProduct(partner.id, reference))?.reference, reference);
+      await setPartnerCatalogFavorite(partner.id, reference, true);
+      assert.equal((await getPartnerCatalogFavorites(partner.id)).products[0]?.reference, reference);
+      await setPartnerCatalogFavorite(partner.id, reference, false);
+      assert.equal((await getPartnerCatalogFavorites(partner.id)).products.length, 0);
+      assert.equal((await getPartnerCatalogProduct(otherPartner.id, reference)), null);
+      await assert.rejects(
+        () => setPartnerCatalogFavorite(otherPartner.id, reference, true),
+        /not available/,
+      );
+      assert.equal((await getClientCatalogProduct(account.id, reference))?.reference, reference);
+      await setClientCatalogFavorite(account.id, reference, true);
+      assert.equal((await getClientCatalogFavorites(account.id)).products[0]?.reference, reference);
+      await setClientCatalogFavorite(account.id, reference, false);
+      assert.equal((await getClientCatalogFavorites(account.id)).products.length, 0);
       assert.equal(
         (await getClientCatalog(account.id, { search: `Integration product ${suffix}` })).products
           .length,

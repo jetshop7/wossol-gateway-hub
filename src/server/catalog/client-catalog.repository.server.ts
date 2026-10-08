@@ -259,23 +259,40 @@ export async function getPartnerCatalog(
   return getCatalogForAccount(await getPartnerCatalogAccountId(partnerAccountId), input, "PARTNER");
 }
 
-export async function getClientCatalogProduct(clientAccountId: string, productReference: string) {
-  const prisma = getWossolExportPrisma();
-  const exactProduct = await prisma.product.findUnique({
-    where: { publicReference: productReference },
-    select: { id: true },
-  });
+export async function findProductByPublicReference(
+  productReference: string,
+  lookup: {
+    findExact(reference: string): Promise<{ id: string } | null>;
+    findLegacy(reference: string): Promise<{ id: string } | null>;
+  },
+) {
+  const exactProduct = await lookup.findExact(productReference);
+  if (exactProduct) return exactProduct;
+
   const legacyReference = productReference.toUpperCase().startsWith("WOS-")
     ? productReference.slice(4)
     : null;
-  const product =
-    exactProduct ??
-    (legacyReference
-      ? await prisma.product.findFirst({
-          where: { publicReference: { equals: legacyReference, mode: "insensitive" } },
-          select: { id: true },
-        })
-      : null);
+  return legacyReference ? lookup.findLegacy(legacyReference) : null;
+}
+
+async function resolveProductByPublicReference(productReference: string) {
+  const prisma = getWossolExportPrisma();
+  return findProductByPublicReference(productReference, {
+    findExact: (reference) =>
+      prisma.product.findUnique({
+        where: { publicReference: reference },
+        select: { id: true },
+      }),
+    findLegacy: (reference) =>
+      prisma.product.findFirst({
+        where: { publicReference: { equals: reference, mode: "insensitive" } },
+        select: { id: true },
+      }),
+  });
+}
+
+export async function getClientCatalogProduct(clientAccountId: string, productReference: string) {
+  const product = await resolveProductByPublicReference(productReference);
   if (!product) return null;
   const result = await getClientCatalog(clientAccountId, { productId: product.id });
   return result.accessEnabled ? (result.products[0] ?? null) : null;
@@ -283,11 +300,7 @@ export async function getClientCatalogProduct(clientAccountId: string, productRe
 
 export async function getPartnerCatalogProduct(partnerAccountId: string, productReference: string) {
   const catalogAccountId = await getPartnerCatalogAccountId(partnerAccountId);
-  const prisma = getWossolExportPrisma();
-  const product = await prisma.product.findUnique({
-    where: { publicReference: productReference },
-    select: { id: true },
-  });
+  const product = await resolveProductByPublicReference(productReference);
   if (!product) return null;
   const result = await getCatalogForAccount(catalogAccountId, { productId: product.id }, "PARTNER");
   return result.accessEnabled ? (result.products[0] ?? null) : null;
@@ -339,21 +352,7 @@ export async function setClientCatalogFavorite(
   isFavorite: boolean,
 ) {
   const prisma = getWossolExportPrisma();
-  const exactProduct = await prisma.product.findUnique({
-    where: { publicReference: productReference },
-    select: { id: true },
-  });
-  const legacyReference = productReference.toUpperCase().startsWith("WOS-")
-    ? productReference.slice(4)
-    : null;
-  const product =
-    exactProduct ??
-    (legacyReference
-      ? await prisma.product.findFirst({
-          where: { publicReference: { equals: legacyReference, mode: "insensitive" } },
-          select: { id: true },
-        })
-      : null);
+  const product = await resolveProductByPublicReference(productReference);
   if (
     !product ||
     !(await findClientVisibleProductIds(clientAccountId, { productId: product.id, take: 1 })).length
@@ -381,10 +380,7 @@ export async function setPartnerCatalogFavorite(
 ) {
   const catalogAccountId = await getPartnerCatalogAccountId(partnerAccountId);
   const prisma = getWossolExportPrisma();
-  const product = await prisma.product.findUnique({
-    where: { publicReference: productReference },
-    select: { id: true },
-  });
+  const product = await resolveProductByPublicReference(productReference);
   if (
     !product ||
     !(await findClientVisibleProductIds(catalogAccountId, { productId: product.id, take: 1 })).length
