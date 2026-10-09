@@ -33,6 +33,7 @@ import { Route as PartnerIndexRouteImport } from './routes/partner.index'
 import { Route as PartnerFavoritesRouteImport } from './routes/partner.favorites'
 import { Route as AdminCatalogClientsRouteImport } from './routes/admin/catalog/clients'
 import { Route as AdminCatalogCompaniesRouteImport } from './routes/admin/catalog/companies'
+import { Route as AdminCatalogExtractionReviewsRouteImport } from './routes/admin/catalog/extraction-reviews'
 import { Route as AdminCatalogPriceProfilesRouteImport } from './routes/admin/catalog/price-profiles'
 import { Route as AdminCatalogProductsRouteImport } from './routes/admin/catalog/products'
 import { Route as AdminCatalogPublishingRouteImport } from './routes/admin/catalog/publishing'
@@ -162,6 +163,12 @@ const AdminCatalogCompaniesRoute = AdminCatalogCompaniesRouteImport.update({
   path: '/companies',
   getParentRoute: () => AdminCatalogRoute,
 } as any)
+const AdminCatalogExtractionReviewsRoute =
+  AdminCatalogExtractionReviewsRouteImport.update({
+    id: '/extraction-reviews',
+    path: '/extraction-reviews',
+    getParentRoute: () => AdminCatalogRoute,
+  } as any)
 const AdminCatalogPriceProfilesRoute =
   AdminCatalogPriceProfilesRouteImport.update({
     id: '/price-profiles',
@@ -232,6 +239,7 @@ export interface FileRoutesByFullPath {
   '/partner/': typeof PartnerIndexRoute
   '/admin/catalog/clients': typeof AdminCatalogClientsRoute
   '/admin/catalog/companies': typeof AdminCatalogCompaniesRouteWithChildren
+  '/admin/catalog/extraction-reviews': typeof AdminCatalogExtractionReviewsRoute
   '/admin/catalog/price-profiles': typeof AdminCatalogPriceProfilesRoute
   '/admin/catalog/products': typeof AdminCatalogProductsRoute
   '/admin/catalog/publishing': typeof AdminCatalogPublishingRoute
@@ -263,6 +271,7 @@ export interface FileRoutesByTo {
   '/partner': typeof PartnerIndexRoute
   '/admin/catalog/clients': typeof AdminCatalogClientsRoute
   '/admin/catalog/companies': typeof AdminCatalogCompaniesRouteWithChildren
+  '/admin/catalog/extraction-reviews': typeof AdminCatalogExtractionReviewsRoute
   '/admin/catalog/price-profiles': typeof AdminCatalogPriceProfilesRoute
   '/admin/catalog/products': typeof AdminCatalogProductsRoute
   '/admin/catalog/publishing': typeof AdminCatalogPublishingRoute
@@ -298,6 +307,7 @@ export interface FileRoutesById {
   '/partner/': typeof PartnerIndexRoute
   '/admin/catalog/clients': typeof AdminCatalogClientsRoute
   '/admin/catalog/companies': typeof AdminCatalogCompaniesRouteWithChildren
+  '/admin/catalog/extraction-reviews': typeof AdminCatalogExtractionReviewsRoute
   '/admin/catalog/price-profiles': typeof AdminCatalogPriceProfilesRoute
   '/admin/catalog/products': typeof AdminCatalogProductsRoute
   '/admin/catalog/publishing': typeof AdminCatalogPublishingRoute
@@ -334,6 +344,7 @@ export interface FileRouteTypes {
     | '/partner/'
     | '/admin/catalog/clients'
     | '/admin/catalog/companies'
+    | '/admin/catalog/extraction-reviews'
     | '/admin/catalog/price-profiles'
     | '/admin/catalog/products'
     | '/admin/catalog/publishing'
@@ -365,6 +376,7 @@ export interface FileRouteTypes {
     | '/partner'
     | '/admin/catalog/clients'
     | '/admin/catalog/companies'
+    | '/admin/catalog/extraction-reviews'
     | '/admin/catalog/price-profiles'
     | '/admin/catalog/products'
     | '/admin/catalog/publishing'
@@ -399,6 +411,7 @@ export interface FileRouteTypes {
     | '/partner/'
     | '/admin/catalog/clients'
     | '/admin/catalog/companies'
+    | '/admin/catalog/extraction-reviews'
     | '/admin/catalog/price-profiles'
     | '/admin/catalog/products'
     | '/admin/catalog/publishing'
@@ -596,6 +609,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminCatalogCompaniesRouteImport
       parentRoute: typeof AdminCatalogRoute
     }
+    '/admin/catalog/extraction-reviews': {
+      id: '/admin/catalog/extraction-reviews'
+      path: '/extraction-reviews'
+      fullPath: '/admin/catalog/extraction-reviews'
+      preLoaderRoute: typeof AdminCatalogExtractionReviewsRouteImport
+      parentRoute: typeof AdminCatalogRoute
+    }
     '/admin/catalog/price-profiles': {
       id: '/admin/catalog/price-profiles'
       path: '/price-profiles'
@@ -671,6 +691,7 @@ const AdminCatalogCompaniesRouteWithChildren =
 interface AdminCatalogRouteChildren {
   AdminCatalogClientsRoute: typeof AdminCatalogClientsRoute
   AdminCatalogCompaniesRoute: typeof AdminCatalogCompaniesRouteWithChildren
+  AdminCatalogExtractionReviewsRoute: typeof AdminCatalogExtractionReviewsRoute
   AdminCatalogPriceProfilesRoute: typeof AdminCatalogPriceProfilesRoute
   AdminCatalogProductsRoute: typeof AdminCatalogProductsRoute
   AdminCatalogPublishingRoute: typeof AdminCatalogPublishingRoute
@@ -679,6 +700,7 @@ interface AdminCatalogRouteChildren {
 const AdminCatalogRouteChildren: AdminCatalogRouteChildren = {
   AdminCatalogClientsRoute: AdminCatalogClientsRoute,
   AdminCatalogCompaniesRoute: AdminCatalogCompaniesRouteWithChildren,
+  AdminCatalogExtractionReviewsRoute: AdminCatalogExtractionReviewsRoute,
   AdminCatalogPriceProfilesRoute: AdminCatalogPriceProfilesRoute,
   AdminCatalogProductsRoute: AdminCatalogProductsRoute,
   AdminCatalogPublishingRoute: AdminCatalogPublishingRoute,

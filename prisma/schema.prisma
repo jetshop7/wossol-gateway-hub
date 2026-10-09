@@ -22,6 +22,44 @@ enum CatalogPublicationStatus {
   ARCHIVED
 }
 
+enum ProductExtractionReviewState {
+  UNDER_REVIEW
+  REQUIRES_CORRECTION
+  ACCEPTED
+  PUBLISHED
+}
+
+enum ProductExtractionVerificationState {
+  UNVERIFIED
+  PARTIALLY_VERIFIED
+  VERIFIED
+}
+
+enum ProductExtractionEvidenceConfidence {
+  CONFIRMED
+  CORROBORATED
+  PROPOSED
+  UNKNOWN
+}
+
+enum ProductExtractionSourceKind {
+  COMPANY
+  PRODUCT
+  IMAGE
+  DOCUMENT
+}
+
+enum ProductExtractionAssetKind {
+  IMAGE
+  DOCUMENT
+}
+
+enum ProductExtractionRightsStatus {
+  UNKNOWN
+  CLEARED
+  RESTRICTED
+}
+
 enum CatalogTaxonomySource {
   GS1_GPC
   WOSSOL_EXTENSION
@@ -654,6 +692,8 @@ model Company {
   products              Product[]
   pipelineLinks         CompanyPipelineLink[]
   clientVisibilityRules ClientCatalogVisibilityRule[]
+  extractionReviews     ProductExtractionReview[]
+  extractionSources     ProductExtractionSource[]
 
   @@map("catalog_companies")
 }
@@ -722,6 +762,8 @@ model Product {
   variants              Variant[]
   clientVisibilityRules ClientCatalogVisibilityRule[]
   clientFavorites       ClientCatalogFavorite[]
+  extractionReviews     ProductExtractionReview[]
+  extractionSources     ProductExtractionSource[]
 
   @@index([companyId, publicationStatus])
   @@index([brandId])
@@ -757,6 +799,118 @@ model Variant {
 
   @@index([productId, status, publicationStatus])
   @@map("catalog_variants")
+}
+
+model ProductExtractionReview {
+  id                    String                             @id @default(uuid()) @db.Uuid
+  companyId             String                             @map("company_id") @db.Uuid
+  productId             String?                            @map("product_id") @db.Uuid
+  state                 ProductExtractionReviewState       @default(UNDER_REVIEW)
+  verificationState     ProductExtractionVerificationState @default(UNVERIFIED) @map("verification_state")
+  extractedAt           DateTime                           @map("extracted_at")
+  currentRevisionHash   String                             @map("current_revision_hash")
+  acceptedRevisionHash  String?                            @map("accepted_revision_hash")
+  acceptedAt            DateTime?                          @map("accepted_at")
+  acceptedById          String?                            @map("accepted_by_id") @db.Uuid
+  publishedAt           DateTime?                          @map("published_at")
+  publishedById         String?                            @map("published_by_id") @db.Uuid
+  currentCorrectionNote String?                            @map("current_correction_note")
+  createdAt             DateTime                           @default(now()) @map("created_at")
+  updatedAt             DateTime                           @updatedAt @map("updated_at")
+
+  company      Company                        @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  product      Product?                       @relation(fields: [productId], references: [id], onDelete: Restrict)
+  acceptedBy   InternalUser?                  @relation("ProductExtractionAcceptedBy", fields: [acceptedById], references: [id], onDelete: Restrict)
+  publishedBy  InternalUser?                  @relation("ProductExtractionPublishedBy", fields: [publishedById], references: [id], onDelete: Restrict)
+  sources      ProductExtractionSource[]
+  evidence     ProductExtractionEvidence[]
+  assets       ProductExtractionAsset[]
+  reviewEvents ProductExtractionReviewEvent[]
+
+  @@index([companyId, state, updatedAt])
+  @@index([productId, state])
+  @@map("product_extraction_reviews")
+}
+
+model ProductExtractionSource {
+  id          String                      @id @default(uuid()) @db.Uuid
+  reviewId    String                      @map("review_id") @db.Uuid
+  companyId   String                      @map("company_id") @db.Uuid
+  productId   String?                     @map("product_id") @db.Uuid
+  kind        ProductExtractionSourceKind
+  url         String
+  title       String?
+  retrievedAt DateTime                    @map("retrieved_at")
+  checksum    String?
+  createdAt   DateTime                    @default(now()) @map("created_at")
+
+  review   ProductExtractionReview     @relation(fields: [reviewId], references: [id], onDelete: Restrict)
+  company  Company                     @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  product  Product?                    @relation(fields: [productId], references: [id], onDelete: Restrict)
+  evidence ProductExtractionEvidence[]
+  assets   ProductExtractionAsset[]
+
+  @@index([companyId, kind])
+  @@index([reviewId, kind])
+  @@map("product_extraction_sources")
+}
+
+model ProductExtractionEvidence {
+  id             String                              @id @default(uuid()) @db.Uuid
+  reviewId       String                              @map("review_id") @db.Uuid
+  sourceId       String?                             @map("source_id") @db.Uuid
+  fieldPath      String                              @map("field_path")
+  extractedValue Json                                @map("extracted_value")
+  confidence     ProductExtractionEvidenceConfidence
+  note           String?
+  createdAt      DateTime                            @default(now()) @map("created_at")
+
+  review ProductExtractionReview  @relation(fields: [reviewId], references: [id], onDelete: Restrict)
+  source ProductExtractionSource? @relation(fields: [sourceId], references: [id], onDelete: Restrict)
+
+  @@index([reviewId, fieldPath])
+  @@index([sourceId])
+  @@map("product_extraction_evidence")
+}
+
+model ProductExtractionAsset {
+  id              String                        @id @default(uuid()) @db.Uuid
+  reviewId        String                        @map("review_id") @db.Uuid
+  sourceId        String?                       @map("source_id") @db.Uuid
+  kind            ProductExtractionAssetKind
+  originalUrl     String                        @map("original_url")
+  storedReference String?                       @map("stored_reference")
+  checksum        String?
+  mimeType        String?                       @map("mime_type")
+  rightsStatus    ProductExtractionRightsStatus @default(UNKNOWN) @map("rights_status")
+  createdAt       DateTime                      @default(now()) @map("created_at")
+
+  review ProductExtractionReview  @relation(fields: [reviewId], references: [id], onDelete: Restrict)
+  source ProductExtractionSource? @relation(fields: [sourceId], references: [id], onDelete: Restrict)
+
+  @@index([reviewId, kind])
+  @@index([checksum])
+  @@map("product_extraction_assets")
+}
+
+model ProductExtractionReviewEvent {
+  id             String                        @id @default(uuid()) @db.Uuid
+  reviewId       String                        @map("review_id") @db.Uuid
+  fromState      ProductExtractionReviewState? @map("from_state")
+  toState        ProductExtractionReviewState  @map("to_state")
+  action         String
+  revisionHash   String?                       @map("revision_hash")
+  decisionNote   String?                       @map("decision_note")
+  correctionNote String?                       @map("correction_note")
+  actorId        String?                       @map("actor_id") @db.Uuid
+  createdAt      DateTime                      @default(now()) @map("created_at")
+
+  review ProductExtractionReview @relation(fields: [reviewId], references: [id], onDelete: Restrict)
+  actor  InternalUser?           @relation(fields: [actorId], references: [id], onDelete: Restrict)
+
+  @@index([reviewId, createdAt])
+  @@index([actorId, createdAt])
+  @@map("product_extraction_review_events")
 }
 
 /// Versioned taxonomy structure. GS1 GPC and Wossol extensions are kept
@@ -921,9 +1075,12 @@ model InternalUser {
   createdAt    DateTime            @default(now()) @map("created_at")
   updatedAt    DateTime            @updatedAt @map("updated_at")
 
-  sessions     AuthSession[]
-  auditEvents  AuthAuditEvent[]
-  priceHistory VariantPriceHistory[]
+  sessions                   AuthSession[]
+  auditEvents                AuthAuditEvent[]
+  priceHistory               VariantPriceHistory[]
+  extractionReviewsAccepted  ProductExtractionReview[]      @relation("ProductExtractionAcceptedBy")
+  extractionReviewsPublished ProductExtractionReview[]      @relation("ProductExtractionPublishedBy")
+  extractionReviewEvents     ProductExtractionReviewEvent[]
 
   @@map("export_internal_users")
 }

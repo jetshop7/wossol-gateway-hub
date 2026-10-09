@@ -118,6 +118,12 @@ export function AdminShell({
                 label="Publishing"
                 onClick={() => setOpen(false)}
               />
+                <NavItem
+                  to="/admin/catalog/extraction-reviews"
+                  icon={<ShieldCheck className="h-4 w-4" />}
+                  label="Extraction reviews"
+                  onClick={() => setOpen(false)}
+                />
               <NavItem to="/admin/search" icon={<Search className="h-4 w-4" />} label="Pipeline Search" onClick={() => setOpen(false)} />
               <span className="flex items-center gap-3 rounded-md px-3 py-2 text-sm text-slate-400">
                 <Settings className="h-4 w-4" /> Settings
@@ -137,7 +143,7 @@ function NavItem({
   label,
   onClick,
 }: {
-  to: "/admin/catalog/companies" | "/admin/catalog/products" | "/admin/catalog/publishing" | "/admin/catalog/clients" | "/admin/catalog/price-profiles" | "/admin/search";
+  to: "/admin/catalog/companies" | "/admin/catalog/products" | "/admin/catalog/publishing" | "/admin/catalog/extraction-reviews" | "/admin/catalog/clients" | "/admin/catalog/price-profiles" | "/admin/search";
   icon: React.ReactNode;
   label: string;
   onClick: () => void;

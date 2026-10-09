@@ -1,0 +1,84 @@
+import type { Prisma } from "@prisma/client";
+
+import { productExtractionRevisionHash } from "./product-extraction-workflow.ts";
+
+export const productExtractionRevisionSelect = {
+  id: true,
+  companyId: true,
+  brandId: true,
+  taxonomyNodeId: true,
+  name: true,
+  shortDescription: true,
+  description: true,
+  countryOfOrigin: true,
+  variants: {
+    orderBy: { id: "asc" as const },
+    select: {
+      id: true,
+      sku: true,
+      name: true,
+      model: true,
+      attributes: true,
+      supplierSku: true,
+      mainImageUrl: true,
+      additionalImageUrls: true,
+      packaging: true,
+      pricingMethod: true,
+      factoryPrice: true,
+      markupPercent: true,
+      sellingPrice: true,
+      currency: true,
+      isDefault: true,
+      status: true,
+    },
+  },
+} satisfies Prisma.ProductSelect;
+
+export type ProductRevisionRecord = Prisma.ProductGetPayload<{
+  select: typeof productExtractionRevisionSelect;
+}>;
+
+export function revisionHashForProduct(product: ProductRevisionRecord): string {
+  return productExtractionRevisionHash({
+    id: product.id,
+    companyId: product.companyId,
+    brandId: product.brandId,
+    taxonomyNodeId: product.taxonomyNodeId,
+    name: product.name,
+    shortDescription: product.shortDescription,
+    description: product.description,
+    countryOfOrigin: product.countryOfOrigin,
+    variants: product.variants.map((variant) => ({
+      ...variant,
+      factoryPrice: variant.factoryPrice?.toString() ?? null,
+      markupPercent: variant.markupPercent?.toString() ?? null,
+      sellingPrice: variant.sellingPrice?.toString() ?? null,
+    })),
+  });
+}
+
+export async function getProductRevision(
+  prisma: Prisma.TransactionClient | { product: { findUnique: Function } },
+  productId: string,
+) {
+  return prisma.product.findUnique({ where: { id: productId }, select: productExtractionRevisionSelect });
+}
+
+export async function assertProductExtractionPublishable(
+  tx: Prisma.TransactionClient,
+  productId: string,
+): Promise<{ reviewId: string; revisionHash: string } | null> {
+  const latest = await tx.productExtractionReview.findFirst({
+    where: { productId },
+    orderBy: { updatedAt: "desc" },
+    select: { id: true, state: true, acceptedRevisionHash: true },
+  });
+  if (!latest) return null;
+
+  const product = await tx.product.findUnique({ where: { id: productId }, select: productExtractionRevisionSelect });
+  if (!product) throw new Error("The selected product was not found.");
+  if (latest.state !== "ACCEPTED" || latest.acceptedRevisionHash !== revisionHashForProduct(product)) {
+    throw new Error("This extracted product requires a new review before publication.");
+  }
+  return { reviewId: latest.id, revisionHash: latest.acceptedRevisionHash };
+}

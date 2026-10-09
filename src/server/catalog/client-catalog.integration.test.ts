@@ -282,7 +282,10 @@ test(
         assert.equal(partnerDtoText.includes(secret), false, `${secret} must not leak to Partner`);
       assert.equal((await getPartnerCatalog(otherPartner.id)).products.length, 0);
       assert.equal(await getPartnerCatalogProduct(otherPartner.id, reference), null);
-      assert.equal((await getPartnerCatalog(entirePartner.id)).products.length, 2);
+      assert.equal(
+        (await getPartnerCatalog(entirePartner.id, { productIds })).products.length,
+        2,
+      );
       await setPartnerCatalogFavorite(partner.id, reference, true);
       assert.equal((await getPartnerCatalogFavorites(partner.id)).products[0]?.reference, reference);
       assert.equal((await getPartnerCatalogFavorites(otherPartner.id)).products.length, 0);
@@ -404,7 +407,10 @@ test(
       await prisma.product.update({ where: { id: product.id }, data: { publicationStatus: "DRAFT" } });
       assert.equal((await getPartnerCatalog(partner.id)).products.length, 0);
       assert.equal(await getPartnerCatalogProduct(partner.id, reference), null);
-      assert.equal((await getPartnerCatalog(entirePartner.id)).products.length, 1);
+      assert.equal(
+        (await getPartnerCatalog(entirePartner.id, { productIds })).products.length,
+        1,
+      );
       await prisma.product.update({ where: { id: product.id }, data: { publicationStatus: "PUBLISHED" } });
       await prisma.clientCatalogVisibilityRule.create({
         data: {

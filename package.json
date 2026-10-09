@@ -17,6 +17,8 @@
     "test:client-catalog": "node --experimental-strip-types --test src/server/catalog/client-catalog.dto.test.ts src/lib/countries.test.ts",
     "test:client-catalog-integration": "node --experimental-strip-types --test src/server/catalog/client-catalog.integration.test.ts src/server/catalog/client-login-management.integration.test.ts src/server/catalog/partner-accounts.integration.test.ts",
     "test:taxonomy": "node --experimental-strip-types --test src/server/catalog/gs1-gpc-import.test.ts src/server/catalog/catalog.taxonomy-admin.test.ts",
+    "test:product-extraction": "node --experimental-strip-types --test src/server/catalog/product-extraction-workflow.test.ts src/server/catalog/product-extraction-schema.contract.test.ts",
+    "test:product-extraction-integration": "node --experimental-strip-types --test src/server/catalog/product-extraction-review.integration.test.ts",
     "test:pipeline-schema": "node --experimental-strip-types --test src/server/search/pipeline-search-schema.contract.test.ts",
     "test:pipeline-search": "node --experimental-strip-types --test src/server/search/pipeline-search.contract.test.ts",
     "test:pipeline-migration": "node --experimental-strip-types --test scripts/search/pipeline-migration.contract.test.ts",

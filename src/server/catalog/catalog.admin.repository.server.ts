@@ -19,6 +19,11 @@ import {
   type PublicationStatus,
 } from "./catalog.publication.ts";
 import { activeGs1TaxonomyNodeWhere, activeProductBrickWhere } from "./catalog.taxonomy.ts";
+import { assertProductExtractionPublishable } from "./product-extraction-review.guard.server.ts";
+import {
+  productExtractionRevisionSelect,
+  revisionHashForProduct,
+} from "./product-extraction-review.guard.server.ts";
 import {
   clientCatalogAccessModePolicy,
   isVisibilityTargetCandidateEligible,
@@ -280,9 +285,13 @@ export async function transitionAdminProductPublication(
     if (!product) throw new CatalogPublicationError("The selected product was not found.");
     const variantsNeedTransition = product.variants.some((variant) => variant.publicationStatus !== nextStatus);
     if (product.publicationStatus === nextStatus && !variantsNeedTransition)
-      return { publicationStatus: nextStatus };
+      if (nextStatus !== "PUBLISHED") return { publicationStatus: nextStatus };
 
+    let extractionPublication: { reviewId: string; revisionHash: string } | null = null;
     if (nextStatus === "PUBLISHED") {
+      extractionPublication = await assertProductExtractionPublishable(tx, productId);
+      if (product.publicationStatus === nextStatus && !variantsNeedTransition && !extractionPublication)
+        return { publicationStatus: nextStatus };
       const readinessError = publicationReadinessError({
         productName: product.name,
         companyStatus: product.company?.status ?? "MISSING",
@@ -317,6 +326,26 @@ export async function transitionAdminProductPublication(
         metadata: { previousStatus: product.publicationStatus, publicationStatus: nextStatus },
       },
     });
+    if (nextStatus === "PUBLISHED" && extractionPublication) {
+      const extractionReview = await tx.productExtractionReview.findUniqueOrThrow({
+        where: { id: extractionPublication.reviewId },
+        select: { state: true },
+      });
+      await tx.productExtractionReview.update({
+        where: { id: extractionPublication.reviewId },
+        data: { state: "PUBLISHED", publishedAt: new Date(), publishedById: actorId },
+      });
+      await tx.productExtractionReviewEvent.create({
+        data: {
+          reviewId: extractionPublication.reviewId,
+          fromState: extractionReview.state,
+          toState: "PUBLISHED",
+          action: "PUBLISH",
+          revisionHash: extractionPublication.revisionHash,
+          actorId,
+        },
+      });
+    }
     return { publicationStatus: nextStatus };
   });
 }
@@ -797,7 +826,12 @@ export async function createAdminProduct(companyId: string, input: unknown) {
   throw new Error("Unable to allocate a unique product slug.");
 }
 
-export async function updateAdminProduct(companyId: string, productId: string, input: unknown) {
+export async function updateAdminProduct(
+  companyId: string,
+  productId: string,
+  input: unknown,
+  actorId?: string,
+) {
   const data = catalogProductInputSchema.parse(input);
   const prisma = getWossolExportPrisma();
   const product = await prisma.product.findFirst({
@@ -923,6 +957,55 @@ export async function updateAdminProduct(companyId: string, productId: string, i
             currency: "DZD",
           },
         });
+      }
+    }
+
+    const reviews = await tx.productExtractionReview.findMany({
+      where: { productId, state: { in: ["ACCEPTED", "PUBLISHED"] } },
+      select: { id: true, state: true, currentRevisionHash: true },
+    });
+    if (reviews.length) {
+      const updatedProduct = await tx.product.findUniqueOrThrow({
+        where: { id: productId },
+        select: productExtractionRevisionSelect,
+      });
+      const currentRevisionHash = revisionHashForProduct(updatedProduct);
+      for (const review of reviews) {
+        if (review.currentRevisionHash === currentRevisionHash) continue;
+        await tx.productExtractionReview.update({
+          where: { id: review.id },
+          data: {
+            state: "UNDER_REVIEW",
+            currentRevisionHash,
+            acceptedRevisionHash: null,
+            acceptedAt: null,
+            acceptedById: null,
+            publishedAt: null,
+            publishedById: null,
+            currentCorrectionNote: "Product changed after review; a new review is required.",
+          },
+        });
+        await tx.productExtractionReviewEvent.create({
+          data: {
+            reviewId: review.id,
+            fromState: review.state,
+            toState: "UNDER_REVIEW",
+            action: "PRODUCT_CHANGED_INVALIDATED",
+            revisionHash: currentRevisionHash,
+            decisionNote: "A material Product or Variant change invalidated the previous review.",
+            actorId: actorId ?? null,
+          },
+        });
+        if (review.state === "PUBLISHED") {
+          await tx.product.update({
+            where: { id: productId },
+            data: { publicationStatus: "IN_REVIEW" },
+          });
+          await tx.variant.updateMany({
+            where: { productId, status: "ACTIVE" },
+            data: { publicationStatus: "IN_REVIEW" },
+          });
+        }
       }
     }
   });

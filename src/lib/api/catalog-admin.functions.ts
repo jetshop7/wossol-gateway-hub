@@ -26,6 +26,8 @@ const productFamilyInput = z.object({
 function safeFailure(error: unknown) {
   if (error instanceof Error && error.name === "CatalogPublicationError")
     return { ok: false as const, error: error.message };
+  if (error instanceof Error && error.name === "ProductExtractionReviewError")
+    return { ok: false as const, error: error.message };
   if (error instanceof z.ZodError)
     return { ok: false as const, error: "Please check the highlighted fields." };
   if (typeof error === "object" && error !== null && "code" in error && error.code === "P2002")
@@ -86,6 +88,110 @@ export const transitionAdminProductPublicationFn = createServerFn({ method: "POS
           data.publicationStatus,
           actor.userId,
         )),
+      };
+    } catch (error) {
+      return safeFailure(error);
+    }
+  });
+
+export const createProductExtractionReviewFn = createServerFn({ method: "POST" })
+  .inputValidator(
+    z.object({
+      companyId: idSchema,
+      productId: idSchema.nullable().optional(),
+      extractedAt: z.coerce.date().optional(),
+      verificationState: z.enum(["UNVERIFIED", "PARTIALLY_VERIFIED", "VERIFIED"]).optional(),
+    }),
+  )
+  .handler(async ({ data }) => {
+    try {
+      const actor = await guard("catalog.product.manage");
+      const { createProductExtractionReview } =
+        await import("../../server/catalog/product-extraction-review.server.ts");
+      return {
+        ok: true as const,
+        review: await createProductExtractionReview({ ...data, actorId: actor.userId }),
+      };
+    } catch (error) {
+      return safeFailure(error);
+    }
+  });
+
+export const getProductExtractionReviewFn = createServerFn({ method: "GET" })
+  .inputValidator(z.object({ reviewId: idSchema }))
+  .handler(async ({ data }) => {
+    await guard("catalog.read_internal");
+    const { getProductExtractionReview } =
+      await import("../../server/catalog/product-extraction-review.server.ts");
+    return { ok: true as const, review: await getProductExtractionReview(data.reviewId) };
+  });
+
+export const listProductExtractionReviewsFn = createServerFn({ method: "GET" })
+  .inputValidator(
+    z.object({
+      state: z.enum(["UNDER_REVIEW", "REQUIRES_CORRECTION", "ACCEPTED", "PUBLISHED"]).optional(),
+    }),
+  )
+  .handler(async ({ data }) => {
+    await guard("catalog.read_internal");
+    const { listProductExtractionReviews } =
+      await import("../../server/catalog/product-extraction-review.server.ts");
+    return { ok: true as const, reviews: await listProductExtractionReviews(data.state) };
+  });
+
+export const requestProductExtractionCorrectionFn = createServerFn({ method: "POST" })
+  .inputValidator(z.object({ reviewId: idSchema, correctionNote: z.string().trim().min(1).max(4000) }))
+  .handler(async ({ data }) => {
+    try {
+      const actor = await guard("catalog.product.manage");
+      const { requestProductExtractionCorrection } =
+        await import("../../server/catalog/product-extraction-review.server.ts");
+      return {
+        ok: true as const,
+        review: await requestProductExtractionCorrection(data.reviewId, actor.userId, data.correctionNote),
+      };
+    } catch (error) {
+      return safeFailure(error);
+    }
+  });
+
+export const acceptProductExtractionReviewFn = createServerFn({ method: "POST" })
+  .inputValidator(
+    z.object({
+      reviewId: idSchema,
+      expectedRevisionHash: z.string().length(64),
+      decisionNote: z.string().trim().max(4000).optional(),
+    }),
+  )
+  .handler(async ({ data }) => {
+    try {
+      const actor = await guard("catalog.product.manage");
+      const { acceptProductExtractionReview } =
+        await import("../../server/catalog/product-extraction-review.server.ts");
+      return {
+        ok: true as const,
+        review: await acceptProductExtractionReview(
+          data.reviewId,
+          actor.userId,
+          data.expectedRevisionHash,
+          data.decisionNote,
+        ),
+      };
+    } catch (error) {
+      return safeFailure(error);
+    }
+  });
+
+export const publishProductExtractionReviewFn = createServerFn({ method: "POST" })
+  .inputValidator(z.object({ reviewId: idSchema }))
+  .handler(async ({ data }) => {
+    try {
+      const actor = await guard("catalog.publish");
+      const { publishProductExtractionReview } =
+        await import("../../server/catalog/product-extraction-review.server.ts");
+      return {
+        ok: true as const,
+        review: await publishProductExtractionReview(data.reviewId, actor.userId),
       };
     } catch (error) {
       return safeFailure(error);
@@ -234,10 +340,10 @@ export const updateAdminProductFn = createServerFn({ method: "POST" })
   )
   .handler(async ({ data }) => {
     try {
-      await guard("catalog.product.manage");
+      const actor = await guard("catalog.product.manage");
       const { updateAdminProduct } =
         await import("../../server/catalog/catalog.admin.repository.server.ts");
-      const updated = await updateAdminProduct(data.companyId, data.productId, data.data);
+      const updated = await updateAdminProduct(data.companyId, data.productId, data.data, actor.userId);
       return { ok: true as const, ...updated };
     } catch (error) {
       return safeFailure(error);
