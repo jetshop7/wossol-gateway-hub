@@ -8,6 +8,8 @@ const admin = readFileSync(new URL("../../lib/admin.tsx", import.meta.url), "utf
 
 test("Admin extraction review UI exposes the guarded review lifecycle", () => {
   assert.match(route, /createProductExtractionReviewFn/);
+  assert.match(route, /pageSize: 50/);
+  assert.doesNotMatch(route, /pageSize: 100/);
   assert.match(route, /requestProductExtractionCorrectionFn/);
   assert.match(route, /acceptProductExtractionReviewFn/);
   assert.match(route, /publishProductExtractionReviewFn/);

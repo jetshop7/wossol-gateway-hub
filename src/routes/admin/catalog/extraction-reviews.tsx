@@ -17,7 +17,7 @@ export const Route = createFileRoute("/admin/catalog/extraction-reviews")({
   loader: async () => {
     const [reviewResult, productResult] = await Promise.all([
       listProductExtractionReviewsFn({ data: {} }),
-      getAdminProductsDirectoryFn({ data: { query: "", page: 0, pageSize: 100 } }),
+      getAdminProductsDirectoryFn({ data: { query: "", page: 0, pageSize: 50 } }),
     ]);
     return { ...reviewResult, products: productResult.products };
   },
