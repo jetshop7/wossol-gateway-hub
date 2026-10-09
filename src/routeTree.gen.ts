@@ -31,6 +31,7 @@ import { Route as ClientFavoritesRouteImport } from './routes/client.favorites'
 import { Route as ClientLoginRouteImport } from './routes/client.login'
 import { Route as PartnerIndexRouteImport } from './routes/partner.index'
 import { Route as PartnerFavoritesRouteImport } from './routes/partner.favorites'
+import { Route as PartnerPricingRouteImport } from './routes/partner.pricing'
 import { Route as AdminCatalogClientsRouteImport } from './routes/admin/catalog/clients'
 import { Route as AdminCatalogCompaniesRouteImport } from './routes/admin/catalog/companies'
 import { Route as AdminCatalogExtractionReviewsRouteImport } from './routes/admin/catalog/extraction-reviews'
@@ -153,6 +154,11 @@ const PartnerFavoritesRoute = PartnerFavoritesRouteImport.update({
   path: '/favorites',
   getParentRoute: () => PartnerRoute,
 } as any)
+const PartnerPricingRoute = PartnerPricingRouteImport.update({
+  id: '/pricing',
+  path: '/pricing',
+  getParentRoute: () => PartnerRoute,
+} as any)
 const AdminCatalogClientsRoute = AdminCatalogClientsRouteImport.update({
   id: '/clients',
   path: '/clients',
@@ -235,6 +241,7 @@ export interface FileRoutesByFullPath {
   '/client/favorites': typeof ClientFavoritesRoute
   '/client/login': typeof ClientLoginRoute
   '/partner/favorites': typeof PartnerFavoritesRoute
+  '/partner/pricing': typeof PartnerPricingRoute
   '/client/': typeof ClientIndexRoute
   '/partner/': typeof PartnerIndexRoute
   '/admin/catalog/clients': typeof AdminCatalogClientsRoute
@@ -267,6 +274,7 @@ export interface FileRoutesByTo {
   '/client/favorites': typeof ClientFavoritesRoute
   '/client/login': typeof ClientLoginRoute
   '/partner/favorites': typeof PartnerFavoritesRoute
+  '/partner/pricing': typeof PartnerPricingRoute
   '/client': typeof ClientIndexRoute
   '/partner': typeof PartnerIndexRoute
   '/admin/catalog/clients': typeof AdminCatalogClientsRoute
@@ -303,6 +311,7 @@ export interface FileRoutesById {
   '/client/favorites': typeof ClientFavoritesRoute
   '/client/login': typeof ClientLoginRoute
   '/partner/favorites': typeof PartnerFavoritesRoute
+  '/partner/pricing': typeof PartnerPricingRoute
   '/client/': typeof ClientIndexRoute
   '/partner/': typeof PartnerIndexRoute
   '/admin/catalog/clients': typeof AdminCatalogClientsRoute
@@ -340,6 +349,7 @@ export interface FileRouteTypes {
     | '/client/favorites'
     | '/client/login'
     | '/partner/favorites'
+    | '/partner/pricing'
     | '/client/'
     | '/partner/'
     | '/admin/catalog/clients'
@@ -372,6 +382,7 @@ export interface FileRouteTypes {
     | '/client/favorites'
     | '/client/login'
     | '/partner/favorites'
+    | '/partner/pricing'
     | '/client'
     | '/partner'
     | '/admin/catalog/clients'
@@ -407,6 +418,7 @@ export interface FileRouteTypes {
     | '/client/favorites'
     | '/client/login'
     | '/partner/favorites'
+    | '/partner/pricing'
     | '/client/'
     | '/partner/'
     | '/admin/catalog/clients'
@@ -595,6 +607,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PartnerFavoritesRouteImport
       parentRoute: typeof PartnerRoute
     }
+    '/partner/pricing': {
+      id: '/partner/pricing'
+      path: '/pricing'
+      fullPath: '/partner/pricing'
+      preLoaderRoute: typeof PartnerPricingRouteImport
+      parentRoute: typeof PartnerRoute
+    }
     '/admin/catalog/clients': {
       id: '/admin/catalog/clients'
       path: '/clients'
@@ -757,12 +776,14 @@ const ClientRouteWithChildren =
 
 interface PartnerRouteChildren {
   PartnerFavoritesRoute: typeof PartnerFavoritesRoute
+  PartnerPricingRoute: typeof PartnerPricingRoute
   PartnerIndexRoute: typeof PartnerIndexRoute
   PartnerProductsProductReferenceRoute: typeof PartnerProductsProductReferenceRoute
 }
 
 const PartnerRouteChildren: PartnerRouteChildren = {
   PartnerFavoritesRoute: PartnerFavoritesRoute,
+  PartnerPricingRoute: PartnerPricingRoute,
   PartnerIndexRoute: PartnerIndexRoute,
   PartnerProductsProductReferenceRoute: PartnerProductsProductReferenceRoute,
 }

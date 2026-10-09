@@ -97,7 +97,7 @@ export function toClientCatalogProduct(input: {
             .filter((item): item is string => item !== null)
         : [],
       packaging: toClientPackaging(variant.packaging),
-      ...(variant.price ? { price: { price: variant.price.price, currency: "DZD" as const } } : {}),
+      ...(variant.price ? { price: variant.price } : {}),
     })),
   };
 }

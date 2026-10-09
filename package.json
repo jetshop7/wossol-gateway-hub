@@ -14,6 +14,7 @@
     "test:auth": "node --experimental-strip-types --test src/server/auth/auth.security.test.ts",
     "test:client-visibility": "node --experimental-strip-types --test src/server/catalog/client-visibility.test.ts",
     "test:client-pricing": "node --experimental-strip-types --test src/server/catalog/client-pricing.test.ts",
+    "test:partner-pricing": "node --experimental-strip-types --test src/server/catalog/partner-pricing.test.ts src/server/catalog/partner-pricing-schema.contract.test.ts",
     "test:client-catalog": "node --experimental-strip-types --test src/server/catalog/client-catalog.dto.test.ts src/lib/countries.test.ts",
     "test:client-catalog-integration": "node --experimental-strip-types --test src/server/catalog/client-catalog.integration.test.ts src/server/catalog/client-login-management.integration.test.ts src/server/catalog/partner-accounts.integration.test.ts",
     "test:taxonomy": "node --experimental-strip-types --test src/server/catalog/gs1-gpc-import.test.ts src/server/catalog/catalog.taxonomy-admin.test.ts",

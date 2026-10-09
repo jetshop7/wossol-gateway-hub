@@ -214,7 +214,8 @@ function RootShell({ children }: { children: ReactNode }) {
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   const pathname = useLocation().pathname;
-  const isPrivateSurface = pathname.startsWith("/admin") || pathname.startsWith("/client");
+  const isPrivateSurface =
+    pathname.startsWith("/admin") || pathname.startsWith("/client") || pathname.startsWith("/partner");
 
   return (
     <QueryClientProvider client={queryClient}>

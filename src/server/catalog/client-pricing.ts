@@ -42,12 +42,12 @@ export type ClientPriceResolution = {
   priceProfileName: string;
   ruleSource: ClientPriceRuleSource;
   finalClientPrice: string;
-  currency: "DZD";
+  currency: string;
 };
 
 export type ClientVisiblePriceDto = {
   price: string;
-  currency: "DZD";
+  currency: string;
 };
 
 export class ClientPricingUnavailableError extends Error {
@@ -77,11 +77,12 @@ export function resolveClientPrice(input: {
   client?: ClientPricingAccount;
 }): ClientPriceResolution {
   const { variant, profile, client } = input;
+  const currency = variant.currency.trim().toUpperCase();
   if (
     profile.status !== "ACTIVE" ||
     variant.status !== "ACTIVE" ||
     variant.publicationStatus !== "PUBLISHED" ||
-    variant.currency !== "DZD"
+    !/^[A-Z]{3}$/.test(currency)
   )
     throw new ClientPricingUnavailableError();
 
@@ -130,7 +131,7 @@ export function resolveClientPrice(input: {
     priceProfileName: profile.name,
     ruleSource,
     finalClientPrice: finalPrice.toFixed(2),
-    currency: "DZD",
+    currency,
   };
 }
 

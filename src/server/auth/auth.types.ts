@@ -20,6 +20,7 @@ export const PARTNER_CAPABILITIES = [
   "partner.catalog.read",
   "partner.catalog.favorite",
   "partner.account.read",
+  "partner.pricing.manage",
 ] as const;
 export type PartnerCapability = (typeof PARTNER_CAPABILITIES)[number];
 

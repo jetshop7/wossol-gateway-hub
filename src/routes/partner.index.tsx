@@ -5,7 +5,12 @@ import { PackageSearch, Search } from "lucide-react";
 import { ClientCatalogProductCard } from "@/components/ClientCatalogProductCard";
 import { PartnerWorkspaceHeader } from "@/components/PartnerWorkspaceHeader";
 import { getCurrentActor } from "@/lib/api/auth.functions";
-import { getPartnerCatalogFn, getPartnerWorkspaceIdentityFn } from "@/lib/api/partner.functions";
+import {
+  getPartnerCatalogFn,
+  getPartnerWorkspaceIdentityFn,
+  setPartnerCatalogFavoriteFn,
+} from "@/lib/api/partner.functions";
+import { readCsrfToken } from "@/lib/admin-csrf";
 
 export const Route = createFileRoute("/partner/")({
   loader: async () => {
@@ -26,6 +31,7 @@ function PartnerCatalogPage() {
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
+  const [favoriteBusy, setFavoriteBusy] = useState<string | null>(null);
   const requestId = useRef(0);
 
   useEffect(() => {
@@ -50,6 +56,25 @@ function PartnerCatalogPage() {
     return () => window.clearTimeout(timer);
   }, [query]);
 
+  const toggleFavorite = async (product: (typeof catalog.products)[number]) => {
+    setFavoriteBusy(product.reference);
+    try {
+      const next = !product.isFavorite;
+      await setPartnerCatalogFavoriteFn({
+        data: { productReference: product.reference, isFavorite: next },
+        headers: { "x-wossol-csrf": readCsrfToken() ?? "" },
+      });
+      setCatalog((current) => ({
+        ...current,
+        products: current.products.map((item) =>
+          item.reference === product.reference ? { ...item, isFavorite: next } : item,
+        ),
+      }));
+    } finally {
+      setFavoriteBusy(null);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#f5f7fa] text-slate-950">
       <PartnerWorkspaceHeader identity={identity} current="catalog" />
@@ -60,7 +85,7 @@ function PartnerCatalogPage() {
           </p>
           <h1 className="mt-2 text-3xl font-semibold">Authorized product catalog</h1>
           <p className="mt-2 text-sm text-blue-100">
-            Products and Wossol-assigned prices available to your account.
+            Products and Partner resale prices available to your account.
           </p>
         </section>
         <label className="mt-7 flex max-w-xl items-center gap-3 rounded-xl border border-slate-300 bg-white px-4 py-3 shadow-sm">
@@ -87,6 +112,8 @@ function PartnerCatalogPage() {
                 key={product.reference}
                 product={product}
                 workspaceBase="/partner"
+                favoriteBusy={favoriteBusy === product.reference}
+                onToggleFavorite={(item) => void toggleFavorite(item)}
               />
             ))}
           </section>

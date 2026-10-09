@@ -48,8 +48,11 @@ export const Route = createFileRoute("/api/catalog-images")({
           if (actor?.actorType === "INTERNAL")
             await requireCatalogCapability("catalog.read_internal");
           else if (
-            actor?.actorType !== "CLIENT" ||
-            !(await isClientProductVisible(actor.clientAccountId!, imageVariant.productId))
+            actor?.actorType === "CLIENT"
+              ? !(await isClientProductVisible(actor.clientAccountId!, imageVariant.productId))
+              : actor?.actorType === "PARTNER"
+                ? !(await isClientProductVisible(actor.catalogAccountId!, imageVariant.productId))
+                : true
           )
             return new Response("Not found", { status: 404 });
           const image = await loadCatalogImage(imageId);

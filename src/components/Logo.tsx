@@ -4,12 +4,13 @@ import logo from "@/assets/logo.png";
 type LogoProps = {
   className?: string;
   imageClassName?: string;
+  to?: "/" | "/partner";
 };
 
-export function Logo({ className = "", imageClassName = "" }: LogoProps) {
+export function Logo({ className = "", imageClassName = "", to = "/" }: LogoProps) {
   return (
     <Link
-      to="/"
+      to={to}
       className={`inline-flex items-center shrink-0 ${className}`}
       aria-label="Wossol Export home"
     >

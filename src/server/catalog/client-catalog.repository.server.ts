@@ -1,6 +1,11 @@
 import { findClientVisibleProductIds } from "./client-visibility.repository.server.ts";
 import { resolveClientPrice, toClientVisiblePriceDto } from "./client-pricing.ts";
 import {
+  resolvePartnerResalePrice,
+  selectPartnerResaleRule,
+  type PartnerResaleRule,
+} from "./partner-pricing.ts";
+import {
   clientEligibleVariants,
   toClientCatalogProduct,
   type ClientCatalogProductDto,
@@ -18,6 +23,7 @@ async function getCatalogForAccount(
     productIds?: string[];
   } = {},
   audience: "CLIENT" | "PARTNER" = "CLIENT",
+  partnerAccountId?: string,
 ) {
   const prisma = getWossolExportPrisma();
   const account = await prisma.clientAccount.findUnique({
@@ -40,6 +46,17 @@ async function getCatalogForAccount(
   )
     throw new Error("Catalog account is unavailable.");
   const pricesVisible = audience === "PARTNER" || account.pricesVisible;
+  const partnerPolicy =
+    audience === "PARTNER" && partnerAccountId
+      ? await prisma.partnerResalePricingPolicy.findUnique({
+          where: { partnerAccountId },
+          select: {
+            defaultMode: true,
+            defaultValue: true,
+            defaultCurrencyCode: true,
+          },
+        })
+      : null;
   if (account.catalogAccessStatus !== "ENABLED")
     return {
       accessEnabled: false as const,
@@ -167,6 +184,25 @@ async function getCatalogForAccount(
         })
       : [];
   const overrideByVariant = new Map(overrides.map((override) => [override.variantId, override]));
+  const partnerProductOverrides =
+    audience === "PARTNER" && partnerPolicy
+      ? await prisma.partnerResaleProductOverride.findMany({
+          where: { policy: { partnerAccountId }, productId: { in: pageIds } },
+          select: { productId: true, mode: true, value: true, currencyCode: true },
+        })
+      : [];
+  const partnerVariantOverrides =
+    audience === "PARTNER" && partnerPolicy
+      ? await prisma.partnerResaleVariantOverride.findMany({
+          where: { policy: { partnerAccountId }, variantId: { in: allVariants.map((variant) => variant.id) } },
+          select: { variantId: true, mode: true, value: true, currencyCode: true },
+        })
+      : [];
+  const partnerProductOverrideByProduct = new Map(partnerProductOverrides.map((override) => [override.productId, override]));
+  const partnerVariantOverrideByVariant = new Map(partnerVariantOverrides.map((override) => [override.variantId, override]));
+  const partnerDefaultRule: PartnerResaleRule | null = partnerPolicy?.defaultMode
+    ? { mode: partnerPolicy.defaultMode, value: partnerPolicy.defaultValue!, currencyCode: partnerPolicy.defaultCurrencyCode }
+    : null;
   const ordered = new Map(rows.map((product) => [product.id, product]));
   const products = pageIds.flatMap((id) => {
     const row = ordered.get(id);
@@ -209,6 +245,20 @@ async function getCatalogForAccount(
               client: pricesVisible ? { ...account, pricesVisible: true } : account,
             }),
           );
+          if (audience === "PARTNER" && partnerAccountId && price) {
+            const selected = selectPartnerResaleRule({
+              variantOverride: partnerVariantOverrideByVariant.get(variant.id),
+              productOverride: partnerProductOverrideByProduct.get(row.id),
+              defaultRule: partnerDefaultRule,
+            });
+            const resale = resolvePartnerResalePrice({
+              upstreamAmount: price.price,
+              upstreamCurrencyCode: price.currency,
+              rule: selected.rule,
+              ruleSource: selected.ruleSource === "NONE" ? undefined : selected.ruleSource,
+            });
+            price = { price: resale.resalePrice, currency: resale.currencyCode };
+          }
         } catch {
           // Missing/ineligible pricing is intentionally represented as price-on-request.
         }
@@ -256,7 +306,7 @@ export async function getPartnerCatalog(
   partnerAccountId: string,
   input: Parameters<typeof getCatalogForAccount>[1] = {},
 ) {
-  return getCatalogForAccount(await getPartnerCatalogAccountId(partnerAccountId), input, "PARTNER");
+  return getCatalogForAccount(await getPartnerCatalogAccountId(partnerAccountId), input, "PARTNER", partnerAccountId);
 }
 
 export async function findProductByPublicReference(
@@ -302,7 +352,7 @@ export async function getPartnerCatalogProduct(partnerAccountId: string, product
   const catalogAccountId = await getPartnerCatalogAccountId(partnerAccountId);
   const product = await resolveProductByPublicReference(productReference);
   if (!product) return null;
-  const result = await getCatalogForAccount(catalogAccountId, { productId: product.id }, "PARTNER");
+  const result = await getCatalogForAccount(catalogAccountId, { productId: product.id }, "PARTNER", partnerAccountId);
   return result.accessEnabled ? (result.products[0] ?? null) : null;
 }
 
@@ -342,6 +392,7 @@ export async function getPartnerCatalogFavorites(partnerAccountId: string, skip 
     catalogAccountId,
     { productIds: visibleIds.slice(0, 100) },
     "PARTNER",
+    partnerAccountId,
   );
   return { ...catalog, hasMore: visibleIds.length > 100 };
 }

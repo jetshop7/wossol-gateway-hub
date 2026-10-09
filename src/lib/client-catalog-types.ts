@@ -1,4 +1,4 @@
-export type ClientCatalogPriceDto = { price: string; currency: "DZD" };
+export type ClientCatalogPriceDto = { price: string; currency: string };
 
 export type ClientCatalogVariantDto = {
   name: string | null;

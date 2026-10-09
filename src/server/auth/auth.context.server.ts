@@ -22,8 +22,10 @@ import {
 import {
   can,
   capabilitiesForRole,
+  partnerCan,
   type AuthCapability,
   type AuthenticatedActor,
+  type PartnerCapability,
 } from "./auth.types.ts";
 
 const cookieOptions = {
@@ -92,6 +94,7 @@ export async function resolveAuthenticatedActor(): Promise<AuthenticatedActor | 
         "partner.catalog.read",
         "partner.catalog.favorite",
         "partner.account.read",
+        "partner.pricing.manage",
       ],
       sessionId: session.id,
     };
@@ -129,6 +132,13 @@ export async function requirePartnerActor() {
   const actor = await requireAuthenticatedActor();
   if (actor.actorType !== "PARTNER" || !actor.partnerAccountId || !actor.catalogAccountId)
     throw new AuthorizationError("Partner workspace access is required.");
+  return actor;
+}
+
+export async function requirePartnerCapability(capability: PartnerCapability) {
+  const actor = await requirePartnerActor();
+  if (!partnerCan(actor, capability))
+    throw new AuthorizationError("The partner actor lacks the required capability.");
   return actor;
 }
 

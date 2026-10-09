@@ -89,6 +89,11 @@ enum VariantPricingMethod {
   FIXED_SELLING_PRICE
 }
 
+enum PartnerResalePricingMode {
+  PERCENTAGE_ADDITION
+  FIXED_ADDITION
+}
+
 enum PipelineCompanyLinkageStatus {
   PROPOSED
   LINKED
@@ -764,6 +769,7 @@ model Product {
   clientFavorites       ClientCatalogFavorite[]
   extractionReviews     ProductExtractionReview[]
   extractionSources     ProductExtractionSource[]
+  partnerResaleProductOverrides PartnerResaleProductOverride[]
 
   @@index([companyId, publicationStatus])
   @@index([brandId])
@@ -796,6 +802,7 @@ model Variant {
   product          Product                @relation(fields: [productId], references: [id], onDelete: Restrict)
   priceHistory     VariantPriceHistory[]
   profileOverrides VariantPriceOverride[]
+  partnerResaleVariantOverrides PartnerResaleVariantOverride[]
 
   @@index([productId, status, publicationStatus])
   @@map("catalog_variants")
@@ -1122,8 +1129,64 @@ model PartnerAccount {
   users          PartnerUser[]
   sessions       AuthSession[]
   auditEvents    AuthAuditEvent[]
+  resalePricingPolicy PartnerResalePricingPolicy?
 
   @@map("export_partner_accounts")
+}
+
+/// Partner-owned resale rules are deliberately separate from Wossol PriceProfile
+/// and VariantPriceOverride records. Values are additions to the Wossol-assigned
+/// partner price, never replacements for Wossol's upstream price.
+model PartnerResalePricingPolicy {
+  id              String                    @id @default(uuid()) @db.Uuid
+  partnerAccountId String                   @unique @map("partner_account_id") @db.Uuid
+  defaultMode     PartnerResalePricingMode? @map("default_mode")
+  defaultValue    Decimal?                  @map("default_value") @db.Decimal(14, 4)
+  defaultCurrencyCode String?               @map("default_currency_code") @db.VarChar(3)
+  createdAt       DateTime                  @default(now()) @map("created_at")
+  updatedAt       DateTime                  @updatedAt @map("updated_at")
+
+  partnerAccount   PartnerAccount                 @relation(fields: [partnerAccountId], references: [id], onDelete: Restrict)
+  productOverrides PartnerResaleProductOverride[]
+  variantOverrides PartnerResaleVariantOverride[]
+
+  @@map("export_partner_resale_pricing_policies")
+}
+
+model PartnerResaleProductOverride {
+  id                   String                    @id @default(uuid()) @db.Uuid
+  policyId             String                    @map("policy_id") @db.Uuid
+  productId            String                    @map("product_id") @db.Uuid
+  mode                 PartnerResalePricingMode
+  value                Decimal                   @db.Decimal(14, 4)
+  currencyCode         String?                   @map("currency_code") @db.VarChar(3)
+  createdAt            DateTime                  @default(now()) @map("created_at")
+  updatedAt            DateTime                  @updatedAt @map("updated_at")
+
+  policy  PartnerResalePricingPolicy @relation(fields: [policyId], references: [id], onDelete: Restrict)
+  product Product                    @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  @@unique([policyId, productId])
+  @@index([productId])
+  @@map("export_partner_resale_product_overrides")
+}
+
+model PartnerResaleVariantOverride {
+  id                   String                    @id @default(uuid()) @db.Uuid
+  policyId             String                    @map("policy_id") @db.Uuid
+  variantId            String                    @map("variant_id") @db.Uuid
+  mode                 PartnerResalePricingMode
+  value                Decimal                   @db.Decimal(14, 4)
+  currencyCode         String?                   @map("currency_code") @db.VarChar(3)
+  createdAt            DateTime                  @default(now()) @map("created_at")
+  updatedAt            DateTime                  @updatedAt @map("updated_at")
+
+  policy  PartnerResalePricingPolicy @relation(fields: [policyId], references: [id], onDelete: Restrict)
+  variant Variant                    @relation(fields: [variantId], references: [id], onDelete: Restrict)
+
+  @@unique([policyId, variantId])
+  @@index([variantId])
+  @@map("export_partner_resale_variant_overrides")
 }
 
 model PartnerUser {

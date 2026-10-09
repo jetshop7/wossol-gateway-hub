@@ -83,6 +83,90 @@ export const setPartnerCatalogFavoriteFn = createServerFn({ method: "POST" })
     );
   });
 
+const resaleRuleInput = z.object({
+  mode: z.enum(["PERCENTAGE_ADDITION", "FIXED_ADDITION"]).nullable(),
+  value: z.string().trim().max(40).nullable(),
+  currencyCode: z.string().trim().max(3).nullable(),
+});
+
+export const getPartnerResalePricingFn = createServerFn({ method: "GET" }).handler(async () => {
+  const [{ requirePartnerCapability }, { getPartnerResalePricing }] = await Promise.all([
+    import("../../server/auth/auth.context.server.ts"),
+    import("../../server/catalog/partner-pricing.repository.server.ts"),
+  ]);
+  const actor = await requirePartnerCapability("partner.pricing.manage");
+  return getPartnerResalePricing(actor.partnerAccountId!);
+});
+
+export const getPartnerResalePricingCatalogFn = createServerFn({ method: "GET" }).handler(async () => {
+  const [{ requirePartnerCapability }, { getPartnerResalePricingCatalog }] = await Promise.all([
+    import("../../server/auth/auth.context.server.ts"),
+    import("../../server/catalog/partner-pricing.repository.server.ts"),
+  ]);
+  const actor = await requirePartnerCapability("partner.pricing.manage");
+  return getPartnerResalePricingCatalog(actor.partnerAccountId!);
+});
+
+export const savePartnerResaleDefaultFn = createServerFn({ method: "POST" })
+  .validator(resaleRuleInput)
+  .handler(async ({ data }) => {
+    const [{ requirePartnerCapability, requireMutationCsrf }, { savePartnerResaleDefault }] = await Promise.all([
+      import("../../server/auth/auth.context.server.ts"),
+      import("../../server/catalog/partner-pricing.repository.server.ts"),
+    ]);
+    requireMutationCsrf();
+    const actor = await requirePartnerCapability("partner.pricing.manage");
+    return savePartnerResaleDefault(actor.partnerAccountId!, data, actor.userId);
+  });
+
+export const savePartnerResaleProductOverrideFn = createServerFn({ method: "POST" })
+  .validator(z.object({ productReference: z.string().trim().min(1).max(80), rule: resaleRuleInput }))
+  .handler(async ({ data }) => {
+    const [{ requirePartnerCapability, requireMutationCsrf }, { savePartnerResaleProductOverride }] = await Promise.all([
+      import("../../server/auth/auth.context.server.ts"),
+      import("../../server/catalog/partner-pricing.repository.server.ts"),
+    ]);
+    requireMutationCsrf();
+    const actor = await requirePartnerCapability("partner.pricing.manage");
+    return savePartnerResaleProductOverride(actor.partnerAccountId!, data.productReference, data.rule, actor.userId);
+  });
+
+export const removePartnerResaleProductOverrideFn = createServerFn({ method: "POST" })
+  .validator(z.object({ productReference: z.string().trim().min(1).max(80) }))
+  .handler(async ({ data }) => {
+    const [{ requirePartnerCapability, requireMutationCsrf }, { removePartnerResaleProductOverride }] = await Promise.all([
+      import("../../server/auth/auth.context.server.ts"),
+      import("../../server/catalog/partner-pricing.repository.server.ts"),
+    ]);
+    requireMutationCsrf();
+    const actor = await requirePartnerCapability("partner.pricing.manage");
+    return removePartnerResaleProductOverride(actor.partnerAccountId!, data.productReference, actor.userId);
+  });
+
+export const savePartnerResaleVariantOverrideFn = createServerFn({ method: "POST" })
+  .validator(z.object({ variantSku: z.string().trim().min(1).max(80), rule: resaleRuleInput }))
+  .handler(async ({ data }) => {
+    const [{ requirePartnerCapability, requireMutationCsrf }, { savePartnerResaleVariantOverride }] = await Promise.all([
+      import("../../server/auth/auth.context.server.ts"),
+      import("../../server/catalog/partner-pricing.repository.server.ts"),
+    ]);
+    requireMutationCsrf();
+    const actor = await requirePartnerCapability("partner.pricing.manage");
+    return savePartnerResaleVariantOverride(actor.partnerAccountId!, data.variantSku, data.rule, actor.userId);
+  });
+
+export const removePartnerResaleVariantOverrideFn = createServerFn({ method: "POST" })
+  .validator(z.object({ variantSku: z.string().trim().min(1).max(80) }))
+  .handler(async ({ data }) => {
+    const [{ requirePartnerCapability, requireMutationCsrf }, { removePartnerResaleVariantOverride }] = await Promise.all([
+      import("../../server/auth/auth.context.server.ts"),
+      import("../../server/catalog/partner-pricing.repository.server.ts"),
+    ]);
+    requireMutationCsrf();
+    const actor = await requirePartnerCapability("partner.pricing.manage");
+    return removePartnerResaleVariantOverride(actor.partnerAccountId!, data.variantSku, actor.userId);
+  });
+
 export const getPartnerTaxonomyCategoriesFn = createServerFn({ method: "GET" })
   .validator(z.object({ parent: taxonomyParent }))
   .handler(async ({ data }) => {

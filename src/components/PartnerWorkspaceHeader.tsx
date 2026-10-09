@@ -10,7 +10,7 @@ export function PartnerWorkspaceHeader({
   current,
 }: {
   identity: { partnerName: string; userDisplayName: string };
-  current: "catalog" | "favorites";
+  current: "catalog" | "favorites" | "pricing";
 }) {
   const router = useRouter();
   const signOut = async () => {
@@ -22,7 +22,7 @@ export function PartnerWorkspaceHeader({
   return (
     <header className="border-b border-slate-200 bg-white">
       <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
-        <Logo imageClassName="h-10" />
+        <Logo to="/partner" imageClassName="h-10" />
         <nav className="flex items-center gap-2 text-sm">
           <a
             href="/partner"
@@ -37,6 +37,13 @@ export function PartnerWorkspaceHeader({
             className={`rounded-lg px-3 py-2 font-semibold ${current === "favorites" ? "bg-blue-50 text-[#102c50]" : "text-slate-600 hover:bg-slate-50"}`}
           >
             Favorites
+          </a>
+          <a
+            href="/partner/pricing"
+            aria-current={current === "pricing" ? "page" : undefined}
+            className={`rounded-lg px-3 py-2 font-semibold ${current === "pricing" ? "bg-blue-50 text-[#102c50]" : "text-slate-600 hover:bg-slate-50"}`}
+          >
+            Pricing
           </a>
         </nav>
         <div className="flex items-center gap-4">

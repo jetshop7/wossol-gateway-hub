@@ -44,6 +44,14 @@ test("profile adjustments use precise DZD decimal arithmetic", () => {
   );
 });
 
+test("existing client price resolution preserves a valid non-DZD currency code", () => {
+  const result = resolveClientPrice({
+    variant: { ...activeVariant, currency: "EUR" },
+    profile: profile("0"),
+  });
+  assert.equal(result.currency, "EUR");
+});
+
 test("fixed and percentage Variant/Profile overrides replace the profile default", () => {
   const fixed = resolveClientPrice({
     variant: activeVariant,
