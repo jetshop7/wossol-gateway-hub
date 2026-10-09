@@ -6,6 +6,7 @@ export type ClientCatalogVariantDto = {
   mainImageUrl: string | null;
   additionalImageUrls: string[];
   packaging: Record<string, string | number | boolean>;
+  specifications: Array<{ label: string; value: string }>;
   price?: ClientCatalogPriceDto;
 };
 

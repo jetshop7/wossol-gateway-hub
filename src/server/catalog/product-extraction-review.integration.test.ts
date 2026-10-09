@@ -52,8 +52,12 @@ test(
       productId = product.id;
       variantId = (await prisma.variant.findFirstOrThrow({ where: { productId } })).id;
 
-      const review = await createProductExtractionReview({ companyId, productId, actorId });
+      const review = await createProductExtractionReview({ companyId, productId, actorId, verificationState: "VERIFIED" });
       reviewId = review.id;
+      await assert.rejects(
+        () => createProductExtractionReview({ companyId, productId, actorId }),
+        /already has an open extraction review/,
+      );
       const source = await prisma.productExtractionSource.create({
         data: {
           reviewId,
@@ -61,6 +65,9 @@ test(
           productId,
           kind: "PRODUCT",
           url: "https://supplier.example/products/synthetic",
+          title: "Synthetic product page",
+          excerpt: "Synthetic reviewed product",
+          reference: "Product page, overview",
           retrievedAt: new Date(),
         },
       });
@@ -80,6 +87,7 @@ test(
           kind: "IMAGE",
           originalUrl: "https://supplier.example/images/synthetic.jpg",
           rightsStatus: "UNKNOWN",
+          usageRightsNote: "Rights confirmation pending.",
         },
       });
 
@@ -120,6 +128,8 @@ test(
       assert.ok(currentProduct);
       const currentHash = revisionHashForProduct(currentProduct);
       await acceptProductExtractionReview(reviewId, actorId, currentHash);
+      await assert.rejects(() => publishProductExtractionReview(reviewId!, actorId!), /cleared usage rights/);
+      await prisma.productExtractionAsset.updateMany({ where: { reviewId }, data: { rightsStatus: "CLEARED" } });
       await publishProductExtractionReview(reviewId, actorId);
       assert.equal((await prisma.product.findUniqueOrThrow({ where: { id: productId } })).publicationStatus, "PUBLISHED");
       assert.equal((await prisma.productExtractionReview.findUniqueOrThrow({ where: { id: reviewId } })).state, "PUBLISHED");

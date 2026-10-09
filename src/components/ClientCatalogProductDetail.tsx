@@ -20,6 +20,10 @@ const fieldLabels: Record<string, string> = {
   leadTimeMinimum: "Lead time from",
   leadTimeMaximum: "Lead time up to",
   sampleAvailable: "Samples",
+  bundleWeight: "Bundle weight",
+  tieWire: "Tying wire",
+  straightBarTiePoints: "Straight-bar tie points",
+  coilTiePoints: "Coil tie points",
 };
 
 function formatValue(
@@ -153,6 +157,10 @@ export function ClientCatalogProductDetail({
     "cartonHeight",
     "unitsPerPallet",
     "cartonsPerPallet",
+    "bundleWeight",
+    "tieWire",
+    "straightBarTiePoints",
+    "coilTiePoints",
   ];
   const supplyKeys = [
     "moqQuantity",
@@ -309,7 +317,20 @@ export function ClientCatalogProductDetail({
                       </dl>
                     </section>
                   )}
-                  {!packaging.length && !supply.length && (
+                  {variant.specifications.length > 0 && (
+                    <section className="mt-6">
+                      <h4 className="text-sm font-semibold text-slate-800">Technical specifications</h4>
+                      <dl className="mt-3 grid gap-3 sm:grid-cols-2">
+                        {variant.specifications.map((item) => (
+                          <div key={item.label} className="rounded-xl bg-slate-50 px-3 py-2.5">
+                            <dt className="text-xs text-slate-500">{item.label}</dt>
+                            <dd className="mt-1 text-sm font-medium text-slate-800">{item.value}</dd>
+                          </div>
+                        ))}
+                      </dl>
+                    </section>
+                  )}
+                  {!packaging.length && !supply.length && !variant.specifications.length && (
                     <p className="mt-6 text-sm text-slate-500">
                       Contact Wossol for further format specifications.
                     </p>

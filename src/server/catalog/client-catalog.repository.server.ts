@@ -99,6 +99,12 @@ async function getCatalogForAccount(
       countryOfOrigin: true,
       shortDescription: true,
       description: true,
+      extractionReviews: {
+        where: { state: { in: ["ACCEPTED", "PUBLISHED"] } },
+        orderBy: { updatedAt: "desc" },
+        take: 1,
+        select: { verificationState: true },
+      },
       taxonomyNode: {
         select: {
           source: true,
@@ -157,6 +163,7 @@ async function getCatalogForAccount(
           mainImageUrl: true,
           additionalImageUrls: true,
           packaging: true,
+          attributes: true,
           sellingPrice: true,
           currency: true,
           status: true,
@@ -269,7 +276,10 @@ async function getCatalogForAccount(
       toClientCatalogProduct({
         publicReference: row.publicReference,
         name: row.name,
-        countryOfOrigin: row.countryOfOrigin,
+        countryOfOrigin:
+          row.extractionReviews.length === 0 || row.extractionReviews[0].verificationState === "VERIFIED"
+            ? row.countryOfOrigin
+            : null,
         shortDescription: row.shortDescription,
         description: row.description,
         pricesVisible,

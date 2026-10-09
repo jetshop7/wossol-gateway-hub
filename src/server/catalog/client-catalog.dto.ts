@@ -43,7 +43,43 @@ const PACKAGING_KEYS = [
   "leadTimeMaximum",
   "leadTimeUnit",
   "sampleAvailable",
+  "bundleWeight",
+  "tieWire",
+  "straightBarTiePoints",
+  "coilTiePoints",
 ] as const;
+
+const SPECIFICATION_LABELS: Record<string, string> = {
+  diameterRange: "Bar diameter",
+  lengthRange: "Bar length",
+  bundleWeight: "Bundle weight",
+  standardsAndQualities: "Standards and grades",
+  useCases: "Suitable applications",
+  testing: "Quality control",
+  marking: "Product marking",
+  labeling: "Traceability labeling",
+};
+
+function safeDisplayValue(value: unknown): string | null {
+  if (typeof value === "string" && value.trim()) return value.trim();
+  if (typeof value === "number" && Number.isFinite(value)) return String(value);
+  if (typeof value === "boolean") return value ? "Yes" : "No";
+  if (Array.isArray(value)) {
+    const items = value.map(safeDisplayValue).filter((item): item is string => Boolean(item));
+    return items.length ? items.join(", ") : null;
+  }
+  return null;
+}
+
+export function toClientSpecifications(value: unknown): Array<{ label: string; value: string }> {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return [];
+  return Object.entries(value).flatMap(([key, raw]) => {
+    const label = SPECIFICATION_LABELS[key];
+    if (!label) return [];
+    const display = safeDisplayValue(raw);
+    return display ? [{ label, value: display }] : [];
+  });
+}
 
 export function toClientPackaging(value: unknown): Record<string, string | number | boolean> {
   if (typeof value !== "object" || value === null || Array.isArray(value)) return {};
@@ -75,6 +111,7 @@ export function toClientCatalogProduct(input: {
     mainImageUrl: string | null;
     additionalImageUrls: unknown;
     packaging: unknown;
+    attributes?: unknown;
     price?: ClientCatalogPriceDto;
   }>;
 }): ClientCatalogProductDto {
@@ -97,6 +134,7 @@ export function toClientCatalogProduct(input: {
             .filter((item): item is string => item !== null)
         : [],
       packaging: toClientPackaging(variant.packaging),
+      specifications: toClientSpecifications(variant.attributes),
       ...(variant.price ? { price: variant.price } : {}),
     })),
   };

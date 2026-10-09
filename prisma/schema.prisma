@@ -847,6 +847,8 @@ model ProductExtractionSource {
   kind        ProductExtractionSourceKind
   url         String
   title       String?
+  excerpt     String?                 @db.Text
+  reference   String?
   retrievedAt DateTime                    @map("retrieved_at")
   checksum    String?
   createdAt   DateTime                    @default(now()) @map("created_at")
@@ -890,6 +892,7 @@ model ProductExtractionAsset {
   checksum        String?
   mimeType        String?                       @map("mime_type")
   rightsStatus    ProductExtractionRightsStatus @default(UNKNOWN) @map("rights_status")
+  usageRightsNote String?                       @map("usage_rights_note") @db.Text
   createdAt       DateTime                      @default(now()) @map("created_at")
 
   review ProductExtractionReview  @relation(fields: [reviewId], references: [id], onDelete: Restrict)

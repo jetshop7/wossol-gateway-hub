@@ -31,6 +31,17 @@ export async function createProductExtractionReview(input: {
   }
 
   return prisma.$transaction(async (tx) => {
+    if (input.productId) {
+      const openReview = await tx.productExtractionReview.findFirst({
+        where: {
+          productId: input.productId,
+          state: { in: ["UNDER_REVIEW", "REQUIRES_CORRECTION"] },
+        },
+        select: { id: true },
+      });
+      if (openReview)
+        throw new ProductExtractionReviewError("This product already has an open extraction review.");
+    }
     const review = await tx.productExtractionReview.create({
       data: {
         companyId: input.companyId,
@@ -67,7 +78,7 @@ export async function getProductExtractionReview(reviewId: string) {
       company: { select: { id: true, displayName: true } },
       product: { select: { id: true, name: true, publicReference: true, publicationStatus: true } },
       sources: true,
-      evidence: true,
+      evidence: { include: { source: true } },
       assets: true,
       reviewEvents: { orderBy: { createdAt: "asc" } },
     },

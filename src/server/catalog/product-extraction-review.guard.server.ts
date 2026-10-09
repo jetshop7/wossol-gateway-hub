@@ -71,7 +71,7 @@ export async function assertProductExtractionPublishable(
   const latest = await tx.productExtractionReview.findFirst({
     where: { productId },
     orderBy: { updatedAt: "desc" },
-    select: { id: true, state: true, acceptedRevisionHash: true },
+    select: { id: true, state: true, acceptedRevisionHash: true, verificationState: true, assets: true },
   });
   if (!latest) return null;
 
@@ -80,5 +80,9 @@ export async function assertProductExtractionPublishable(
   if (latest.state !== "ACCEPTED" || latest.acceptedRevisionHash !== revisionHashForProduct(product)) {
     throw new Error("This extracted product requires a new review before publication.");
   }
+  if (latest.verificationState !== "VERIFIED")
+    throw new Error("The extracted product origin and verification record are not fully verified.");
+  if (latest.assets.some((asset) => asset.rightsStatus !== "CLEARED"))
+    throw new Error("Every client-facing extraction asset must have cleared usage rights.");
   return { reviewId: latest.id, revisionHash: latest.acceptedRevisionHash };
 }

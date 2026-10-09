@@ -15,6 +15,9 @@ test("Admin extraction review UI exposes the guarded review lifecycle", () => {
   assert.match(route, /publishProductExtractionReviewFn/);
   assert.match(route, /Append-only history/);
   assert.match(route, /Accepted, not published/);
+  assert.match(route, /JSON\.stringify/);
+  assert.match(route, /usageRightsNote/);
+  assert.match(route, /source\.excerpt/);
   assert.match(api, /catalog\.publish/);
   assert.match(admin, /\/admin\/catalog\/extraction-reviews/);
 });
