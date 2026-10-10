@@ -58,6 +58,7 @@ test("client product projection allowlists public fields", () => {
         mainImageUrl: null,
         additionalImageUrls: [],
         packaging: {},
+        specifications: [],
       },
     ],
   });

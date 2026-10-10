@@ -7,9 +7,12 @@ import {
   createProductExtractionReviewFn,
   getAdminProductsDirectoryFn,
   getProductExtractionReviewFn,
+  listProductCategoryAttributeCategoriesFn,
+  listProductCategoryAttributeDefinitionsFn,
   listProductExtractionReviewsFn,
   publishProductExtractionReviewFn,
   requestProductExtractionCorrectionFn,
+  upsertReviewCategoryAttributeFn,
 } from "@/lib/api/catalog-admin.functions";
 import { readCsrfToken } from "@/lib/admin-csrf";
 
@@ -26,6 +29,7 @@ export const Route = createFileRoute("/admin/catalog/extraction-reviews")({
 
 type ReviewSummary = Awaited<ReturnType<typeof listProductExtractionReviewsFn>>["reviews"][number];
 type ReviewDetail = NonNullable<Awaited<ReturnType<typeof getProductExtractionReviewFn>>["review"]>;
+type CategoryDefinition = Awaited<ReturnType<typeof listProductCategoryAttributeDefinitionsFn>>["definitions"][number];
 
 function label(value: string) {
   return value.replaceAll("_", " ").toLowerCase().replace(/(^| )\w/g, (letter) => letter.toUpperCase());
@@ -153,6 +157,7 @@ function ReviewPanel({ detail, canPublish, busy, correction, decisionNote, setCo
   return <section className="space-y-6 rounded-xl border bg-white p-5 shadow-sm sm:p-6"><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">Review detail</p><h2 className="mt-1 text-2xl font-semibold">{detail.product?.name ?? "Unlinked product"}</h2><p className="mt-1 text-sm text-slate-600">{detail.companyId} · extracted {new Date(detail.extractedAt).toLocaleDateString()}</p></div><div className="flex items-center gap-2">{badge(detail.state)}{detail.productId && <button type="button" onClick={() => onOpenProduct(detail.productId!)} className="inline-flex items-center gap-1 text-sm font-semibold text-blue-800 underline">Open product <ArrowRight className="h-4 w-4" /></button>}</div></div>
     <div className="grid gap-3 rounded-lg bg-slate-50 p-4 sm:grid-cols-3"><Info label="Verification" value={label(detail.verificationState)} /><Info label="Revision" value={detail.currentRevisionHash.slice(0, 12) + "…"} /><Info label="Publication" value={detail.product?.publicationStatus ? label(detail.product.publicationStatus) : "Not linked"} /></div>
     <Evidence title="Sources" items={detail.sources.map((source) => `${label(source.kind)} · ${source.title ?? source.url}${source.retrievedAt ? ` · retrieved ${new Date(source.retrievedAt).toLocaleDateString()}` : ""}${source.checksum ? ` · checksum ${source.checksum}` : ""}${source.excerpt ? `\nExcerpt: ${source.excerpt}` : ""}${source.reference ? `\nReference: ${source.reference}` : ""}`)} /><Evidence title="Evidence" items={detail.evidence.map((item) => `${fieldLabel(item.fieldPath)} · ${label(item.confidence)}${item.note ? ` · ${item.note}` : ""}\n${formatExtractedValue(item.extractedValue)}${item.source ? `\nSource: ${item.source.title ?? item.source.url}` : ""}`)} /><Evidence title="Assets" items={detail.assets.map((asset) => `${label(asset.kind)} · ${asset.originalUrl} · rights ${label(asset.rightsStatus)}${asset.storedReference ? ` · stored ${asset.storedReference}` : ""}${asset.checksum ? ` · checksum ${asset.checksum}` : ""}${asset.usageRightsNote ? `\nUsage-rights note: ${asset.usageRightsNote}` : ""}`)} />
+    <CategoryAttributeEditor detail={detail} busy={busy} />
     <div><h3 className="font-semibold">Operator actions</h3><p className="mt-1 text-sm text-slate-500">Acceptance records the exact product revision. Any material product edit invalidates that approval.</p><div className="mt-3 grid gap-3 md:grid-cols-2"><div className="rounded-lg border p-3"><label className="block text-sm font-medium">Correction note<textarea value={correction} onChange={(event) => setCorrection(event.target.value)} className="mt-2 min-h-24 w-full rounded border p-2" placeholder="Describe what must be corrected" /></label><button type="button" disabled={busy || !correction.trim() || detail.state === "PUBLISHED"} onClick={onCorrection} className="mt-3 rounded-md border px-3 py-2 text-sm font-semibold disabled:opacity-50">Request correction</button></div><div className="rounded-lg border p-3"><label className="block text-sm font-medium">Acceptance note<textarea value={decisionNote} onChange={(event) => setDecisionNote(event.target.value)} className="mt-2 min-h-24 w-full rounded border p-2" placeholder="Optional decision note" /></label><button type="button" disabled={busy || !detail.productId || detail.state === "PUBLISHED" || detail.state === "ACCEPTED"} onClick={onAccept} className="mt-3 rounded-md bg-[#102c50] px-3 py-2 text-sm font-semibold text-white disabled:opacity-50">Accept internally</button></div></div>{detail.state === "ACCEPTED" && <div className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 p-3"><div className="flex items-start gap-2"><ShieldCheck className="mt-0.5 h-4 w-4 text-emerald-700" /><div><p className="font-semibold text-emerald-900">Accepted, not published</p><p className="mt-1 text-sm text-emerald-800">Only a Catalog Admin may publish this exact reviewed revision.</p>{canPublish ? <button type="button" disabled={busy} onClick={onPublish} className="mt-3 rounded-md bg-emerald-700 px-3 py-2 text-sm font-semibold text-white disabled:opacity-50">Publish explicitly</button> : <p className="mt-2 text-xs text-emerald-800">Your role cannot publish catalog products.</p>}</div></div></div>}</div>
     <div><h3 className="font-semibold">Append-only history</h3><ol className="mt-3 space-y-2 border-l pl-4">{detail.reviewEvents.map((event) => <li key={event.id} className="text-sm"><div className="flex flex-wrap items-center gap-2">{badge(event.toState)}<span className="text-slate-500">{event.action}</span></div><p className="mt-1 text-xs text-slate-500">{new Date(event.createdAt).toLocaleString()}{event.decisionNote ? ` · ${event.decisionNote}` : ""}</p></li>)}</ol></div>
   </section>;
@@ -160,3 +165,73 @@ function ReviewPanel({ detail, canPublish, busy, correction, decisionNote, setCo
 
 function Evidence({ title, items }: { title: string; items: string[] }) { return <div><h3 className="font-semibold">{title}</h3>{items.length ? <ul className="mt-2 space-y-2 text-sm text-slate-700">{items.map((item, index) => <li key={`${item}-${index}`} className="whitespace-pre-wrap break-words rounded bg-slate-50 p-2 font-mono text-xs">{item}</li>)}</ul> : <p className="mt-2 text-sm text-slate-500">No {title.toLowerCase()} recorded.</p>}</div>; }
 function Info({ label: title, value }: { label: string; value: string }) { return <div><span className="block text-xs uppercase tracking-wide text-slate-500">{title}</span><span className="mt-1 block text-sm font-semibold text-slate-900">{value}</span></div>; }
+
+function CategoryAttributeEditor({ detail, busy }: { detail: ReviewDetail; busy: boolean }) {
+  const [categories, setCategories] = useState<string[]>([]);
+  const [definitions, setDefinitions] = useState<CategoryDefinition[]>([]);
+  const [categoryKey, setCategoryKey] = useState("");
+  const [definitionId, setDefinitionId] = useState("");
+  const [targetKey, setTargetKey] = useState(detail.productId ?? "");
+  const [value, setValue] = useState("");
+  const [unit, setUnit] = useState("");
+  const [evidenceId, setEvidenceId] = useState("");
+  const [confidence, setConfidence] = useState("PROPOSED");
+  const [message, setMessage] = useState("");
+
+  const loadCategories = async () => {
+    const result = await listProductCategoryAttributeCategoriesFn({ data: {} });
+    if (result.ok) setCategories(result.categories);
+    else setMessage(result.error ?? "The attribute registry is not available.");
+  };
+  const loadDefinitions = async (nextCategory: string) => {
+    setCategoryKey(nextCategory);
+    setDefinitionId("");
+    const result = await listProductCategoryAttributeDefinitionsFn({ data: { categoryKey: nextCategory } });
+    if (result.ok) setDefinitions(result.definitions as CategoryDefinition[]);
+    else setMessage(result.error ?? "The attribute definitions could not be loaded.");
+  };
+  const selected = definitions.find((definition) => definition.id === definitionId);
+  const save = async () => {
+    if (!selected || !targetKey || !value.trim()) return;
+    setMessage("");
+    const parsedValue = selected.valueType === "RANGE"
+      ? (() => {
+          const match = value.match(/^\s*(-?\d+(?:[.,]\d+)?)\s*(?:-|–|—|to)\s*(-?\d+(?:[.,]\d+)?)\s*$/i);
+          return match ? { min: Number(match[1]!.replace(",", ".")), max: Number(match[2]!.replace(",", ".")) } : value;
+        })()
+      : selected.valueType === "INTEGER" || selected.valueType === "DECIMAL" || selected.valueType === "MONEY"
+        ? Number(value)
+        : value;
+    const result = await upsertReviewCategoryAttributeFn({
+      data: {
+        reviewId: detail.id,
+        definitionId,
+        targetKey,
+        value: parsedValue,
+        unit: unit || null,
+        evidenceId: evidenceId || null,
+        confidence: confidence as "CONFIRMED" | "CORROBORATED" | "PROPOSED" | "UNKNOWN",
+      },
+      headers: { "x-wossol-csrf": readCsrfToken() ?? "" },
+    });
+    setMessage(result.ok ? "Typed attribute saved; the review revision was updated." : result.error ?? "The attribute could not be saved.");
+  };
+
+  return <div className="rounded-lg border border-blue-200 bg-blue-50/40 p-4">
+    <div className="flex flex-wrap items-start justify-between gap-3">
+      <div><h3 className="font-semibold text-slate-900">Typed category attributes</h3><p className="mt-1 text-sm text-slate-600">Values are review-scoped, version-linked and remain internal until the existing acceptance/publication gates pass.</p></div>
+      <button type="button" disabled={busy} onClick={() => void loadCategories()} className="rounded-md border bg-white px-3 py-2 text-sm font-semibold">Load definitions</button>
+    </div>
+    {categories.length > 0 && <div className="mt-4 grid gap-3 md:grid-cols-2">
+      <label className="text-sm font-medium">Category key<select value={categoryKey} onChange={(event) => void loadDefinitions(event.target.value)} className="mt-1 block h-10 w-full rounded border bg-white px-2"><option value="">Choose category</option>{categories.map((item) => <option key={item} value={item}>{item}</option>)}</select></label>
+      <label className="text-sm font-medium">Attribute<select value={definitionId} onChange={(event) => setDefinitionId(event.target.value)} className="mt-1 block h-10 w-full rounded border bg-white px-2"><option value="">Choose attribute</option>{definitions.map((item) => <option key={item.id} value={item.id}>{item.label} · v{item.version}</option>)}</select></label>
+      {selected?.appliesTo === "VARIANT" && <label className="text-sm font-medium">Variant<select value={targetKey} onChange={(event) => setTargetKey(event.target.value)} className="mt-1 block h-10 w-full rounded border bg-white px-2">{detail.product?.variants.map((variant) => <option key={variant.id} value={variant.id}>{variant.sku}{variant.name ? " · " + variant.name : ""}</option>)}</select></label>}
+      <label className="text-sm font-medium">Value<input value={value} onChange={(event) => setValue(event.target.value)} className="mt-1 block h-10 w-full rounded border bg-white px-2" placeholder={selected?.valueType === "RANGE" ? "8–32" : "Source-backed value"} /></label>
+      <label className="text-sm font-medium">Unit<input value={unit} onChange={(event) => setUnit(event.target.value)} className="mt-1 block h-10 w-full rounded border bg-white px-2" placeholder={selected?.unit ?? "Optional / allowed unit"} /></label>
+      <label className="text-sm font-medium">Evidence<select value={evidenceId} onChange={(event) => setEvidenceId(event.target.value)} className="mt-1 block h-10 w-full rounded border bg-white px-2"><option value="">Choose evidence</option>{detail.evidence.map((item) => <option key={item.id} value={item.id}>{item.fieldPath} · {item.confidence}</option>)}</select></label>
+      <label className="text-sm font-medium">Confidence<select value={confidence} onChange={(event) => setConfidence(event.target.value)} className="mt-1 block h-10 w-full rounded border bg-white px-2">{["CONFIRMED", "CORROBORATED", "PROPOSED", "UNKNOWN"].map((item) => <option key={item} value={item}>{label(item)}</option>)}</select></label>
+      <div className="md:col-span-2"><button type="button" disabled={busy || !selected || !value.trim() || detail.state === "PUBLISHED"} onClick={() => void save()} className="rounded-md bg-[#102c50] px-3 py-2 text-sm font-semibold text-white disabled:opacity-50">Save typed value</button>{message && <span className="ml-3 text-sm text-slate-600">{message}</span>}</div>
+    </div>}
+    {detail.categoryAttributeValues.length > 0 && <div className="mt-4 space-y-2"><h4 className="text-sm font-semibold">Saved review values</h4>{detail.categoryAttributeValues.map((item) => <div key={item.id} className="rounded bg-white p-2 text-sm"><span className="font-semibold">{item.definition.label}</span><span className="ml-2">{item.displayValue ?? formatExtractedValue(item.value)}</span>{item.unit ? " " + item.unit : ""}<span className="ml-2 text-xs text-slate-500">{item.confidence} · {item.variant?.sku ?? "Product"}</span></div>)}</div>}
+  </div>;
+}

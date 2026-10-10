@@ -13,7 +13,7 @@ import {
 } from "./product-extraction-review.server.ts";
 import {
   getProductRevision,
-  revisionHashForProduct,
+  revisionHashForReview,
 } from "./product-extraction-review.guard.server.ts";
 
 test(
@@ -96,7 +96,7 @@ test(
 
       const initialProduct = await getProductRevision(prisma, productId);
       assert.ok(initialProduct);
-      const initialHash = revisionHashForProduct(initialProduct);
+      const initialHash = await revisionHashForReview(prisma, reviewId, productId);
       await acceptProductExtractionReview(reviewId, actorId, initialHash, "Evidence checked.");
       assert.equal((await prisma.productExtractionReview.findUniqueOrThrow({ where: { id: reviewId } })).state, "ACCEPTED");
       assert.equal((await prisma.product.findUniqueOrThrow({ where: { id: productId } })).publicationStatus, "DRAFT");
@@ -126,7 +126,7 @@ test(
 
       const currentProduct = await getProductRevision(prisma, productId);
       assert.ok(currentProduct);
-      const currentHash = revisionHashForProduct(currentProduct);
+      const currentHash = await revisionHashForReview(prisma, reviewId, productId);
       await acceptProductExtractionReview(reviewId, actorId, currentHash);
       await assert.rejects(() => publishProductExtractionReview(reviewId!, actorId!), /cleared usage rights/);
       await prisma.productExtractionAsset.updateMany({ where: { reviewId }, data: { rightsStatus: "CLEARED" } });

@@ -42,6 +42,45 @@ enum ProductExtractionEvidenceConfidence {
   UNKNOWN
 }
 
+enum ProductAttributeValueType {
+  TEXT
+  INTEGER
+  DECIMAL
+  BOOLEAN
+  RANGE
+  ENUM
+  MONEY
+  DATE
+  STRUCTURED_LIST
+}
+
+enum ProductAttributeTarget {
+  PRODUCT
+  VARIANT
+}
+
+enum ProductAttributeRequiredness {
+  REQUIRED
+  OPTIONAL
+  CONDITIONAL
+}
+
+enum ProductAttributeClientPolicy {
+  VISIBLE
+  INTERNAL_ONLY
+  VISIBLE_AFTER_REVIEW
+}
+
+enum ProductAttributeEvidencePolicy {
+  OPTIONAL
+  REQUIRED
+}
+
+enum ProductAttributeDefinitionStatus {
+  ACTIVE
+  RETIRED
+}
+
 enum ProductExtractionSourceKind {
   COMPANY
   PRODUCT
@@ -769,6 +808,7 @@ model Product {
   clientFavorites       ClientCatalogFavorite[]
   extractionReviews     ProductExtractionReview[]
   extractionSources     ProductExtractionSource[]
+  categoryAttributeValues ProductCategoryAttributeValue[]
   partnerResaleProductOverrides PartnerResaleProductOverride[]
 
   @@index([companyId, publicationStatus])
@@ -803,6 +843,7 @@ model Variant {
   priceHistory     VariantPriceHistory[]
   profileOverrides VariantPriceOverride[]
   partnerResaleVariantOverrides PartnerResaleVariantOverride[]
+  categoryAttributeValues ProductCategoryAttributeValue[]
 
   @@index([productId, status, publicationStatus])
   @@map("catalog_variants")
@@ -833,6 +874,7 @@ model ProductExtractionReview {
   evidence     ProductExtractionEvidence[]
   assets       ProductExtractionAsset[]
   reviewEvents ProductExtractionReviewEvent[]
+  categoryAttributeValues ProductCategoryAttributeValue[]
 
   @@index([companyId, state, updatedAt])
   @@index([productId, state])
@@ -876,10 +918,75 @@ model ProductExtractionEvidence {
 
   review ProductExtractionReview  @relation(fields: [reviewId], references: [id], onDelete: Restrict)
   source ProductExtractionSource? @relation(fields: [sourceId], references: [id], onDelete: Restrict)
+  categoryAttributeValues ProductCategoryAttributeValue[]
 
   @@index([reviewId, fieldPath])
   @@index([sourceId])
   @@map("product_extraction_evidence")
+}
+
+/// Immutable, versioned definitions for typed category attributes.
+model ProductCategoryAttributeDefinition {
+  id              String                           @id @default(uuid()) @db.Uuid
+  categoryKey     String                           @map("category_key")
+  taxonomyNodeId  String?                          @map("taxonomy_node_id") @db.Uuid
+  version         Int
+  key             String
+  label           String
+  translations    Json?
+  appliesTo       ProductAttributeTarget           @map("applies_to")
+  valueType       ProductAttributeValueType        @map("value_type")
+  unit            String?
+  allowedUnits    Json?                            @map("allowed_units")
+  allowedValues   Json?                            @map("allowed_values")
+  requiredness    ProductAttributeRequiredness
+  evidencePolicy  ProductAttributeEvidencePolicy   @map("evidence_policy")
+  clientPolicy    ProductAttributeClientPolicy     @map("client_policy")
+  displayGroup    String?                          @map("display_group")
+  displayOrder    Int                              @default(0) @map("display_order")
+  status          ProductAttributeDefinitionStatus @default(ACTIVE)
+  createdAt       DateTime                         @default(now()) @map("created_at")
+  updatedAt       DateTime                         @updatedAt @map("updated_at")
+
+  taxonomyNode CatalogTaxonomyNode? @relation(fields: [taxonomyNodeId], references: [id], onDelete: Restrict)
+  values      ProductCategoryAttributeValue[]
+
+  @@unique([categoryKey, version, key])
+  @@index([categoryKey, status, version])
+  @@index([taxonomyNodeId, status])
+  @@map("product_category_attribute_definitions")
+}
+
+/// Typed values captured for one extraction review revision. Values remain
+/// behind the existing ACCEPTED/PUBLISHED and client DTO boundaries.
+model ProductCategoryAttributeValue {
+  id             String                         @id @default(uuid()) @db.Uuid
+  reviewId       String                         @map("review_id") @db.Uuid
+  productId      String                         @map("product_id") @db.Uuid
+  variantId      String?                        @map("variant_id") @db.Uuid
+  definitionId   String                         @map("definition_id") @db.Uuid
+  targetKey      String                         @map("target_key")
+  revisionHash   String                         @map("revision_hash")
+  value          Json
+  displayValue   String?                        @map("display_value")
+  unit           String?
+  confidence     ProductExtractionEvidenceConfidence
+  evidenceId     String?                        @map("evidence_id") @db.Uuid
+  createdAt      DateTime                       @default(now()) @map("created_at")
+  updatedAt      DateTime                       @updatedAt @map("updated_at")
+
+  review     ProductExtractionReview             @relation(fields: [reviewId], references: [id], onDelete: Restrict)
+  product    Product                              @relation(fields: [productId], references: [id], onDelete: Restrict)
+  variant    Variant?                             @relation(fields: [variantId], references: [id], onDelete: Restrict)
+  definition ProductCategoryAttributeDefinition  @relation(fields: [definitionId], references: [id], onDelete: Restrict)
+  evidence   ProductExtractionEvidence?           @relation(fields: [evidenceId], references: [id], onDelete: Restrict)
+
+  @@unique([reviewId, definitionId, targetKey])
+  @@index([reviewId, targetKey])
+  @@index([productId, definitionId])
+  @@index([variantId, definitionId])
+  @@index([evidenceId])
+  @@map("product_category_attribute_values")
 }
 
 model ProductExtractionAsset {
@@ -946,6 +1053,7 @@ model CatalogTaxonomyNode {
   translations          CatalogTaxonomyTranslation[]
   products              Product[]
   clientVisibilityRules ClientCatalogVisibilityRule[]
+  categoryAttributeDefinitions ProductCategoryAttributeDefinition[]
 
   @@unique([source, sourceCode, sourceVersion])
   @@index([parentId])

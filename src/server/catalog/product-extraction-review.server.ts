@@ -3,6 +3,7 @@ import {
   assertProductExtractionPublishable,
   getProductRevision,
   productExtractionRevisionSelect,
+  revisionHashForReview,
   revisionHashForProduct,
 } from "./product-extraction-review.guard.server.ts";
 import { transitionAdminProductPublication } from "./catalog.admin.repository.server.ts";
@@ -76,10 +77,26 @@ export async function getProductExtractionReview(reviewId: string) {
     where: { id: reviewId },
     include: {
       company: { select: { id: true, displayName: true } },
-      product: { select: { id: true, name: true, publicReference: true, publicationStatus: true } },
+      product: {
+        select: {
+          id: true,
+          name: true,
+          publicReference: true,
+          publicationStatus: true,
+          variants: { select: { id: true, sku: true, name: true }, orderBy: { id: "asc" } },
+        },
+      },
       sources: true,
       evidence: { include: { source: true } },
       assets: true,
+      categoryAttributeValues: {
+        include: {
+          definition: true,
+          variant: { select: { id: true, sku: true, name: true } },
+          evidence: { select: { id: true, fieldPath: true, confidence: true, note: true } },
+        },
+        orderBy: [{ targetKey: "asc" }],
+      },
       reviewEvents: { orderBy: { createdAt: "asc" } },
     },
   });
@@ -143,7 +160,7 @@ export async function acceptProductExtractionReview(
     throw new ProductExtractionReviewError("Only an open extraction review can be accepted.");
   const product = await getProductRevision(prisma, review.productId);
   if (!product) throw new ProductExtractionReviewError("The reviewed product was not found.");
-  const currentRevisionHash = revisionHashForProduct(product);
+  const currentRevisionHash = await revisionHashForReview(prisma, reviewId, review.productId);
   if (currentRevisionHash !== expectedRevisionHash)
     throw new ProductExtractionReviewError("The product changed; refresh the review before accepting it.");
 
@@ -180,7 +197,7 @@ export async function publishProductExtractionReview(reviewId: string, actorId: 
     throw new ProductExtractionReviewError("Only an accepted extraction review can be published.");
   const product = await getProductRevision(prisma, review.productId);
   if (!product) throw new ProductExtractionReviewError("The reviewed product was not found.");
-  if (review.acceptedRevisionHash !== revisionHashForProduct(product))
+  if (review.acceptedRevisionHash !== await revisionHashForReview(prisma, reviewId, review.productId))
     throw new ProductExtractionReviewError("The product changed; a new review is required before publication.");
 
   await transitionAdminProductPublication(review.productId, "PUBLISHED", actorId);

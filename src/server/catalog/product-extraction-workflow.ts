@@ -1,5 +1,20 @@
 import { createHash } from "node:crypto";
 
+export {
+  getCategoryAttributeDefinitions,
+  mapExtractedFieldsToCatalog,
+  proposeTaxonomyClassification,
+  validateTypedCategoryAttributes,
+} from "./product-data-dictionary.ts";
+export type {
+  CategoryAttributeDefinition,
+  ExtractedProductField,
+  TaxonomyClassificationCandidate,
+  TaxonomyClassificationEvidence,
+  TypedCategoryAttribute,
+  TypedCategoryAttributeInput,
+} from "./product-data-dictionary.ts";
+
 export type ExtractionReviewState =
   | "UNDER_REVIEW"
   | "REQUIRES_CORRECTION"
@@ -70,4 +85,29 @@ export function productExtractionRevisionHash(input: {
       .sort((left, right) => JSON.stringify(left).localeCompare(JSON.stringify(right))),
   };
   return createHash("sha256").update(JSON.stringify(stableValue(revision))).digest("hex");
+}
+
+export function productExtractionReviewRevisionHash(
+  productRevisionHash: string,
+  attributes: Array<{
+    definitionId: string;
+    targetKey: string;
+    revisionHash: string;
+    value: unknown;
+    displayValue: string | null;
+    unit: string | null;
+    confidence: string;
+    evidenceId: string | null;
+  }>,
+): string {
+  return createHash("sha256")
+    .update(JSON.stringify(stableValue({
+      productRevisionHash,
+      attributes: attributes
+        // revisionHash stores the resulting review hash; including it here
+        // would make the hash self-referential and change on every read.
+        .map(({ revisionHash: _revisionHash, ...attribute }) => stableValue(attribute))
+        .sort((left, right) => JSON.stringify(left).localeCompare(JSON.stringify(right))),
+    })))
+    .digest("hex");
 }

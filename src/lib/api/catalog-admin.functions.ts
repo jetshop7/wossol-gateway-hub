@@ -28,6 +28,8 @@ function safeFailure(error: unknown) {
     return { ok: false as const, error: error.message };
   if (error instanceof Error && error.name === "ProductExtractionReviewError")
     return { ok: false as const, error: error.message };
+  if (error instanceof Error && error.name === "ProductCategoryAttributeError")
+    return { ok: false as const, error: error.message };
   if (error instanceof z.ZodError)
     return { ok: false as const, error: "Please check the highlighted fields." };
   if (typeof error === "object" && error !== null && "code" in error && error.code === "P2002")
@@ -137,6 +139,53 @@ export const listProductExtractionReviewsFn = createServerFn({ method: "GET" })
     const { listProductExtractionReviews } =
       await import("../../server/catalog/product-extraction-review.server.ts");
     return { ok: true as const, reviews: await listProductExtractionReviews(data.state) };
+  });
+
+export const listProductCategoryAttributeDefinitionsFn = createServerFn({ method: "GET" })
+  .inputValidator(z.object({ categoryKey: z.string().trim().min(1).max(120) }))
+  .handler(async ({ data }) => {
+    await guard("catalog.read_internal");
+    const { listProductCategoryAttributeDefinitions } =
+      await import("../../server/catalog/product-category-attributes.server.ts");
+    return {
+      ok: true as const,
+      definitions: await listProductCategoryAttributeDefinitions(data.categoryKey),
+    };
+  });
+
+export const listProductCategoryAttributeCategoriesFn = createServerFn({ method: "GET" })
+  .handler(async () => {
+    await guard("catalog.read_internal");
+    const { listProductCategoryAttributeCategories } =
+      await import("../../server/catalog/product-category-attributes.server.ts");
+    return { ok: true as const, categories: await listProductCategoryAttributeCategories() };
+  });
+
+export const upsertReviewCategoryAttributeFn = createServerFn({ method: "POST" })
+  .inputValidator(
+    z.object({
+      reviewId: idSchema,
+      definitionId: idSchema,
+      targetKey: idSchema,
+      value: z.unknown(),
+      unit: z.string().trim().max(40).nullable().optional(),
+      displayValue: z.string().trim().max(400).nullable().optional(),
+      confidence: z.enum(["CONFIRMED", "CORROBORATED", "PROPOSED", "UNKNOWN"]).optional(),
+      evidenceId: idSchema.nullable().optional(),
+    }),
+  )
+  .handler(async ({ data }) => {
+    try {
+      const actor = await guard("catalog.product.manage");
+      const { upsertReviewCategoryAttribute } =
+        await import("../../server/catalog/product-category-attributes.server.ts");
+      return {
+        ok: true as const,
+        result: await upsertReviewCategoryAttribute({ ...data, actorId: actor.userId }),
+      };
+    } catch (error) {
+      return safeFailure(error);
+    }
   });
 
 export const requestProductExtractionCorrectionFn = createServerFn({ method: "POST" })
